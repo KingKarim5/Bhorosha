@@ -5,6 +5,7 @@ import { useI18n } from '../lib/i18n';
 import { useAuth } from '../lib/auth';
 import { useTheme } from '../lib/hooks';
 import { SyntheticRibbon } from './ui';
+import { DemoBadge, Footer } from './Chrome';
 import { api } from '../lib/api';
 import {
   IconHome, IconFolder, IconPlus, IconPulse, IconShadow, IconGauge, IconScale, IconSliders, IconHand, IconLayers, IconFlow, IconInfo, IconSun, IconMoon, IconLogout,
@@ -85,7 +86,7 @@ export function Shell({ children }: { children: ReactNode }) {
     <div className="grain min-h-screen">
       <SyntheticRibbon />
       <div className="relative flex">
-        <nav className={`no-print fixed inset-y-0 left-0 z-50 md:sticky md:top-0 md:z-auto h-[100dvh] md:h-[calc(100vh-2rem)] w-64 shrink-0 border-r border-line bg-surface p-4 flex flex-col overflow-y-auto transition-transform md:translate-x-0 ${open ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}`} aria-label={t('Main', 'প্রধান')}>
+        <nav className={`no-print fixed inset-y-0 left-0 z-50 md:sticky md:top-0 md:z-auto h-[100dvh] md:h-[calc(100vh-3px)] w-64 shrink-0 border-r border-line bg-surface p-4 flex flex-col overflow-y-auto transition-transform md:translate-x-0 ${open ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}`} aria-label={t('Main', 'প্রধান')}>
           <div className="mb-6 px-2 relative">
             <button className="md:hidden absolute right-0 top-0 btn !min-h-0 !px-2 !py-1" onClick={() => setOpen(false)} aria-label={t('Close menu', 'মেনু বন্ধ করুন')}>
               ✕
@@ -108,7 +109,8 @@ export function Shell({ children }: { children: ReactNode }) {
             ))}
           </ul>
           <div className="mt-auto pt-6 text-[11.5px] text-muted leading-snug">
-            {t('Synthetic data only. Bhorsha never holds money; a licensed partner (simulated) does.', 'শুধু কৃত্রিম তথ্য। ভরসা কখনো টাকা রাখে না; লাইসেন্সপ্রাপ্ত অংশীদার (সিমুলেটেড) রাখে।')}
+            <div className="font-semibold text-ink text-[12.5px]">Team Excuse Me</div>
+            <div>Kha Merul Badda, Dhaka</div>
           </div>
         </nav>
         {open && <div className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={() => setOpen(false)} aria-hidden />}
@@ -123,6 +125,7 @@ export function Shell({ children }: { children: ReactNode }) {
                   {roleWord} · {user.display_name}
                 </span>
               )}
+              <DemoBadge />
               {aiMode && (
                 <span className="chip hidden sm:inline-flex" style={{ color: aiMode === 'live' ? 'var(--checked)' : 'var(--unsure)', borderColor: aiMode === 'live' ? 'var(--checked)' : 'var(--unsure)' }}>
                   {aiMode === 'live' ? t('AI: live', 'এআই: চালু') : 'AI: DEMO FALLBACK'}
@@ -163,9 +166,15 @@ export function PublicShell({ children }: { children: ReactNode }) {
           <NavLink to="/">
             <Wordmark />
           </NavLink>
-          <TopControls />
+          <div className="flex items-center gap-2">
+            <span className="hidden sm:inline-flex">
+              <DemoBadge />
+            </span>
+            <TopControls />
+          </div>
         </header>
         {children}
+        <Footer />
       </div>
     </div>
   );

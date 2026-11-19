@@ -1,91 +1,180 @@
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { PublicShell } from '../components/Shell';
 import { useI18n } from '../lib/i18n';
-import { useReducedMotion } from '../lib/hooks';
 import { BRAND } from '../brand';
-import { IconCheck, IconSpeech, IconPulse, IconDoc } from '../components/icons';
+import { TopControls } from '../components/Shell';
+import { TopShimmer, DemoBadge, Marquee, TiltCard, Footer, useIsDark } from '../components/Chrome';
+import { VerdictTag, CoverageRing, ProofSummary, Sparkline, ProofLabel } from '../components/ui';
+import { IconDoc, IconCheck, IconPulse } from '../components/icons';
 
-function HeroRunway() {
-  const reduce = useReducedMotion();
-  // a line that draws, dips (wobbles) and holds
-  const d = 'M0,150 C80,140 120,120 190,118 S300,150 360,138 S470,70 560,78 S700,60 800,52';
+const Hero3D = lazy(() => import('../components/Hero3D'));
+
+const fade = (d = 0) => ({ initial: { opacity: 0, y: 18 }, animate: { opacity: 1, y: 0 }, transition: { delay: d, duration: 0.7, ease: [0.22, 1, 0.36, 1] } });
+
+/** A live, floating miniature of the real viability file. */
+function FloatingFile() {
+  const { t } = useI18n();
+  const runway = [38, 39.5, 40, 41.6, 41, 42.8, 43.5, 44.1, 45.6, 45, 46.3, 47.2];
   return (
-    <svg viewBox="0 0 800 200" className="w-full h-auto" aria-hidden>
-      <defs>
-        <linearGradient id="band" x1="0" x2="1">
-          <stop offset="0" stopColor="var(--accent)" stopOpacity="0.02" />
-          <stop offset="1" stopColor="var(--accent)" stopOpacity="0.18" />
-        </linearGradient>
-      </defs>
-      <path d="M0,175 C120,160 260,165 360,160 S600,95 800,80 L800,30 C600,45 380,110 360,115 S120,120 0,128 Z" fill="url(#band)" />
-      <motion.path
-        d={d}
-        fill="none"
-        stroke="var(--accent)"
-        strokeWidth={3.2}
-        strokeLinecap="round"
-        initial={{ pathLength: reduce ? 1 : 0 } as any}
-        animate={{ pathLength: 1 } as any}
-        transition={{ duration: reduce ? 0 : 2.4, ease: 'easeInOut' }}
-      />
-      <motion.circle cx={800} cy={52} r={6} fill="var(--accent)" initial={{ opacity: reduce ? 1 : 0 }} animate={{ opacity: 1 }} transition={{ delay: reduce ? 0 : 2.3 }} />
-    </svg>
+    <motion.div
+      animate={{ y: [0, -10, 0] }}
+      transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+      className="relative"
+      style={{ transformStyle: 'preserve-3d' }}
+    >
+      <div className="sheet p-6 w-[min(420px,88vw)]" style={{ transform: 'perspective(1400px) rotateY(-16deg) rotateX(7deg) rotateZ(1deg)', boxShadow: '0 50px 90px -30px rgba(0,0,0,.65), 0 0 0 1px rgba(0,0,0,.04)' }}>
+        <div className="text-[10.5px] uppercase tracking-[0.18em]" style={{ color: 'var(--muted)' }}>
+          {t('Viability file', 'টেকসইতার ফাইল')}
+        </div>
+        <div className="font-display text-[22px] font-semibold mt-0.5">Rahima Tea &amp; Grocery</div>
+        <div className="mt-3">
+          <VerdictTag verdict="viable" low={72} high={88} showAdvice={false} />
+        </div>
+        <div className="grid grid-cols-[auto_1fr] gap-4 items-center mt-4">
+          <CoverageRing pct={40} size={78} sentence={false} />
+          <div>
+            <ProofSummary checked={7} total={12} />
+            <div className="mt-2">
+              <Sparkline values={runway} w={230} h={42} />
+            </div>
+          </div>
+        </div>
+        <div className="mt-3 space-y-1.5 text-[13px]">
+          <div className="flex justify-between gap-2"><span>{t('Supplier paid on time', 'সময়মতো সরবরাহকারীকে পরিশোধ')}</span><ProofLabel label="checked" /></div>
+          <div className="flex justify-between gap-2"><span>{t('60% of sales in cash', '৬০% বিক্রি নগদে')}</span><ProofLabel label="owner_says" /></div>
+        </div>
+      </div>
+      {/* floating chips around the sheet */}
+      <motion.div className="absolute z-10 -left-10 -top-5 hidden sm:inline-flex chip shadow-xl !py-1.5 !px-3 !bg-surface" animate={{ y: [0, 8, 0] }} transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}>
+        <IconCheck width={14} height={14} style={{ color: 'var(--checked)' }} /> {t('Bill read · officer ticked', 'বিল পড়া · অফিসার টিক দিয়েছেন')}
+      </motion.div>
+      <motion.div className="absolute z-10 -right-4 -bottom-5 hidden sm:inline-flex chip shadow-xl !py-1.5 !px-3 !bg-surface" animate={{ y: [0, -9, 0] }} transition={{ duration: 5.2, repeat: Infinity, ease: 'easeInOut', delay: 0.6 }}>
+        <IconPulse width={14} height={14} style={{ color: 'var(--unsure)' }} /> {t('Watchman: holding', 'ওয়াচম্যান: ঠিক আছে')}
+      </motion.div>
+    </motion.div>
   );
 }
 
 export default function Landing() {
   const { t } = useI18n();
-  const three = [
-    { icon: IconDoc, en: 'Reads what a shop already has', bn: 'দোকানের কাছে যা আছে তা-ই পড়ে', den: 'Mobile-money statements, bill photos and a Bangla note become one page of evidence. AI reads; an officer confirms every field.', dbn: 'মোবাইল-মানি স্টেটমেন্ট, বিলের ছবি আর একটি বাংলা নোট মিলে এক পাতার প্রমাণ। এআই পড়ে; অফিসার প্রতিটি ঘর নিশ্চিত করেন।' },
-    { icon: IconCheck, en: 'Separates proven from owner says', bn: 'প্রমাণিত আর মালিকের কথা আলাদা করে', den: 'Every claim carries a proof label. The verdict comes with a likelihood band, a likely cause, conditions and a recovery plan. The manager decides.', dbn: 'প্রতিটি দাবির পাশে প্রমাণের চিহ্ন। রায়ের সাথে সম্ভাবনার সীমা, সম্ভাব্য কারণ, শর্ত ও ঘুরে দাঁড়ানোর পরিকল্পনা। সিদ্ধান্ত ম্যানেজারের।' },
-    { icon: IconPulse, en: 'Watches the loan after it starts', bn: 'ঋণ শুরুর পরও নজর রাখে', den: "A watchman forecasts each shop's sales from its own seasons and warns when a month falls below the band, without crying wolf in a lean season.", dbn: 'প্রতিটি দোকানের নিজের মৌসুম থেকে বিক্রির পূর্বাভাস করে, কোনো মাস সীমার নিচে নামলে সতর্ক করে, অথচ মৌসুমি মন্দায় অকারণে ভয় দেখায় না।' },
+  const dark = useIsDark();
+  const [webgl, setWebgl] = useState(true);
+  useEffect(() => {
+    try {
+      setWebgl(!!document.createElement('canvas').getContext('webgl2'));
+    } catch {
+      setWebgl(false);
+    }
+  }, []);
+  const steps = [
+    { icon: IconDoc, en: 'Reads', bn: 'পড়ে', den: 'Wallet statement, bill photos, a Bangla note.', dbn: 'ওয়ালেট স্টেটমেন্ট, বিলের ছবি, বাংলা নোট।' },
+    { icon: IconCheck, en: 'Proves', bn: 'যাচাই করে', den: 'Every claim: checked, or owner says.', dbn: 'প্রতিটি দাবি: যাচাই করা, নাকি মালিকের কথা।' },
+    { icon: IconPulse, en: 'Watches', bn: 'নজর রাখে', den: 'Warns early, never cries wolf in a lean season.', dbn: 'আগেই সতর্ক করে, মৌসুমি মন্দায় অকারণে নয়।' },
   ];
   return (
-    <PublicShell>
-      <section className="px-4 md:px-10 pt-6 md:pt-14 max-w-6xl mx-auto">
-        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[13px] uppercase tracking-[0.18em] text-muted">
-          {t('Decision support for small-business lending in Bangladesh', 'বাংলাদেশে ক্ষুদ্র ব্যবসার ঋণের সিদ্ধান্ত-সহায়তা')}
-        </motion.p>
-        <h1 className="mt-3 text-[34px] md:text-[56px] leading-[1.15] font-semibold" style={{ fontFamily: 'Noto Serif Bengali, serif' }}>
-          {BRAND.taglineBn}
-        </h1>
-        <p className="font-display text-[22px] md:text-[28px] text-muted mt-2">{BRAND.taglineEn}</p>
-        <div className="mt-4 -mx-2">
-          <HeroRunway />
-        </div>
-        <p className="text-[17px] max-w-3xl">{t(BRAND.oneLineEn, BRAND.oneLineBn)}</p>
-        <div className="flex flex-wrap gap-3 mt-6">
-          <Link to="/login" className="btn btn-primary text-[16px] px-5">
-            {t('Open the demo', 'ডেমো খুলুন')}
+    <div className="min-h-screen overflow-x-hidden">
+      <TopShimmer />
+      {/* ---------- hero ---------- */}
+      <section className="relative min-h-[100svh] flex flex-col hero-bg">
+        {webgl && (
+          <Suspense fallback={null}>
+            <Hero3D dark={dark} />
+          </Suspense>
+        )}
+        <div className="absolute inset-0 pointer-events-none hero-vignette" />
+        <header className="relative z-10 flex items-center justify-between px-5 md:px-10 py-5">
+          <Link to="/" className="flex items-baseline gap-2">
+            <span className="font-display text-[24px] font-semibold tracking-tight">{BRAND.name}</span>
+            <span className="text-[19px] text-accent" style={{ fontFamily: 'Noto Serif Bengali, serif' }}>
+              {BRAND.nameBn}
+            </span>
           </Link>
-          <Link to="/about" className="btn">
-            {t('What Bhorsha is and is not', 'ভরসা কী, আর কী নয়')}
+          <div className="flex items-center gap-2">
+            <span className="hidden sm:inline-flex">
+              <DemoBadge />
+            </span>
+            <TopControls />
+          </div>
+        </header>
+        <div className="relative z-10 flex-1 flex items-center">
+          <div className="w-full max-w-6xl mx-auto px-5 md:px-10 pb-24 pt-6">
+            <motion.h1 {...fade(0.1)} className="text-[40px] sm:text-[56px] md:text-[76px] leading-[1.12] font-semibold max-w-4xl" style={{ fontFamily: 'Noto Serif Bengali, serif', textShadow: dark ? '0 2px 30px rgba(0,0,0,.55)' : 'none' }}>
+              প্রমাণ দেখে ঋণ দিন।
+              <br />
+              <span className="shimmer-text">বিপদের আগেই সজাগ থাকুন।</span>
+            </motion.h1>
+            <motion.p {...fade(0.35)} className="font-display text-[22px] md:text-[30px] text-muted mt-4">
+              {BRAND.taglineEn}
+            </motion.p>
+            <motion.div {...fade(0.55)} className="flex flex-wrap gap-3 mt-9">
+              <Link to="/login" className="btn btn-primary text-[17px] !px-7 !py-3.5 glow-btn">
+                {t('Open the demo', 'ডেমো খুলুন')} →
+              </Link>
+              <a href="#how" className="btn text-[16px] !px-6 !py-3.5 backdrop-blur" style={{ background: 'color-mix(in oklab, var(--surface) 55%, transparent)' }}>
+                {t('How it works', 'কীভাবে কাজ করে')}
+              </a>
+            </motion.div>
+          </div>
+        </div>
+        <motion.a href="#how" initial={{ opacity: 0 }} animate={{ opacity: 1, y: [0, 8, 0] }} transition={{ delay: 1.6, duration: 2.2, repeat: Infinity }} className="relative z-10 mx-auto mb-6 text-muted text-[13px] tracking-[0.2em] uppercase" aria-label="Scroll">
+          ↓
+        </motion.a>
+      </section>
+
+      <Marquee />
+
+      {/* ---------- how it works ---------- */}
+      <section id="how" className="max-w-6xl mx-auto px-5 md:px-10 py-24 grid lg:grid-cols-[1fr_1.05fr] gap-14 items-center">
+        <div>
+          <motion.h2 initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="font-display text-[34px] md:text-[46px] font-semibold leading-tight">
+            {t('One page a manager can trust.', 'এক পাতা, যার উপর ম্যানেজার ভরসা করতে পারেন।')}
+          </motion.h2>
+          <div className="mt-8 grid gap-4">
+            {steps.map((s, i) => (
+              <motion.div key={s.en} initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.12 }}>
+                <TiltCard className="card p-5 rounded-[14px]">
+                  <div className="flex items-center gap-4">
+                    <span className="grid place-items-center h-12 w-12 rounded-xl shrink-0" style={{ background: 'color-mix(in oklab, var(--accent) 16%, transparent)', color: 'var(--accent)' }}>
+                      <s.icon width={22} height={22} />
+                    </span>
+                    <div>
+                      <div className="font-display text-[20px] font-semibold">{t(s.en, s.bn)}</div>
+                      <div className="text-muted text-[15px]">{t(s.den, s.dbn)}</div>
+                    </div>
+                  </div>
+                </TiltCard>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+        <div className="flex justify-center lg:justify-end py-6">
+          <FloatingFile />
+        </div>
+      </section>
+
+      {/* ---------- three numbers ---------- */}
+      <section className="max-w-6xl mx-auto px-5 md:px-10 pb-20">
+        <div className="grid sm:grid-cols-3 gap-4">
+          {[
+            { big: '1', en: 'page per business, in Bangla and English', bn: 'প্রতি ব্যবসায় এক পাতা, বাংলা ও ইংরেজিতে' },
+            { big: '2', en: 'labels on every claim: checked or owner says', bn: 'প্রতিটি দাবিতে দুই চিহ্ন: যাচাই করা বা মালিকের কথা' },
+            { big: '0', en: 'decisions made by AI. People decide.', bn: 'এআই-এর নেওয়া সিদ্ধান্ত। সিদ্ধান্ত মানুষের।' },
+          ].map((x, i) => (
+            <motion.div key={i} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className="card p-6 text-center">
+              <div className="font-display text-[64px] leading-none font-semibold shimmer-text">{x.big}</div>
+              <div className="text-muted mt-3 text-[15px]">{t(x.en, x.bn)}</div>
+            </motion.div>
+          ))}
+        </div>
+        <div className="text-center mt-14">
+          <Link to="/login" className="btn btn-primary text-[17px] !px-8 !py-3.5 glow-btn">
+            {t('Try it now', 'এখনই চালিয়ে দেখুন')} →
           </Link>
         </div>
       </section>
-      <section className="px-4 md:px-10 py-14 max-w-6xl mx-auto grid md:grid-cols-3 gap-5">
-        {three.map((x, i) => (
-          <motion.div key={i} className="card p-5" initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08 }}>
-            <x.icon width={22} height={22} className="text-accent" />
-            <h2 className="font-display text-[19px] font-semibold mt-3">{t(x.en, x.bn)}</h2>
-            <p className="text-muted mt-2 text-[15px]">{t(x.den, x.dbn)}</p>
-          </motion.div>
-        ))}
-      </section>
-      <section className="px-4 md:px-10 pb-16 max-w-6xl mx-auto">
-        <div className="card p-5 md:p-6 border-dashed" style={{ borderStyle: 'dashed' }}>
-          <h2 className="font-display text-[19px] font-semibold flex items-center gap-2">
-            <IconSpeech className="text-owner" /> {t('An honest note on limits', 'সীমাবদ্ধতা নিয়ে সৎ কথা')}
-          </h2>
-          <ul className="mt-3 space-y-1.5 text-[15px] text-muted list-disc pl-5">
-            <li>{t('Everything here is synthetic demo data. No real borrower, lender or investor is involved.', 'এখানে সবকিছু কৃত্রিম ডেমো তথ্য। কোনো বাস্তব ঋণগ্রহীতা, ঋণদাতা বা বিনিয়োগকারী জড়িত নয়।')}</li>
-            <li>{t('The numbers have not been tested on real Bangladeshi shops. That needs a lender trial in shadow mode, which is our first step.', 'সংখ্যাগুলো বাস্তব বাংলাদেশি দোকানে পরীক্ষা হয়নি। এর জন্য শ্যাডো মোডে ঋণদাতার সাথে পরীক্ষা দরকার, সেটিই আমাদের প্রথম ধাপ।')}</li>
-            <li>{t('Bhorsha never holds, receives or pays out money. A licensed partner is the lender of record. The investor side is a simulation.', 'ভরসা কখনো টাকা রাখে, নেয় বা দেয় না। লাইসেন্সপ্রাপ্ত অংশীদারই ঋণদাতা। বিনিয়োগকারীর অংশ একটি সিমুলেশন।')}</li>
-            <li>{t('AI never decides. A bank manager does, and records why.', 'এআই কখনো সিদ্ধান্ত নেয় না। ব্যাংক ম্যানেজার নেন, এবং কারণ লিখে রাখেন।')}</li>
-          </ul>
-        </div>
-      </section>
-    </PublicShell>
+
+      <Footer />
+    </div>
   );
 }

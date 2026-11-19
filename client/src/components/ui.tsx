@@ -12,13 +12,9 @@ export const VERDICT_WORDS: Record<VerdictKey, { en: string; bn: string }> = {
 };
 const VCOLOR: Record<VerdictKey, string> = { viable: 'var(--viable)', not_sure: 'var(--unsure)', not_viable: 'var(--notviable)' };
 
+/** Kept for compatibility: the loud ribbon is now a slim animated line; the honest label lives in the header badge. */
 export function SyntheticRibbon() {
-  const { t } = useI18n();
-  return (
-    <div role="note" className="relative z-30 w-full text-center text-[12.5px] font-semibold tracking-wide py-1.5 px-3" style={{ background: 'repeating-linear-gradient(135deg, var(--accent) 0 10px, color-mix(in oklab, var(--accent) 85%, black) 10px 20px)', color: '#1b1405' }}>
-      {t('SYNTHETIC DEMO DATA. Not real borrowers, not a real lending decision.', 'কৃত্রিম ডেমো তথ্য। বাস্তব ঋণগ্রহীতা নয়, বাস্তব ঋণের সিদ্ধান্ত নয়।')}
-    </div>
-  );
+  return <div className="top-shimmer" aria-hidden />;
 }
 
 export function SimulationBanner({ extra }: { extra?: string }) {

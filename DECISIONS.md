@@ -23,3 +23,4 @@ One line per choice the brief left open.
 - **Duplicate check** keys on date, direction, amount, party and running balance: split walk-in sales are not duplicates; a copied row is.
 - **Auth:** JWT in an httpOnly cookie, also accepted as a bearer token so a cross-domain deployment can work without third-party cookies.
 - **Rules-only band:** centre from a logistic map of the rule total, base half-width 8 points, capped at 95%.
+- **Honesty label:** at the team's request the full-width striped ribbon became a slim animated gold line plus a small "Demo data" badge in every header (with a tooltip carrying the full sentence), and the landing page lost its limits box. Investor pages keep the SIMULATION banner and the printed file keeps the full synthetic-data line.

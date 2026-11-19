@@ -17,12 +17,14 @@
     "framer-motion": "^11.15.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.1"
+    "react-router-dom": "^6.28.1",
+    "three": "^0.170.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
+    "@types/three": "^0.170.0",
     "@vitejs/plugin-react": "^4.3.4",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.3",

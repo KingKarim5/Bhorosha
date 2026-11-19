@@ -290,3 +290,69 @@ html[lang='bn'] .font-display {
 .print-ribbon {
   display: none;
 }
+
+/* ---------- chrome: top shimmer line, marquee, hero ---------- */
+.top-shimmer {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  height: 3px;
+  width: 100%;
+  background: linear-gradient(90deg, transparent, var(--accent) 20%, #f6dc8f 50%, var(--accent) 80%, transparent);
+  background-size: 50% 100%;
+  background-repeat: repeat-x;
+  animation: shimmer-move 3.5s linear infinite;
+}
+@keyframes shimmer-move {
+  from { background-position: -50% 0; }
+  to { background-position: 150% 0; }
+}
+.marquee-track {
+  animation: marquee-ltr 38s linear infinite;
+}
+.marquee:hover .marquee-track {
+  animation-play-state: paused;
+}
+@keyframes marquee-ltr {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+.marquee::before,
+.marquee::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 80px;
+  z-index: 1;
+  pointer-events: none;
+}
+.marquee::before { left: 0; background: linear-gradient(90deg, #c8922c, transparent); }
+.marquee::after { right: 0; background: linear-gradient(-90deg, #d9a441, transparent); }
+.hero-bg {
+  background:
+    radial-gradient(1200px 600px at 80% 10%, color-mix(in oklab, var(--accent) 12%, transparent), transparent 60%),
+    radial-gradient(900px 500px at 10% 90%, color-mix(in oklab, var(--viable) 10%, transparent), transparent 60%),
+    var(--bg);
+}
+.hero-vignette {
+  background: linear-gradient(180deg, transparent 55%, var(--bg) 100%), radial-gradient(ellipse at 30% 40%, color-mix(in oklab, var(--bg) 55%, transparent), transparent 65%);
+}
+.shimmer-text {
+  background: linear-gradient(100deg, var(--accent) 0%, #f6dc8f 35%, var(--accent) 55%, color-mix(in oklab, var(--accent) 70%, var(--ink)) 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: text-sheen 6s ease-in-out infinite;
+}
+@keyframes text-sheen {
+  0%, 100% { background-position: 0% 0; }
+  50% { background-position: 100% 0; }
+}
+.glow-btn {
+  box-shadow: 0 10px 40px -10px color-mix(in oklab, var(--accent) 75%, transparent);
+}
+.glow-btn:hover {
+  box-shadow: 0 14px 50px -8px color-mix(in oklab, var(--accent) 90%, transparent);
+}
