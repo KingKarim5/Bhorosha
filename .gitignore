@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+ml/data/
+ml/__pycache__/
+.vite/
+coverage/

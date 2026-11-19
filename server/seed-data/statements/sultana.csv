@@ -1,0 +1,190 @@
+date,description,direction,amount_bdt,balance_after_bdt,counterparty_kind,counterparty,due_date
+2025-11-06,Order payment,in,30950,300950,customer,Buyer: Lalbagh Apparel,
+2025-11-07,Bill payment,out,9800,291150,utility,Utility: electricity,
+2025-11-09,Stock purchase,out,42510,248640,supplier,Supplier: Narayanganj Yarn,2025-11-09
+2025-11-10,Order payment,in,45010,293650,customer,Buyer: Lalbagh Apparel,
+2025-11-12,Payment,out,3900,289750,other,Mobile recharge / transport,
+2025-11-12,Send money,out,1480,288270,personal,Personal: family transfer,
+2025-11-12,Send money,out,1530,286740,personal,Personal: family transfer,
+2025-11-13,Send money,out,1510,285230,personal,Personal: family transfer,
+2025-11-17,Payment,out,3900,281330,other,Mobile recharge / transport,
+2025-11-17,Payment,out,3900,277430,other,Mobile recharge / transport,
+2025-11-17,Send money,out,1110,276320,personal,Personal: family transfer,
+2025-11-19,Stock purchase,out,48980,227340,supplier,Supplier: Ashulia Dyeing,2025-11-18
+2025-11-23,Order payment,in,57140,284480,customer,Buyer: Northern Knit Exports,
+2025-11-24,Order payment,in,41870,326350,customer,Buyer: Northern Knit Exports,
+2025-11-25,Stock purchase,out,37150,289200,supplier,Supplier: Tongi Accessories,2025-11-24
+2025-11-26,Order payment,in,69330,358530,customer,Buyer: Kumilla Fashion House,
+2025-11-28,Send money,out,1450,357080,personal,Personal: family transfer,
+2025-12-03,Payment,out,3890,353190,other,Mobile recharge / transport,
+2025-12-07,Bill payment,out,9220,343970,utility,Utility: electricity,
+2025-12-09,Stock purchase,out,55070,288900,supplier,Supplier: Narayanganj Yarn,2025-12-08
+2025-12-10,Order payment,in,33240,322140,customer,Buyer: Kumilla Fashion House,
+2025-12-11,Payment,out,3890,318250,other,Mobile recharge / transport,
+2025-12-11,Send money,out,2350,315900,personal,Personal: family transfer,
+2025-12-11,Send money,out,2080,313820,personal,Personal: family transfer,
+2025-12-13,Payment,out,3890,309930,other,Mobile recharge / transport,
+2025-12-14,Order payment,in,37910,347840,customer,Buyer: Kumilla Fashion House,
+2025-12-15,Order payment,in,74710,422550,customer,Buyer: Lalbagh Apparel,
+2025-12-17,Stock purchase,out,46560,375990,supplier,Supplier: Ashulia Dyeing,2025-12-17
+2025-12-17,Send money,out,2290,373700,personal,Personal: family transfer,
+2025-12-19,Order payment,in,64240,437940,customer,Buyer: Northern Knit Exports,
+2025-12-21,Order payment,in,57910,495850,customer,Buyer: Northern Knit Exports,
+2025-12-25,Stock purchase,out,26840,469010,supplier,Supplier: Tongi Accessories,2025-12-24
+2026-01-02,Send money,out,1180,467830,personal,Personal: family transfer,
+2026-01-03,Send money,out,1170,466660,personal,Personal: family transfer,
+2026-01-04,Order payment,in,77330,543990,customer,Buyer: Lalbagh Apparel,
+2026-01-07,Bill payment,out,9120,534870,utility,Utility: electricity,
+2026-01-09,Stock purchase,out,27580,507290,supplier,Supplier: Narayanganj Yarn,2026-01-09
+2026-01-14,Order payment,in,103510,610800,customer,Buyer: Northern Knit Exports,
+2026-01-16,Payment,out,3520,607280,other,Mobile recharge / transport,
+2026-01-17,Stock purchase,out,29350,577930,supplier,Supplier: Ashulia Dyeing,2026-01-17
+2026-01-18,Send money,out,1210,576720,personal,Personal: family transfer,
+2026-01-20,Order payment,in,51500,628220,customer,Buyer: Kumilla Fashion House,
+2026-01-20,Payment,out,3520,624700,other,Mobile recharge / transport,
+2026-01-20,Send money,out,1180,623520,personal,Personal: family transfer,
+2026-01-24,Payment,out,3520,620000,other,Mobile recharge / transport,
+2026-01-26,Stock purchase,out,59240,560760,supplier,Supplier: Tongi Accessories,2026-01-26
+2026-01-28,Send money,out,1420,559340,personal,Personal: family transfer,
+2026-02-04,Order payment,in,33140,592480,customer,Buyer: Kumilla Fashion House,
+2026-02-04,Order payment,in,27650,620130,customer,Buyer: Kumilla Fashion House,
+2026-02-05,Send money,out,1410,618720,personal,Personal: family transfer,
+2026-02-06,Payment,out,3870,614850,other,Mobile recharge / transport,
+2026-02-07,Bill payment,out,8420,606430,utility,Utility: electricity,
+2026-02-09,Stock purchase,out,27990,578440,supplier,Supplier: Narayanganj Yarn,2026-02-09
+2026-02-10,Send money,out,1450,576990,personal,Personal: family transfer,
+2026-02-10,Send money,out,1190,575800,personal,Personal: family transfer,
+2026-02-11,Order payment,in,58640,634440,customer,Buyer: Northern Knit Exports,
+2026-02-12,Order payment,in,39750,674190,customer,Buyer: Northern Knit Exports,
+2026-02-13,Send money,out,1330,672860,personal,Personal: family transfer,
+2026-02-15,Send money,out,1120,671740,personal,Personal: family transfer,
+2026-02-18,Stock purchase,out,53240,618500,supplier,Supplier: Ashulia Dyeing,2026-02-17
+2026-02-21,Payment,out,3870,614630,other,Mobile recharge / transport,
+2026-02-23,Payment,out,3870,610760,other,Mobile recharge / transport,
+2026-02-24,Order payment,in,45110,655870,customer,Buyer: Lalbagh Apparel,
+2026-02-26,Order payment,in,44620,700490,customer,Buyer: Lalbagh Apparel,
+2026-02-26,Stock purchase,out,46410,654080,supplier,Supplier: Tongi Accessories,2026-02-26
+2026-03-01,Send money,out,1700,652380,personal,Personal: family transfer,
+2026-03-05,Order payment,in,38760,691140,customer,Buyer: Lalbagh Apparel,
+2026-03-06,Send money,out,1130,690010,personal,Personal: family transfer,
+2026-03-07,Bill payment,out,9680,680330,utility,Utility: electricity,
+2026-03-08,Order payment,in,32760,713090,customer,Buyer: Kumilla Fashion House,
+2026-03-08,Payment,out,4150,708940,other,Mobile recharge / transport,
+2026-03-09,Stock purchase,out,42900,666040,supplier,Supplier: Narayanganj Yarn,2026-03-08
+2026-03-10,Payment,out,4150,661890,other,Mobile recharge / transport,
+2026-03-14,Order payment,in,32930,694820,customer,Buyer: Lalbagh Apparel,
+2026-03-15,Payment,out,4150,690670,other,Mobile recharge / transport,
+2026-03-18,Stock purchase,out,48270,642400,supplier,Supplier: Ashulia Dyeing,2026-03-17
+2026-03-19,Order payment,in,37580,679980,customer,Buyer: Kumilla Fashion House,
+2026-03-20,Send money,out,1140,678840,personal,Personal: family transfer,
+2026-03-21,Send money,out,1700,677140,personal,Personal: family transfer,
+2026-03-26,Order payment,in,134160,811300,customer,Buyer: Northern Knit Exports,
+2026-03-26,Stock purchase,out,45780,765520,supplier,Supplier: Tongi Accessories,2026-03-25
+2026-03-28,Send money,out,1130,764390,personal,Personal: family transfer,
+2026-04-01,Send money,out,1820,762570,personal,Personal: family transfer,
+2026-04-04,Send money,out,1860,760710,personal,Personal: family transfer,
+2026-04-05,Payment,out,4170,756540,other,Mobile recharge / transport,
+2026-04-07,Bill payment,out,8350,748190,utility,Utility: electricity,
+2026-04-07,Send money,out,2840,745350,personal,Personal: family transfer,
+2026-04-08,Order payment,in,81920,827270,customer,Buyer: Northern Knit Exports,
+2026-04-09,Stock purchase,out,47500,779770,supplier,Supplier: Narayanganj Yarn,2026-04-09
+2026-04-11,Order payment,in,34120,813890,customer,Buyer: Kumilla Fashion House,
+2026-04-17,Payment,out,4170,809720,other,Mobile recharge / transport,
+2026-04-18,Stock purchase,out,54840,754880,supplier,Supplier: Ashulia Dyeing,2026-04-17
+2026-04-19,Order payment,in,35160,790040,customer,Buyer: Kumilla Fashion House,
+2026-04-20,Order payment,in,45080,835120,customer,Buyer: Lalbagh Apparel,
+2026-04-20,Payment,out,4170,830950,other,Mobile recharge / transport,
+2026-04-21,Order payment,in,29140,860090,customer,Buyer: Lalbagh Apparel,
+2026-04-26,Stock purchase,out,35220,824870,supplier,Supplier: Tongi Accessories,2026-04-26
+2026-05-04,Send money,out,1460,823410,personal,Personal: family transfer,
+2026-05-07,Bill payment,out,9420,813990,utility,Utility: electricity,
+2026-05-07,Send money,out,1020,812970,personal,Personal: family transfer,
+2026-05-09,Stock purchase,out,44210,768760,supplier,Supplier: Narayanganj Yarn,2026-05-09
+2026-05-09,Payment,out,3930,764830,other,Mobile recharge / transport,
+2026-05-11,Order payment,in,128930,893760,customer,Buyer: Northern Knit Exports,
+2026-05-13,Send money,out,980,892780,personal,Personal: family transfer,
+2026-05-16,Send money,out,910,891870,personal,Personal: family transfer,
+2026-05-17,Stock purchase,out,51480,840390,supplier,Supplier: Ashulia Dyeing,2026-05-17
+2026-05-18,Order payment,in,45910,886300,customer,Buyer: Kumilla Fashion House,
+2026-05-18,Payment,out,3930,882370,other,Mobile recharge / transport,
+2026-05-19,Order payment,in,71110,953480,customer,Buyer: Lalbagh Apparel,
+2026-05-19,Payment,out,3930,949550,other,Mobile recharge / transport,
+2026-05-24,Send money,out,1020,948530,personal,Personal: family transfer,
+2026-05-26,Stock purchase,out,34130,914400,supplier,Supplier: Tongi Accessories,2026-05-25
+2026-06-05,Send money,out,1660,912740,personal,Personal: family transfer,
+2026-06-07,Order payment,in,46990,959730,customer,Buyer: Kumilla Fashion House,
+2026-06-07,Bill payment,out,9130,950600,utility,Utility: electricity,
+2026-06-07,Payment,out,4070,946530,other,Mobile recharge / transport,
+2026-06-09,Order payment,in,85050,1031580,customer,Buyer: Northern Knit Exports,
+2026-06-09,Payment,out,4070,1027510,other,Mobile recharge / transport,
+2026-06-10,Send money,out,1240,1026270,personal,Personal: family transfer,
+2026-06-15,Order payment,in,84370,1110640,customer,Buyer: Lalbagh Apparel,
+2026-06-15,Stock purchase,out,38850,1071790,supplier,Supplier: Narayanganj Yarn,2026-06-08
+2026-06-16,Send money,out,2020,1069770,personal,Personal: family transfer,
+2026-06-18,Stock purchase,out,55760,1014010,supplier,Supplier: Ashulia Dyeing,2026-06-18
+2026-06-20,Send money,out,1820,1012190,personal,Personal: family transfer,
+2026-06-24,Payment,out,4070,1008120,other,Mobile recharge / transport,
+2026-06-25,Stock purchase,out,39740,968380,supplier,Supplier: Tongi Accessories,2026-06-25
+2026-07-07,Bill payment,out,8360,960020,utility,Utility: electricity,
+2026-07-09,Stock purchase,out,20480,939540,supplier,Supplier: Narayanganj Yarn,2026-07-09
+2026-07-10,Payment,out,4230,935310,other,Mobile recharge / transport,
+2026-07-11,Payment,out,4230,931080,other,Mobile recharge / transport,
+2026-07-12,Order payment,in,136200,1067280,customer,Buyer: Northern Knit Exports,
+2026-07-15,Send money,out,960,1066320,personal,Personal: family transfer,
+2026-07-16,Stock purchase,out,55640,1010680,supplier,Supplier: Ashulia Dyeing,2026-07-16
+2026-07-16,Send money,out,1160,1009520,personal,Personal: family transfer,
+2026-07-18,Send money,out,950,1008570,personal,Personal: family transfer,
+2026-07-21,Send money,out,990,1007580,personal,Personal: family transfer,
+2026-07-23,Order payment,in,40280,1047860,customer,Buyer: Kumilla Fashion House,
+2026-07-24,Payment,out,4230,1043630,other,Mobile recharge / transport,
+2026-07-25,Order payment,in,60230,1103860,customer,Buyer: Lalbagh Apparel,
+2026-07-25,Stock purchase,out,63370,1040490,supplier,Supplier: Tongi Accessories,2026-07-24
+2026-07-25,Send money,out,1670,1038820,personal,Personal: family transfer,
+2026-07-27,Order payment,in,35220,1074040,customer,Buyer: Kumilla Fashion House,
+2026-08-03,Order payment,in,139690,1213730,customer,Buyer: Northern Knit Exports,
+2026-08-07,Bill payment,out,8210,1205520,utility,Utility: electricity,
+2026-08-09,Stock purchase,out,67420,1138100,supplier,Supplier: Narayanganj Yarn,2026-08-09
+2026-08-09,Send money,out,2770,1135330,personal,Personal: family transfer,
+2026-08-15,Payment,out,4220,1131110,other,Mobile recharge / transport,
+2026-08-17,Payment,out,4220,1126890,other,Mobile recharge / transport,
+2026-08-18,Order payment,in,42250,1169140,customer,Buyer: Lalbagh Apparel,
+2026-08-18,Stock purchase,out,31130,1138010,supplier,Supplier: Ashulia Dyeing,2026-08-17
+2026-08-18,Payment,out,4220,1133790,other,Mobile recharge / transport,
+2026-08-19,Order payment,in,49370,1183160,customer,Buyer: Lalbagh Apparel,
+2026-08-20,Order payment,in,57460,1240620,customer,Buyer: Kumilla Fashion House,
+2026-08-23,Send money,out,2070,1238550,personal,Personal: family transfer,
+2026-08-25,Stock purchase,out,40770,1197780,supplier,Supplier: Tongi Accessories,2026-08-25
+2026-08-26,Send money,out,1680,1196100,personal,Personal: family transfer,
+2026-09-02,Send money,out,1490,1194610,personal,Personal: family transfer,
+2026-09-06,Order payment,in,71130,1265740,customer,Buyer: Northern Knit Exports,
+2026-09-07,Bill payment,out,9100,1256640,utility,Utility: electricity,
+2026-09-08,Order payment,in,31450,1288090,customer,Buyer: Lalbagh Apparel,
+2026-09-08,Payment,out,4560,1283530,other,Mobile recharge / transport,
+2026-09-12,Order payment,in,44230,1327760,customer,Buyer: Northern Knit Exports,
+2026-09-13,Payment,out,4560,1323200,other,Mobile recharge / transport,
+2026-09-14,Stock purchase,out,51030,1272170,supplier,Supplier: Narayanganj Yarn,2026-09-09
+2026-09-16,Send money,out,1510,1270660,personal,Personal: family transfer,
+2026-09-18,Stock purchase,out,66040,1204620,supplier,Supplier: Ashulia Dyeing,2026-09-18
+2026-09-18,Payment,out,4560,1200060,other,Mobile recharge / transport,
+2026-09-18,Send money,out,1500,1198560,personal,Personal: family transfer,
+2026-09-21,Send money,out,1810,1196750,personal,Personal: family transfer,
+2026-09-22,Order payment,in,48510,1245260,customer,Buyer: Lalbagh Apparel,
+2026-09-22,Send money,out,1440,1243820,personal,Personal: family transfer,
+2026-09-23,Order payment,in,28940,1272760,customer,Buyer: Kumilla Fashion House,
+2026-09-25,Order payment,in,24460,1297220,customer,Buyer: Kumilla Fashion House,
+2026-09-25,Stock purchase,out,33450,1263770,supplier,Supplier: Tongi Accessories,2026-09-25
+2026-10-03,Payment,out,4310,1259460,other,Mobile recharge / transport,
+2026-10-06,Order payment,in,33170,1292630,customer,Buyer: Lalbagh Apparel,
+2026-10-07,Order payment,in,135670,1428300,customer,Buyer: Northern Knit Exports,
+2026-10-07,Bill payment,out,8950,1419350,utility,Utility: electricity,
+2026-10-08,Send money,out,2170,1417180,personal,Personal: family transfer,
+2026-10-09,Stock purchase,out,37550,1379630,supplier,Supplier: Narayanganj Yarn,2026-10-09
+2026-10-11,Payment,out,4310,1375320,other,Mobile recharge / transport,
+2026-10-13,Order payment,in,45460,1420780,customer,Buyer: Kumilla Fashion House,
+2026-10-18,Stock purchase,out,56330,1364450,supplier,Supplier: Ashulia Dyeing,2026-10-17
+2026-10-19,Send money,out,1900,1362550,personal,Personal: family transfer,
+2026-10-23,Order payment,in,47650,1410200,customer,Buyer: Lalbagh Apparel,
+2026-10-23,Payment,out,4310,1405890,other,Mobile recharge / transport,
+2026-10-25,Send money,out,1330,1404560,personal,Personal: family transfer,
+2026-10-26,Stock purchase,out,48330,1356230,supplier,Supplier: Tongi Accessories,2026-10-25
+2026-10-27,Send money,out,1660,1354570,personal,Personal: family transfer,
