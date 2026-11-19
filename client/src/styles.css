@@ -190,6 +190,7 @@ html[lang='bn'] .font-display {
   font-weight: 600;
 }
 .chip {
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;

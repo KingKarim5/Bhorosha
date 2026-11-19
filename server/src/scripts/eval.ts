@@ -17,6 +17,8 @@ import { loadModel } from '../lib/model';
 import { allocate } from '../services/allocator';
 import { redact } from '../lib/redact';
 import { validateText } from '../lib/validate';
+import { connectDb, disconnectDb } from '../db';
+import { Shop, Application, Finding, EvidenceItem, AuditLog } from '../models';
 
 type M = Record<string, unknown>;
 const metrics: M[] = [];
@@ -207,8 +209,6 @@ function safety() {
 async function crossDoc() {
   const G = 'Reading and cross-checking';
   try {
-    const { connectDb, disconnectDb } = await import('../db');
-    const { Shop, Application, Finding, EvidenceItem, AuditLog } = await import('../models');
     await connectDb();
     const expected: Record<string, string[]> = { karim: ['claim_vs_trend'], nasir: ['personal_as_stock'], tania: ['history_claim', 'duplicate_bill', 'balance_continuity'] };
     let found = 0;

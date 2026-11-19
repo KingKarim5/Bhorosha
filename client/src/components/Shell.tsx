@@ -84,9 +84,12 @@ export function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="grain min-h-screen">
       <SyntheticRibbon />
-      <div className="relative z-10 flex">
-        <nav className={`no-print fixed md:sticky top-0 md:top-0 z-40 h-screen w-64 shrink-0 border-r border-line bg-surface p-4 transition-transform md:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'}`} aria-label={t('Main', 'প্রধান')}>
-          <div className="mb-6 px-2">
+      <div className="relative flex">
+        <nav className={`no-print fixed inset-y-0 left-0 z-50 md:sticky md:top-0 md:z-auto h-[100dvh] md:h-[calc(100vh-2rem)] w-64 shrink-0 border-r border-line bg-surface p-4 flex flex-col overflow-y-auto transition-transform md:translate-x-0 ${open ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}`} aria-label={t('Main', 'প্রধান')}>
+          <div className="mb-6 px-2 relative">
+            <button className="md:hidden absolute right-0 top-0 btn !min-h-0 !px-2 !py-1" onClick={() => setOpen(false)} aria-label={t('Close menu', 'মেনু বন্ধ করুন')}>
+              ✕
+            </button>
             <Wordmark />
             <div className="text-[11.5px] text-muted mt-1 leading-snug">{t(BRAND.taglineEn, BRAND.taglineBn)}</div>
           </div>
@@ -104,11 +107,11 @@ export function Shell({ children }: { children: ReactNode }) {
               </li>
             ))}
           </ul>
-          <div className="absolute bottom-4 left-4 right-4 text-[11.5px] text-muted leading-snug">
+          <div className="mt-auto pt-6 text-[11.5px] text-muted leading-snug">
             {t('Synthetic data only. Bhorsha never holds money; a licensed partner (simulated) does.', 'শুধু কৃত্রিম তথ্য। ভরসা কখনো টাকা রাখে না; লাইসেন্সপ্রাপ্ত অংশীদার (সিমুলেটেড) রাখে।')}
           </div>
         </nav>
-        {open && <div className="fixed inset-0 z-30 bg-black/40 md:hidden" onClick={() => setOpen(false)} />}
+        {open && <div className="fixed inset-0 z-40 bg-black/50 md:hidden" onClick={() => setOpen(false)} aria-hidden />}
         <div className="flex-1 min-w-0">
           <header className="no-print sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-line px-4 md:px-8 py-3" style={{ background: 'color-mix(in oklab, var(--bg) 88%, transparent)', backdropFilter: 'blur(6px)' }}>
             <div className="flex items-center gap-3">
