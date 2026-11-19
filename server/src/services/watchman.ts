@@ -27,7 +27,7 @@ const CAUSE_TEXT: Record<string, { en: string; bn: string; act_en: string; act_b
 };
 
 function cueCause(text: string): string {
-  if (/ক্রেতা কম|customer|নতুন.*(দোকান|ফার্মেসি)|competitor/i.test(text)) return 'fewer_customers';
+  if (/ক্রেতা.{0,12}কম|customer|নতুন.*(দোকান|ফার্মেসি)|competitor/i.test(text)) return 'fewer_customers';
   if (/মাল ফুরি|স্টক|stock/i.test(text)) return 'stock_problem';
   if (/দেরিতে টাকা দিচ্ছে ক্রেতা|পাওনা|late pay/i.test(text)) return 'buyers_paying_late';
   if (/খরচ|দাম বেড়েছে|cost/i.test(text)) return 'higher_costs';
@@ -89,7 +89,10 @@ export async function simulateNextMonth(actor = 'manager') {
       events.push({ shop: shop.label as string, month, actual, low: fc.low, high: fc.high, flagged, severity, baseline_flag: baseline });
       if (!severity) return;
 
-      const causeKey = severity === 'no_data' && !flagged ? 'no_data' : causeHint !== 'none' && causeHint !== 'seasonal_normal' ? causeHint : 'unknown';
+      const prevFlag = await Flag.findOne({ shop: shop._id }).sort({ month: -1 }).lean();
+      const prevKey = prevFlag ? Object.keys(CAUSE_TEXT).find((k) => CAUSE_TEXT[k].en === prevFlag.probable_cause) : undefined;
+      let causeKey = severity === 'no_data' && !flagged ? 'no_data' : causeHint !== 'none' && causeHint !== 'seasonal_normal' ? causeHint : 'unknown';
+      if (causeKey === 'unknown' && prevKey && prevKey !== 'no_data' && prevKey !== 'unknown') causeKey = prevKey; // carry the last known cause forward
       const ct = CAUSE_TEXT[causeKey];
       const reasons: string[] = [];
       if (flagged) reasons.push(`Visible sales ${fmtBdt(actual)} BDT, below the expected ${fmtBdt(fc.low)} to ${fmtBdt(fc.high)} BDT.`);

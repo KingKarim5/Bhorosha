@@ -1,0 +1,291 @@
+@import 'tailwindcss';
+
+/* ---------- design tokens (brief section 11) ---------- */
+:root {
+  --bg: #f6f1e7;
+  --surface: #ffffff;
+  --raised: #fbf8f1;
+  --ink: #1b2a28;
+  --muted: #5b6f6b;
+  --line: #e2daca;
+  --accent: #a8741a;
+  --viable: #137a5a;
+  --unsure: #9a6400;
+  --notviable: #b03a25;
+  --checked: #137a5a;
+  --owner: #4a648c;
+  --paper: #fffdf8;
+  --paper-ink: #1b2a28;
+  --desk: #e9e1d1;
+  --grain-opacity: 0.05;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #0b1a18;
+    --surface: #12292a;
+    --raised: #183638;
+    --ink: #ede7d9;
+    --muted: #9db3ae;
+    --line: #28484a;
+    --accent: #e0b24f;
+    --viable: #4fc9a0;
+    --unsure: #f0b34a;
+    --notviable: #f0705a;
+    --checked: #4fc9a0;
+    --owner: #8fa6c9;
+    --paper: #f8f3e8;
+    --paper-ink: #1b2a28;
+    --desk: #081412;
+    --grain-opacity: 0.07;
+    color-scheme: dark;
+  }
+}
+:root[data-theme='dark'] {
+  --bg: #0b1a18;
+  --surface: #12292a;
+  --raised: #183638;
+  --ink: #ede7d9;
+  --muted: #9db3ae;
+  --line: #28484a;
+  --accent: #e0b24f;
+  --viable: #4fc9a0;
+  --unsure: #f0b34a;
+  --notviable: #f0705a;
+  --checked: #4fc9a0;
+  --owner: #8fa6c9;
+  --paper: #f8f3e8;
+  --paper-ink: #1b2a28;
+  --desk: #081412;
+  --grain-opacity: 0.07;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-viable: var(--viable);
+  --color-unsure: var(--unsure);
+  --color-notviable: var(--notviable);
+  --color-checked: var(--checked);
+  --color-owner: var(--owner);
+  --color-paper: var(--paper);
+  --color-paper-ink: var(--paper-ink);
+  --font-display: 'Fraunces Variable', 'Noto Serif Bengali', Georgia, serif;
+  --font-sans: 'Inter Variable', 'Noto Sans Bengali', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-bnserif: 'Noto Serif Bengali', 'Fraunces Variable', serif;
+}
+
+html,
+body {
+  background: var(--bg);
+  color: var(--ink);
+}
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+/* Bangla gets a slightly larger size and 1.7 line height */
+html[lang='bn'] body {
+  font-family: 'Noto Sans Bengali', 'Inter Variable', system-ui, sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.7;
+}
+html[lang='bn'] .font-display {
+  font-family: var(--font-bnserif);
+}
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+::selection {
+  background: color-mix(in oklab, var(--accent) 35%, transparent);
+}
+
+/* paper grain: a very slow, subtle SVG noise */
+.grain::before {
+  content: '';
+  position: fixed;
+  inset: -50%;
+  pointer-events: none;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: drift 90s linear infinite;
+  z-index: 0;
+}
+@keyframes drift {
+  to {
+    transform: translate(10%, 6%);
+  }
+}
+
+.hatch {
+  background-image: repeating-linear-gradient(135deg, var(--owner) 0 2px, transparent 2px 5px);
+}
+.hatch-soft {
+  background-image: repeating-linear-gradient(135deg, color-mix(in oklab, var(--owner) 60%, transparent) 0 2px, transparent 2px 5px);
+}
+
+@layer components {
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 10px;
+  padding: 0.55rem 1rem;
+  font-weight: 600;
+  border: 1px solid var(--line);
+  background: var(--raised);
+  color: var(--ink);
+  transition: transform 0.12s ease, background 0.12s ease;
+  min-height: 42px;
+}
+.btn:hover {
+  background: color-mix(in oklab, var(--raised) 80%, var(--accent) 20%);
+}
+.btn:active {
+  transform: translateY(1px);
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--accent);
+  color: #1b1405;
+  border-color: transparent;
+}
+.btn-primary:hover {
+  background: color-mix(in oklab, var(--accent) 88%, white 12%);
+}
+.input {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--raised);
+  color: var(--ink);
+  padding: 0.6rem 0.75rem;
+  min-height: 44px;
+}
+.label {
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  padding: 0.12rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: 1px solid var(--line);
+  background: var(--raised);
+}
+
+}
+
+/* the viability file sheet */
+.sheet {
+  background: var(--paper);
+  color: var(--paper-ink);
+  border-radius: 6px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04), 0 18px 50px -20px rgba(0, 0, 0, 0.45);
+  --muted: #5b6f6b;
+  --line: #e2daca;
+  --viable: #137a5a;
+  --unsure: #9a6400;
+  --notviable: #b03a25;
+  --checked: #137a5a;
+  --owner: #4a648c;
+  --accent: #a8741a;
+  --raised: #fbf8f1;
+  --surface: #ffffff;
+  --ink: #1b2a28;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ---------- print: the viability file on one A4 page ---------- */
+@media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  .no-print,
+  nav,
+  header {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .grain::before {
+    display: none;
+  }
+  .sheet {
+    box-shadow: none !important;
+    border-radius: 0;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 9.2pt;
+    line-height: 1.32;
+  }
+  .sheet h2 {
+    font-size: 15pt !important;
+  }
+  .sheet h3 {
+    font-size: 10pt !important;
+    margin-top: 4pt !important;
+  }
+  .sheet * {
+    break-inside: avoid;
+  }
+  .print-full {
+    grid-template-columns: 1fr !important;
+  }
+  .print-ribbon {
+    display: block !important;
+    border: 1px solid #000;
+    padding: 2pt 4pt;
+    font-size: 8pt;
+    font-weight: 700;
+    margin-bottom: 4pt;
+  }
+}
+.print-only,
+.print-ribbon {
+  display: none;
+}

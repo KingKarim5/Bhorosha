@@ -48,7 +48,7 @@ function listingView(x: Lean) {
     id: x.a._id, code: code(x.a._id), type: typeLabel(x.shop.business_type), size: sizeRange(x.a.loan_ask_bdt), loan_bdt: x.a.loan_ask_bdt,
     investor_share_bdt: share, committed_bdt: x.a.funded_bdt || 0, open_bdt: Math.max(0, share - (x.a.funded_bdt || 0)),
     verdict: x.v?.final_verdict, band_low: x.v?.band_low, band_high: x.v?.band_high, checked_share: x.v?.features_json?.checked_share ?? 0,
-    runway: (x.v?.features_json?.monthly || []).map((m: Lean) => m.inflow), listed: x.listed, tenor_months: x.a.tenor_months,
+    runway: (x.v?.features_json?.monthly || []).map((m: Lean) => m.inflow), runway_points: (x.v?.features_json?.monthly || []).map((m: Lean) => ({ month: m.month, value: m.inflow })), listed: x.listed, tenor_months: x.a.tenor_months,
   };
 }
 

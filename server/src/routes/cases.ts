@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import multer from 'multer';
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
+import { config } from '../config';
 import { z } from 'zod';
 import { requireRole } from '../auth';
 import { Application, Shop, Verdict, EvidenceItem, Finding, Doc, Decision, AuditLog, Transaction, Outcome } from '../models';
@@ -17,6 +20,13 @@ type Lean = Record<string, any>; // eslint-disable-line @typescript-eslint/no-ex
 const r = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 const staff = requireRole('manager', 'officer');
+
+r.get('/samples/statement/:slug', staff, (req, res) => {
+  const slug = req.params.slug.replace(/[^a-z]/g, '');
+  const file = path.join(config.seedDataDir, 'statements', `${slug}.csv`);
+  if (!fs.existsSync(file)) return res.status(404).json({ error: 'no such sample' });
+  res.json({ csv: fs.readFileSync(file, 'utf8') });
+});
 
 r.get('/samples/:key', (req, res) => {
   const t = BILLS[req.params.key] || NOTES[req.params.key];
