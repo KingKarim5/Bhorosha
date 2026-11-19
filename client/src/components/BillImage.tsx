@@ -16,7 +16,14 @@ export interface BillImageHandle {
 // Renders a seeded placeholder bill on a canvas (Noto Sans Bengali), so the AI reader gets a real image.
 export const BillImage = forwardRef<BillImageHandle, { template: BillTemplate; className?: string }>(function BillImage({ template, className }, ref) {
   const canvas = useRef<HTMLCanvasElement>(null);
-  useImperativeHandle(ref, () => ({ toBlob: () => new Promise((res) => canvas.current?.toBlob((b) => res(b), 'image/png') ?? res(null)) }));
+  useImperativeHandle(ref, () => ({
+    toBlob: () =>
+      new Promise((res) => {
+        const c = canvas.current;
+        if (!c) return res(null);
+        c.toBlob((b) => res(b), 'image/png'); // toBlob returns nothing; the callback resolves
+      }),
+  }));
   useEffect(() => {
     let cancelled = false;
     (async () => {

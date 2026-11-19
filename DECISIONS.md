@@ -2,7 +2,7 @@
 
 One line per choice the brief left open.
 
-- **AI provider:** Claude through the official Anthropic SDK (default model `claude-opus-5-5`, low effort), with Gemini over REST as an alternative via `AI_PROVIDER=gemini`. Key and model come from `.env`.
+- **AI provider:** Claude through the official Anthropic SDK (`claude-opus-5-5`, low effort) or Gemini over REST (`AI_PROVIDER=gemini`, default `gemini-3.1-flash-lite`: on the free tier `gemini-flash-latest` timed out at 40 s, `gemini-2.5-flash` is retired for new users, and `gemini-3-flash-preview` took 22 s per call). Key and model come from `.env`.
 - **Model export:** the gradient-boosting model is exported from scikit-learn to JSON (trees, isotonic table, conformal threshold) and evaluated in TypeScript, instead of ONNX. No native runtime to install; a self-test vector in the file checks Python/TypeScript parity at load.
 - **Feature parity:** the training cohort is generated and featurised by the same TypeScript code the app uses (`npm run cohort`), and Python only trains and evaluates on the exported CSV, so training and serving features cannot drift.
 - **Hybrid verdict policy:** the model can only make a file more cautious. Agree: that verdict. Opposite confident verdicts: not sure. Rules confident, model unsure: rules verdict plus a disagreement notice. Rules unsure, model confident: not sure plus a notice.

@@ -39,7 +39,8 @@ function Bill({ doc, caseId, onChange, canConfirm }: { doc: any; caseId: string;
       const blob = await img.current?.toBlob();
       const form = new FormData();
       if (blob) form.append('image', blob, 'bill.png');
-      await api(`/cases/${caseId}/documents/${doc._id}/read`, { form });
+      const r = await api(`/cases/${caseId}/documents/${doc._id}/read`, { form });
+      if (r.mode === 'demo_fallback') setErr(t(`AI not used, showing DEMO FALLBACK: ${r.error || 'unknown reason'}`, `এআই ব্যবহার হয়নি, DEMO FALLBACK দেখানো হচ্ছে: ${r.error || 'অজানা কারণ'}`));
       onChange();
     } catch (e) {
       setErr((e as Error).message);
@@ -117,12 +118,14 @@ function Bill({ doc, caseId, onChange, canConfirm }: { doc: any; caseId: string;
 function Note({ doc, caseId, onChange }: { doc: any; caseId: string; onChange: () => void }) {
   const { t, pick, n } = useI18n();
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const x = doc.extracted_json || {};
   const text = doc.raw_text || doc.sample?.text || '';
   const read = async () => {
     setBusy(true);
     try {
-      await api(`/cases/${caseId}/documents/${doc._id}/read`, { method: 'POST' });
+      const r = await api(`/cases/${caseId}/documents/${doc._id}/read`, { method: 'POST' });
+      setErr(r.mode === 'demo_fallback' ? t(`AI not used, showing DEMO FALLBACK: ${r.error || 'unknown reason'}`, `এআই ব্যবহার হয়নি, DEMO FALLBACK দেখানো হচ্ছে: ${r.error || 'অজানা কারণ'}`) : null);
       onChange();
     } finally {
       setBusy(false);
@@ -163,6 +166,7 @@ function Note({ doc, caseId, onChange }: { doc: any; caseId: string; onChange: (
           );
         })}
       </div>
+      <ErrorNote msg={err} />
       <p className="text-[11.5px] text-muted mt-1.5">{t('Phone numbers and names are replaced with tokens before the note goes to the AI. Everything from a note stays owner says.', 'নোট এআই-তে যাওয়ার আগে ফোন নম্বর ও নাম টোকেনে বদলানো হয়। নোটের সবকিছু "মালিক বলছেন" থাকে।')}</p>
     </motion.div>
   );
