@@ -15,7 +15,7 @@
     "seed": "npm run seed -w server",
     "cohort": "npm run cohort -w server",
     "train": "npm run cohort -w server && python ml/train.py",
-    "eval": "npm run cohort -w server && python ml/train.py --eval-only && npm run eval -w server"
+    "eval": "npm run cohort -w server && python ml/train.py && npm run eval -w server"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

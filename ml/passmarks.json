@@ -1,0 +1,16 @@
+{
+  "_note": "Fixed before the first model run (brief section 9). These are our own suggestions, not standards. Do not edit after seeing results.",
+  "frozen_at": "2026-11-20T02:30:00+06:00",
+  "generator_version": "cohort-v1",
+  "seed": 2026,
+  "splits": "shop-level; test = later vintages plus held-out noise level 0.14 and the held-out archetype mix seasonal+declining; calibration and conformal splits are separate",
+  "document_understanding": "printed bills field F1 >= 0.85; handwritten reported, not targeted",
+  "cross_document": "recall >= 0.80, false findings <= 5%, citation validity 100%",
+  "classifier": "beats the logistic baseline and the rules on Brier score, CI reported",
+  "conformal": "empirical coverage within 3 points of the 90% target",
+  "watchman": "median lead time >= 2 months; fewer false alarms per borrower-year on seasonal shops than the fixed 30% threshold",
+  "counterfactuals": ">= 90% valid; no change to a protected or unchangeable feature",
+  "tamper": "report the full curve, no single headline number",
+  "ask_file": "citation validity 100% on answers given",
+  "allocator": "cap compliance 100%; lower concentration than a naive split"
+}

@@ -116,7 +116,7 @@ export function Shell({ children }: { children: ReactNode }) {
                 ☰
               </button>
               {user && (
-                <span className="chip">
+                <span className="chip hidden sm:inline-flex">
                   {roleWord} · {user.display_name}
                 </span>
               )}
