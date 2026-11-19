@@ -66,7 +66,7 @@ async function callGemini(system: string, user: string, image?: { b64: string; m
       }),
       signal: ctrl.signal,
     });
-    if (!r.ok) throw new Error(`gemini http ${r.status}`);
+    if (!r.ok) throw new Error(`gemini http ${r.status}: ${(await r.text()).replace(/\s+/g, ' ').slice(0, 200)}`);
     const j = (await r.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
     return j.candidates?.[0]?.content?.parts?.map((p) => p.text || '').join('') || '';
   } finally {

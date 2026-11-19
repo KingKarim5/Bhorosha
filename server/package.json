@@ -10,7 +10,8 @@
     "test": "vitest run",
     "seed": "tsx src/seed/run.ts",
     "cohort": "tsx src/scripts/cohort.ts",
-    "eval": "tsx src/scripts/eval.ts"
+    "eval": "tsx src/scripts/eval.ts",
+    "ai:check": "tsx src/scripts/aicheck.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.70.0",

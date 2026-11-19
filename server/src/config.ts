@@ -24,7 +24,7 @@ export const config = {
   anthropicKey: process.env.ANTHROPIC_API_KEY || '',
   aiModel: process.env.AI_MODEL || 'claude-opus-5-5',
   geminiKey: process.env.GEMINI_API_KEY || '',
-  geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+  geminiModel: process.env.GEMINI_MODEL || 'gemini-flash-latest',
   aiTimeoutMs: Number(process.env.AI_TIMEOUT_MS || 45000),
   modelPath: rootPath(process.env.MODEL_PATH || 'ml/model/model.json'),
   evalPath: rootPath(process.env.EVAL_PATH || 'ml/model/eval.json'),
