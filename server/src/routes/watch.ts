@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { requireRole } from '../auth';
 import { Flag, Intervention, AuditLog, CheckIn } from '../models';
-import { simulateNextMonth, watchlist } from '../services/watchman';
+import { simulate, watchlist } from '../services/watchman';
 
 const r = Router();
 const staff = requireRole('lender');
@@ -10,8 +10,8 @@ const staff = requireRole('lender');
 r.get('/watchlist', staff, async (_req, res) => res.json(await watchlist()));
 
 r.post('/watchlist/simulate', staff, async (req, res) => {
-  const out = await simulateNextMonth(req.user!.email);
-  res.json(out);
+  const step = req.body?.step === 'week' ? 'week' : 'month';
+  res.json(await simulate(step, req.user!.email));
 });
 
 r.post('/flags/:id/interventions', staff, async (req, res) => {

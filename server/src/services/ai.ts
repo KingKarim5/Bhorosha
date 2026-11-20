@@ -31,7 +31,7 @@ function extractJson(text: string): unknown {
   return JSON.parse(body.slice(start, end + 1));
 }
 
-async function callAnthropic(system: string, user: string, image?: { b64: string; mime: string }) {
+async function callAnthropic(system: string, user: string, image?: { b64: string; mime: string }, timeoutMs = config.aiTimeoutMs) {
   const content: Anthropic.ContentBlockParam[] = [];
   if (image)
     content.push({ type: 'image', source: { type: 'base64', media_type: image.mime as 'image/png' | 'image/jpeg', data: image.b64 } });
@@ -43,18 +43,18 @@ async function callAnthropic(system: string, user: string, image?: { b64: string
     messages: [{ role: 'user' as const, content }],
     output_config: { effort: 'low' },
   };
-  const resp = await client().messages.create(params as unknown as Anthropic.MessageCreateParamsNonStreaming);
+  const resp = await client().messages.create(params as unknown as Anthropic.MessageCreateParamsNonStreaming, { timeout: timeoutMs });
   if (resp.stop_reason === 'refusal') throw new Error('model declined the request');
   return resp.content.map((b) => (b.type === 'text' ? b.text : '')).join('');
 }
 
-async function callGemini(system: string, user: string, image?: { b64: string; mime: string }) {
+async function callGemini(system: string, user: string, image?: { b64: string; mime: string }, timeoutMs = config.aiTimeoutMs) {
   const parts: unknown[] = [];
   if (image) parts.push({ inline_data: { mime_type: image.mime, data: image.b64 } });
   parts.push({ text: user });
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${config.geminiModel}:generateContent`;
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), config.aiTimeoutMs);
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const r = await fetch(url, {
       method: 'POST',
@@ -86,6 +86,7 @@ export async function callJson<T>(opts: {
   extraCheck?: (d: T) => string | null; // extra validator; return a problem to force a retry
   agent?: string;
   run_id?: string;
+  timeoutMs?: number; // per-call limit; on timeout the labelled fallback runs
 }): Promise<AiResult<T>> {
   const t0 = Date.now();
   const auditInput = { task: opts.task, system: opts.system.slice(0, 4000), user: opts.user.slice(0, 8000), image: opts.image ? `[image ${opts.image.mime}, ${Math.round(opts.image.b64.length * 0.75 / 1024)} KB, not stored]` : undefined };
@@ -95,7 +96,7 @@ export async function callJson<T>(opts: {
     let userMsg = opts.user;
     for (attempts = 1; attempts <= 2; attempts++) {
       try {
-        const text = config.aiProvider === 'gemini' ? await callGemini(opts.system, userMsg, opts.image) : await callAnthropic(opts.system, userMsg, opts.image);
+        const text = config.aiProvider === 'gemini' ? await callGemini(opts.system, userMsg, opts.image, opts.timeoutMs) : await callAnthropic(opts.system, userMsg, opts.image, opts.timeoutMs);
         const parsed = opts.schema.safeParse(extractJson(text));
         if (!parsed.success) throw new Error('schema: ' + parsed.error.issues.slice(0, 3).map((i) => `${i.path.join('.')} ${i.message}`).join('; '));
         const problem = opts.extraCheck?.(parsed.data);

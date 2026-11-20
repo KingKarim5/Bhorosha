@@ -1,5 +1,6 @@
 import { seasonalIndex } from './seasonal';
 import { calMonth, quantile, addMonths } from './util';
+import { windowLift, isPostFestival } from './festivals';
 
 // Seasonal forecasting watchman (component 5).
 // Method: divide out the business-type seasonal index, run Holt's damped linear smoothing on the
@@ -66,4 +67,33 @@ export function classify(belowStreak: number, missedStreak: number): FlagSeverit
   if (belowStreak >= 2) return 'call';
   if (belowStreak === 1) return 'watch';
   return null;
+}
+
+// ---------- weekly cadence (hybrid / digital_first) ----------
+
+export interface WeekPoint {
+  start: Date;
+  value: number;
+}
+
+/**
+ * Weekly forecast with festival seasonality: divide each week by its expected festival lift (on the online
+ * share), smooth, put the next week's lift back. A festival spike is not growth; the lull just after a
+ * festival gets a wider downside, so a quiet post-Eid week is not a warning.
+ */
+export function forecastNextWeek(history: WeekPoint[], onlineShare: number, nextStart: Date): ForecastBand {
+  const lift = (d: Date) => 1 + onlineShare * (windowLift(d, 7) - 1);
+  const adj = history.map((p) => p.value / lift(p.start));
+  const { next, oneStep } = holtForecast(adj, 0.35, 0.05, 0.85);
+  const mid = next * lift(nextStart);
+  const ratios: number[] = [];
+  for (let i = 4; i < adj.length; i++) if (oneStep[i] > 0) ratios.push(adj[i] / oneStep[i]);
+  // weekly sales are noisier than monthly: flag against a wider band (5th percentile) so a healthy shop
+  // is not flagged for one ordinary quiet week
+  let qLo = ratios.length >= 6 ? quantile(ratios, 0.05) : 0.7;
+  let qHi = ratios.length >= 6 ? quantile(ratios, 0.95) : 1.3;
+  qLo = Math.min(qLo, 0.75);
+  qHi = Math.max(qHi, 1.2);
+  if (isPostFestival(nextStart)) qLo *= 0.7;
+  return { month: nextStart.toISOString().slice(0, 10), low: Math.round(mid * qLo), mid: Math.round(mid), high: Math.round(mid * qHi) };
 }

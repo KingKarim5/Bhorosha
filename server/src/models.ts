@@ -259,6 +259,7 @@ const ForecastSchema = new Schema(
     actual: Number,
     flagged: Boolean,
     baseline_flag: Boolean, // what a fixed 30%-drop threshold would have said
+    cadence: { type: String, default: 'monthly' }, // monthly | weekly (month field holds YYYY-MM or the week start YYYY-MM-DD)
   },
   opts,
 );
@@ -275,6 +276,7 @@ const FlagSchema = new Schema(
     reasons: [String],
     status: { type: String, enum: ['open', 'in_progress', 'resolved'], default: 'open' },
     shortfall_pct: Number,
+    cadence: { type: String, default: 'monthly' },
   },
   opts,
 );
@@ -415,7 +417,7 @@ const EvalRunSchema = new Schema(
   opts,
 );
 
-const SimStateSchema = new Schema({ key: { type: String, unique: true }, month_index: Number, base_month: String }, opts);
+const SimStateSchema = new Schema({ key: { type: String, unique: true }, month_index: Number, base_month: String, day: String }, opts);
 
 const ShadowCaseSchema = new Schema(
   {

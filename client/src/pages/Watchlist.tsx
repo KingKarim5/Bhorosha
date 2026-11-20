@@ -9,7 +9,7 @@ import { RunwayChart } from '../components/RunwayChart';
 import { IconPulse, IconAlert, IconCheck } from '../components/icons';
 
 const SEV: Record<string, { en: string; bn: string; color: string }> = {
-  call: { en: 'Call', bn: 'ফোন করুন', color: 'var(--notviable)' },
+  call: { en: 'Call (urgent)', bn: 'জরুরি', color: 'var(--notviable)' },
   watch: { en: 'Watch', bn: 'নজর রাখুন', color: 'var(--unsure)' },
   no_data: { en: 'No data', bn: 'তথ্য নেই', color: 'var(--owner)' },
 };
@@ -37,7 +37,7 @@ function Intervention({ flag, onDone }: { flag: any; onDone: () => void }) {
         <ul className="mb-2 space-y-1 text-[13px]">
           {flag.interventions.map((i: any) => (
             <li key={i._id} className="flex gap-1.5">
-              <IconCheck className="shrink-0 mt-0.5" style={{ color: 'var(--checked)' }} /> <b>{i.action}</b> {i.result_note && <span className="text-muted">— {i.result_note}</span>}
+              <IconCheck className="shrink-0 mt-0.5" style={{ color: 'var(--checked)' }} /> <span className="chip !py-0 !text-[11px]">{i.actor}</span> <b>{i.action}</b> {i.result_note && <span className="text-muted">— {i.result_note}</span>}
             </li>
           ))}
         </ul>
@@ -59,10 +59,10 @@ export default function Watchlist() {
   const [busy, setBusy] = useState(false);
   const [last, setLast] = useState<any>(null);
   const [open, setOpen] = useState<string | null>(null);
-  const simulate = async () => {
+  const simulate = async (step: 'week' | 'month') => {
     setBusy(true);
     try {
-      const r = await api('/watchlist/simulate', { method: 'POST' });
+      const r = await api('/watchlist/simulate', { body: { step } });
       setLast(r);
       await reload();
       const flagged = r.events?.find((e: any) => e.flagged);
@@ -77,16 +77,19 @@ export default function Watchlist() {
   return (
     <div>
       <PageTitle
-        title={t('Branch watchlist', 'শাখার নজরতালিকা')}
-        sub={t("Funded borrowers ranked by severity and recency. The watchman forecasts each shop's expected sales from its own history and season, and flags a month that falls below the band.", 'ঋণপ্রাপ্তদের তালিকা, গুরুত্ব ও সাম্প্রতিকতা অনুযায়ী। প্রতিটি দোকানের নিজের ইতিহাস ও মৌসুম থেকে প্রত্যাশিত বিক্রির পূর্বাভাস হয়, সীমার নিচে নামলে সতর্ক করা হয়।')}
+        title={t('Watchlist', 'নজরতালিকা')}
+        sub={t("Funded borrowers ranked by severity and recency. The Watchman agent forecasts each shop's expected sales from its own history, seasons and festivals: weekly for hybrid and online sellers, monthly for cash-led shops. It flags a period that falls below the band.", 'ঋণপ্রাপ্তদের তালিকা, গুরুত্ব ও সাম্প্রতিকতা অনুযায়ী। ওয়াচম্যান এজেন্ট প্রতিটি দোকানের নিজের ইতিহাস, মৌসুম ও উৎসব থেকে প্রত্যাশিত বিক্রির পূর্বাভাস করে: মিশ্র ও অনলাইন বিক্রেতার জন্য সাপ্তাহিক, নগদ-নির্ভর দোকানের জন্য মাসিক। সীমার নিচে নামলে সতর্ক করে।')}
         right={
           <div className="flex items-center gap-3">
             {data && (
               <span className="chip num">
-                {data.current_month ? `${t('Now showing', 'দেখানো হচ্ছে')} ${data.current_month}` : t('Before the first month', 'প্রথম মাসের আগে')} · {n(data.month_index)}/{n(data.max)}
+                {t('Simulated date', 'সিমুলেটেড তারিখ')} {data.day}
               </span>
             )}
-            <button className="btn btn-primary text-[15.5px]" onClick={simulate} disabled={busy || (data && data.month_index >= data.max)}>
+            <button className="btn text-[15px]" onClick={() => simulate('week')} disabled={busy || data?.done}>
+              {t('Simulate next week', 'পরের সপ্তাহ সিমুলেট করুন')}
+            </button>
+            <button className="btn btn-primary text-[15.5px]" onClick={() => simulate('month')} disabled={busy || data?.done}>
               <IconPulse /> {busy ? t('Simulating…', 'সিমুলেট হচ্ছে…') : t('Simulate next month', 'পরের মাস সিমুলেট করুন')}
             </button>
           </div>
@@ -96,10 +99,11 @@ export default function Watchlist() {
       <AnimatePresence>
         {last?.events && (
           <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="card p-3 mb-4 text-[13.5px]">
-            <b className="num">{last.month}</b>:{' '}
+            <b className="num">{t('Now', 'এখন')} {last.day}</b>:{' '}
+            {last.events.length === 0 && t('no check fell due.', 'কোনো যাচাই বাকি ছিল না।')}
             {last.events.map((e: any, i: number) => (
               <span key={i} className="mr-3">
-                {e.shop} {e.flagged ? <b style={{ color: 'var(--notviable)' }}>{t('below band', 'সীমার নিচে')}</b> : <span style={{ color: 'var(--checked)' }}>{t('within band', 'সীমার মধ্যে')}</span>}
+                {e.shop} <span className="num text-muted">{e.period}</span> {e.flagged ? <b style={{ color: 'var(--notviable)' }}>{t('below band', 'সীমার নিচে')}</b> : <span style={{ color: 'var(--checked)' }}>{t('within band', 'সীমার মধ্যে')}</span>}
                 {!e.flagged && e.baseline_flag && <span className="text-muted"> ({t('a fixed 30% rule would have alarmed', 'নির্দিষ্ট ৩০% নিয়মে ভুল সতর্কতা হতো')})</span>}
               </span>
             ))}
@@ -120,14 +124,17 @@ export default function Watchlist() {
               <div key={r.shop_id} className="card" style={flag && flag.severity !== 'no_data' ? { borderColor: sev!.color } : undefined}>
                 <button className="w-full flex flex-wrap items-center gap-x-5 gap-y-2 p-4 text-left" onClick={() => setOpen(isOpen ? null : String(r.shop_id))} aria-expanded={isOpen}>
                   <div className="flex-1 min-w-[180px]">
-                    <div className="font-semibold text-[16px]">{r.label}</div>
+                    <div className="font-semibold text-[16px] flex items-center gap-2">
+                      {r.label}
+                      <span className="chip !py-0 !text-[11px]">{r.cadence === 'weekly' ? t('weekly', 'সাপ্তাহিক') : t('monthly', 'মাসিক')} · {r.segment?.replace('_', '-')}</span>
+                    </div>
                     <div className="text-[12.5px] text-muted">
                       {lastF ? (
                         <>
-                          {t('Last month', 'গত মাস')} <span className="num">{bdt(lastF.actual)}</span> · {t('expected', 'প্রত্যাশিত')} <span className="num">{n(lastF.expected_low)}–{n(lastF.expected_high)}</span>
+                          {r.cadence === 'weekly' ? t('Last week', 'গত সপ্তাহ') : t('Last month', 'গত মাস')} <span className="num">{bdt(lastF.actual)}</span> · {t('expected', 'প্রত্যাশিত')} <span className="num">{n(lastF.expected_low)}–{n(lastF.expected_high)}</span>
                         </>
                       ) : (
-                        t('No simulated month yet', 'এখনো কোনো মাস সিমুলেট হয়নি')
+                        t('No simulated period yet', 'এখনো কিছু সিমুলেট হয়নি')
                       )}
                     </div>
                   </div>
@@ -151,12 +158,14 @@ export default function Watchlist() {
                           <p className="text-[12px] text-muted mt-1">
                             {r.business_type === 'fish_trader'
                               ? t('Seasonal shop: the band follows the season, so a lean month is expected, not alarming.', 'মৌসুমি দোকান: সীমা মৌসুম অনুসরণ করে, তাই মন্দা মাস প্রত্যাশিত, ভয়ের নয়।')
-                              : t('Shaded band: the 80% forecast range from the shop’s own history.', 'ছায়াযুক্ত অংশ: দোকানের নিজের ইতিহাস থেকে ৮০% পূর্বাভাস সীমা।')}
+                              : r.cadence === 'weekly'
+                                ? t('Weekly checks, festival-aware: festival weeks are divided out, and the week after a festival gets a wider downside. Shaded band: the forecast range.', 'সাপ্তাহিক যাচাই, উৎসব বুঝে: উৎসবের সপ্তাহের বাড়তি বিক্রি বাদ দেওয়া হয়, উৎসবের পরের সপ্তাহে নিচের সীমা চওড়া। ছায়াযুক্ত অংশ: পূর্বাভাসের সীমা।')
+                                : t('Shaded band: the 80% forecast range from the shop’s own history.', 'ছায়াযুক্ত অংশ: দোকানের নিজের ইতিহাস থেকে ৮০% পূর্বাভাস সীমা।')}
                           </p>
                           <table className="w-full text-[12.5px] num mt-2">
                             <thead>
                               <tr className="text-muted text-left">
-                                <th>{t('Month', 'মাস')}</th>
+                                <th>{r.cadence === 'weekly' ? t('Week of', 'সপ্তাহ') : t('Month', 'মাস')}</th>
                                 <th>{t('Actual', 'আসল')}</th>
                                 <th>{t('Expected', 'প্রত্যাশিত')}</th>
                                 <th>{t('Watchman', 'ওয়াচম্যান')}</th>
@@ -218,7 +227,7 @@ export default function Watchlist() {
         </div>
       )}
       <p className="text-[12.5px] text-muted mt-5">
-        {t('One month below the band is a watch; two in a row is a call. A missed check-in shows as no data, not distress. Suggested actions are supportive first: call, check stock, restructure.', 'সীমার নিচে এক মাস = নজর; পরপর দুই মাস = ফোন। আপডেট না এলে "তথ্য নেই", সমস্যা নয়। প্রস্তাবিত পদক্ষেপ আগে সহায়তামূলক: ফোন, মজুত দেখা, পুনর্গঠন।')}
+        {t('One period below the band is a watch; two in a row is a call. A missed check-in shows as no data, not distress. On every flag the Servicer agent writes a supportive Bangla message to the owner and a plain update to investors; at call level it offers a policy-allowed repayment-date shift (simulated).', 'সীমার নিচে এক সময়কাল = নজর; পরপর দুই = জরুরি। আপডেট না এলে "তথ্য নেই", সমস্যা নয়। প্রতিটি সতর্কতায় সার্ভিসার এজেন্ট মালিককে বাংলায় সহায়ক বার্তা ও বিনিয়োগকারীকে সহজ আপডেট পাঠায়; জরুরি পর্যায়ে নীতি অনুযায়ী কিস্তির তারিখ পেছানোর প্রস্তাব দেয় (সিমুলেটেড)।')}
       </p>
     </div>
   );

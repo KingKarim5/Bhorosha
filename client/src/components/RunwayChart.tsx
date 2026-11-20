@@ -55,7 +55,7 @@ export function RunwayChart({ points, bands = [], height = 190, label, futureBan
     : '';
   const flagged = bands.filter((b) => b.flagged);
   const ticks = [0, 0.5, 1].map((f) => maxV * f * 0.92);
-  const mlabel = (m: string) => (lang === 'bn' ? MONTHS_BN : MONTHS_EN)[Number(m.slice(5, 7)) - 1] + (m.endsWith('-01') ? ` ’${m.slice(2, 4)}` : '');
+  const mlabel = (m: string) => (m.length === 10 ? `${Number(m.slice(8, 10))} ${(lang === 'bn' ? MONTHS_BN : MONTHS_EN)[Number(m.slice(5, 7)) - 1]}` : (lang === 'bn' ? MONTHS_BN : MONTHS_EN)[Number(m.slice(5, 7)) - 1] + (m.endsWith('-01') ? ` ’${m.slice(2, 4)}` : ''));
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label={label || 'Monthly visible sales'}>
       {ticks.map((tv, i) => (
@@ -96,7 +96,7 @@ export function RunwayChart({ points, bands = [], height = 190, label, futureBan
         );
       })}
       {months.map((m, i) =>
-        i % (months.length > 14 ? 2 : 1) === 0 ? (
+        i % (months.length > 28 ? 4 : months.length > 14 ? 2 : 1) === 0 ? (
           <text key={m} x={x(m)} y={H - 8} textAnchor="middle" fontSize={10} fill="var(--muted)">
             {mlabel(m)}
           </text>

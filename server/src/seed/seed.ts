@@ -38,7 +38,7 @@ export async function seedAll(log = console.log) {
   for (let i = 2; i <= 5; i++)
     extraInvestors.push(await User.create({ role: 'investor', email: `investor${i}@demo.bd`, display_name: `Investor ${'ABCDE'[i - 1]} (demo)`, password_hash: hash }));
   await LenderSettings.create({});
-  await SimState.create({ key: 'sim', month_index: 0, base_month: SIM_BASE_MONTH });
+  await SimState.create({ key: 'sim', month_index: 0, base_month: SIM_BASE_MONTH, day: `${SIM_BASE_MONTH}-01` });
 
   const stmtDir = path.join(config.seedDataDir, 'statements');
   fs.mkdirSync(stmtDir, { recursive: true });
