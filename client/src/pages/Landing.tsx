@@ -125,7 +125,7 @@ export default function Landing() {
       <section id="how" className="max-w-6xl mx-auto px-5 md:px-10 py-24 grid lg:grid-cols-[1fr_1.05fr] gap-14 items-center">
         <div>
           <motion.h2 initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="font-display text-[34px] md:text-[46px] font-semibold leading-tight">
-            {t('One page. Decided inside the lender’s policy.', 'এক পাতা। সিদ্ধান্ত ঋণদাতার নীতির ভেতরে।')}
+            {t('Messy money trail in. Clear answer out.', 'এলোমেলো হিসাব ঢোকে, পরিষ্কার উত্তর বেরোয়।')}
           </motion.h2>
           <div className="mt-8 grid gap-4">
             {steps.map((s, i) => (
