@@ -30,19 +30,29 @@ export default function InvestCase() {
   const { caseId } = useParams();
   const { t, n, pick, bdt, lang } = useI18n();
   const { data, error, reload } = useApi(`/invest/cases/${caseId}`);
-  const [amt, setAmt] = useState(10000);
+  const [amt, setAmt] = useState<number | null>(null); // null until the case loads: then the largest amount allowed
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   if (error) return <><SimulationBanner /><ErrorNote msg={error} /></>;
   if (!data) return <Skeleton h={300} />;
+  // the most this investor can put in here: what is still open on the loan, their per-loan cap left, and their total cap left
+  const MIN = 1000;
+  const maxAllowed = Math.max(0, Math.min(data.open_bdt, data.cap_per_loan_bdt - data.my_commitment_bdt, data.cap_total_bdt - data.committed_total_bdt));
+  const amount = amt ?? Math.min(10000, maxAllowed);
+  const amountProblem =
+    maxAllowed < MIN ? (data.open_bdt <= 0 ? t('This loan is fully funded by investors.', 'বিনিয়োগকারীরা এই ঋণ পুরো অর্থায়ন করেছেন।') : t('You have reached your cap for this loan or in total.', 'এই ঋণে বা মোট সীমায় আপনি সর্বোচ্চ দিয়ে ফেলেছেন।'))
+      : !(amount >= MIN) ? t(`The smallest amount is ${n(MIN)}.`, `সর্বনিম্ন ${n(MIN)} টাকা।`)
+        : amount > data.open_bdt ? t(`Only ${n(data.open_bdt)} is still open on this loan. Investors together can fund up to a quarter of it.`, `এই ঋণে মাত্র ${n(data.open_bdt)} টাকা বাকি। বিনিয়োগকারীরা মিলে ঋণের সর্বোচ্চ চার ভাগের এক ভাগ দিতে পারেন।`)
+          : amount > maxAllowed ? t(`That is over your cap. You can put in up to ${n(maxAllowed)}.`, `এটি আপনার সীমার বেশি। সর্বোচ্চ ${n(maxAllowed)} টাকা দিতে পারেন।`) : null;
   const commit = async () => {
     setBusy(true);
     setErr(null);
     setMsg(null);
     try {
-      const r = await api('/invest/commit', { body: { application: caseId, amount_bdt: amt } });
-      setMsg(t(`Simulated commitment recorded. Still open on this case: ${r.case_open_bdt} BDT.`, `সিমুলেটেড প্রতিশ্রুতি লেখা হলো। এই কেসে এখনো বাকি: ${n(r.case_open_bdt)} টাকা।`));
+      const r = await api('/invest/commit', { body: { application: caseId, amount_bdt: amount } });
+      setMsg(t(`Simulated commitment recorded. Still open on this case: ${n(r.case_open_bdt)} BDT.`, `সিমুলেটেড প্রতিশ্রুতি লেখা হলো। এই কেসে এখনো বাকি: ${n(r.case_open_bdt)} টাকা।`));
+      setAmt(null); // back to the new largest allowed amount
       reload();
     } catch (e) {
       setErr((e as Error).message);
@@ -121,9 +131,14 @@ export default function InvestCase() {
               <label className="label" htmlFor="amt">
                 {t('Amount (BDT)', 'অঙ্ক (টাকা)')}
               </label>
-              <input id="amt" type="number" step={1000} className="input mt-1" value={amt} onChange={(e) => setAmt(Number(e.target.value))} />
-              <ReturnBox amount={amt} tenor={data.tenor_months} rate={data.investor_rate_pct} />
-              <button className="btn btn-primary w-full justify-center mt-3" onClick={commit} disabled={busy}>
+              <input id="amt" type="number" step={500} min={MIN} max={maxAllowed} className="input mt-1" value={amount} onChange={(e) => setAmt(Number(e.target.value))} />
+              <div className="flex flex-wrap items-center justify-between gap-2 mt-1 text-[12.5px]">
+                <span className="text-muted">{t(`You can put in up to ${n(maxAllowed)} here.`, `এখানে সর্বোচ্চ ${n(maxAllowed)} টাকা দিতে পারেন।`)}</span>
+                {amount !== maxAllowed && maxAllowed >= MIN && <button type="button" className="text-accent underline" onClick={() => setAmt(maxAllowed)}>{t('Use the maximum', 'সর্বোচ্চ নিন')}</button>}
+              </div>
+              {amountProblem && <p className="text-[13px] mt-1" style={{ color: 'var(--notviable)' }}>{amountProblem}</p>}
+              <ReturnBox amount={amountProblem ? 0 : amount} tenor={data.tenor_months} rate={data.investor_rate_pct} />
+              <button className="btn btn-primary w-full justify-center mt-3" onClick={commit} disabled={busy || !!amountProblem}>
                 {t('Commit (simulation)', 'প্রতিশ্রুতি দিন (সিমুলেশন)')}
               </button>
             </>
