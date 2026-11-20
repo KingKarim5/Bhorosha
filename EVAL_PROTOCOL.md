@@ -36,6 +36,10 @@ Stated assumptions, chosen before seeing any result and not tuned to results:
 
 The generator is frozen once committed. Model hyperparameters may be chosen by cross-validation on the training split only.
 
+### cohort-v2.1 (amendment, written after the first v2 run, before the second)
+
+The first v2 run (cohort-v2.0) exposed a generator bug: courier payouts land up to 14 days after the last order, so each online shop's wallet statement ran about 10 days into an extra, nearly empty month. Every online shop then looked as if its sales had collapsed in the final month (median 3-month trend about -35% for healthy online shops), which no real statement export would show. cohort-v2.1 cuts every statement at the end of its last whole month; payouts that settle after it stay "pending", as in the app. Nothing else changes: same seed, same N, same assumptions, same tests, and **the same pass marks**. Both versions are reported on `/evaluation`; v2.0 is kept as a superseded run, not deleted.
+
 ## 3. Splits
 
 Shop-level: a shop is in exactly one split. Test = later vintages plus held-out noise and archetype mixes. The remaining pool is split 70 / 15 / 15 into train, calibration (isotonic) and conformal calibration. Features use only data before the loan date.
