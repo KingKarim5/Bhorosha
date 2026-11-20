@@ -6,11 +6,10 @@ import { Application, Shop, Verdict, Decision, AuditLog, ShadowCase, Flag } from
 import { config } from '../config';
 import { getSettingsDoc } from '../services/settings';
 import { recompute } from '../services/casefile';
-import { seedAll } from '../seed/seed';
 import { FEATURE_NAMES, CAUSES } from '../lib/features';
 import { VERDICT_TEXT } from '../lib/rules';
 import { getSim } from '../services/watchman';
-import { modelStatus, loadModel } from '../lib/model';
+import { modelStatus } from '../lib/model';
 
 type Lean = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 const r = Router();
@@ -98,10 +97,6 @@ r.put('/settings', requireRole('lender'), async (req, res) => {
   res.json({ settings: s, changes });
 });
 
-r.post('/admin/reset', requireRole('lender'), async (_req, res) => {
-  await seedAll(() => undefined);
-  loadModel(true);
-  res.json({ ok: true });
-});
+// No reset over the web: the shared demo must not be wiped by a visitor. Reset from a terminal with `npm run seed`.
 
 export default r;

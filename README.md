@@ -31,7 +31,7 @@ npm run seed                # fills the database with the seven demo shops (fixe
 npm run dev                 # client http://localhost:5173, API http://localhost:4000
 ```
 
-The API seeds itself if the database is empty. The lender console has a **Reset demo data** button; Seed and Reset give the same state.
+The API seeds itself if the database is empty. There is no reset button on the web (so a visitor cannot wipe the shared demo); to reset, run `npm run seed` with `MONGODB_URI` pointing at the database. Every seed gives the same state.
 
 | Account | Email | Password |
 | --- | --- | --- |

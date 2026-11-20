@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApi } from '../lib/hooks';
 import { useI18n } from '../lib/i18n';
-import { useAuth } from '../lib/auth';
 import { api } from '../lib/api';
 import { Card, PageTitle, Skeleton, ErrorNote, ModeBadge } from '../components/ui';
 import { Tour } from '../components/Tour';
@@ -48,7 +47,6 @@ function Meter({ label, value, limit }: { label: string; value: number; limit: n
 
 export default function Dashboard() {
   const { t, pick, n } = useI18n();
-  const { user } = useAuth();
   const c = useApi('/console');
   const [agent, setAgent] = useState('');
   const audit = useApi(`/audit/full${agent ? `?agent=${agent}` : ''}`, [agent, c.data]);
@@ -68,12 +66,6 @@ export default function Dashboard() {
       setBusy(null);
     }
   };
-  const reset = () =>
-    confirm(t('Reset all demo data to the seeded state?', 'সব ডেমো তথ্য শুরুর অবস্থায় ফিরিয়ে নেবেন?')) &&
-    run('reset', async () => {
-      await api('/admin/reset', { method: 'POST' });
-      location.reload();
-    });
   if (!c.data) return <Skeleton h={400} />;
   const { policy, control, metrics, decisions, counts } = c.data;
   return (
@@ -82,13 +74,6 @@ export default function Dashboard() {
       <PageTitle
         title={t('Policy and audit console', 'নীতি ও অডিট কনসোল')}
         sub={t('AI agents decide inside the policy you own. You set the policy, read every decision and the audit log, and can pause the AI. You never approve or decline a single case here.', 'আপনার নীতির ভেতরে এআই এজেন্ট সিদ্ধান্ত নেয়। আপনি নীতি ঠিক করেন, প্রতিটি সিদ্ধান্ত ও অডিট লগ দেখেন, এবং এআই থামাতে পারেন। এখানে কোনো একক কেস আপনি অনুমোদন বা প্রত্যাখ্যান করেন না।')}
-        right={
-          user?.role === 'lender' && (
-            <button className="btn" onClick={reset} disabled={busy === 'reset'}>
-              {busy === 'reset' ? t('Resetting…', 'রিসেট হচ্ছে…') : t('Reset demo data', 'ডেমো তথ্য রিসেট')}
-            </button>
-          )
-        }
       />
       <ErrorNote msg={err || c.error} />
       {msg && <div className="card p-3 mb-4 text-[13.5px]">{msg}</div>}
