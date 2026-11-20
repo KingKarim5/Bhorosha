@@ -19,6 +19,8 @@ Everything you need to test Bhorsha from scratch, the way a real shop owner, len
 | `contracts/A_unclear_late_clause.txt` | Part 4 | Loan contract whose late fee is "as agreed verbally" |
 | `contracts/B_fixed_terms.txt` | Part 4 | Loan contract with fixed figures: 25% early rebate, +3 points late penalty |
 | `contracts/C_wrong_amount.txt` | Part 4 | Loan contract for Tk 95,000 when the shop asked for Tk 80,000 |
+| `contracts/D_rate_too_low.txt` | Part 4 | Loan contract at 10% a year, below what the investors and Bhorsha's fee need |
+| `contracts/E_missing_late_clause.txt` | Part 4 | Loan contract with no late repayment clause at all |
 
 Tick each **Expect** line as you go. If something does not match, write it down with the template at the end.
 
@@ -68,6 +70,8 @@ Stay on the Kit Tea Stall case, section **Loan terms and repayments**. Press **V
 | `A_unclear_late_clause.txt` | Contract **Unsure: held for the lender**; the decision becomes **On hold**. A **Confirm the terms** box appears. Enter rebate `20`, penalty `2` and press **Confirm and re-run the agents**: the case goes back to **Approved with conditions**. |
 | `B_fixed_terms.txt` | Contract **Clear**; **Pricing** shows exactly 25% and +3 points, because a figure fixed in the contract wins over the agent. |
 | `C_wrong_amount.txt` | Contract **Fails the code checks**: "principal (Tk 95,000) differs from the application (Tk 80,000)". The case is **On hold**. |
+| `D_rate_too_low.txt` | Contract reads **Clear**, but **Rate setup** turns ✗: "Borrower rate 10% is below the investor rate 10.25% plus Bhorsha's fee … at least 11.15% is needed". The case is **On hold** until a contract at an allowed rate is uploaded. |
+| `E_missing_late_clause.txt` | Contract **Fails the code checks**: "No late repayment clause was found." The case is **On hold**. |
 
 Finish with `B_fixed_terms.txt` so the case ends approved.
 

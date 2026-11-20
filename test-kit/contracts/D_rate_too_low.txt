@@ -1,0 +1,8 @@
+LOAN AGREEMENT (synthetic test)
+Lender: licensed partner (lender of record). Borrower: Kit Tea Stall owner.
+1. Principal: Tk 80,000.
+2. Interest rate: 10% a year, reducing balance.
+3. Tenor: 12 months, equal monthly instalments.
+4. Early repayment: the borrower may repay early at any time; 20% of the remaining scheduled interest is waived.
+5. Late repayment: an overdue instalment carries 2 percentage points a year above the contract rate, for the days it is late.
+6. Repayment by bKash or bank transfer, quoting the loan reference.
