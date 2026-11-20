@@ -315,9 +315,13 @@ const InvestorSchema = new Schema(
     cap_per_loan_bdt: { type: Number, default: 50000 },
     cap_total_bdt: { type: Number, default: 200000 },
     committed_total_bdt: { type: Number, default: 0 },
+    // NID check: only the minimum is kept (name, date of birth, last 4 digits, a one-way fingerprint). The card image is never stored.
+    kyc: { type: M, default: null },
+    kyc_pending: { type: M, default: null }, // a read waiting for the investor to confirm "this is me"
   },
   opts,
 );
+InvestorSchema.index({ 'kyc.nid_hash': 1 }, { sparse: true });
 
 const InvestorVerificationSchema = new Schema(
   { investor: ref('Investor'), step: String, status: String, simulated_at: Date, dummy_value: String },

@@ -21,6 +21,8 @@ Everything you need to test Bhorsha from scratch, the way a real shop owner, len
 | `contracts/C_wrong_amount.txt` | Part 4 | Loan contract for Tk 95,000 when the shop asked for Tk 80,000 |
 | `contracts/D_rate_too_low.txt` | Part 4 | Loan contract at 10% a year, below what the investors and Bhorsha's fee need |
 | `contracts/E_missing_late_clause.txt` | Part 4 | Loan contract with no late repayment clause at all |
+| `investor/nid_specimen_1_test_investor.png` … `_4_` | Part 9 | Four SPECIMEN NID cards (one per tester) for the identity scan |
+| `investor/nid_specimen_minor.png` | Part 9 | SPECIMEN NID of a 14-year-old: must be refused |
 
 Tick each **Expect** line as you go. If something does not match, write it down with the template at the end.
 
@@ -142,18 +144,30 @@ In your own institution, go to **Policy**. Changes apply only to your institutio
 
 ## Part 9: Sign up as an investor
 
-1. Log out (top right). On the home page press **I'm an investor** and create an account.
+Each tester uses a **different specimen card** from `investor/` (card 1, 2, 3 or 4): the same NID cannot verify two accounts. Never scan a real NID on the demo site.
+
+1. Log out (top right). On the home page press **I'm an investor** and create an account. **Your name must match your card**: for card 1 use `Test Investor One`, for card 2 `Test Investor Two`, and so on.
 - [ ] **Expect:** you land on **Investor verification** with status `not_started`.
-2. Verification (simulated, nothing real):
-   - Identity: first type `01712345678`.
-   - [ ] **Expect:** refused, "Do not enter a real ID or phone number". Then type `DUMMY-1234` and confirm.
-   - Source of funds: choose **Salary or business income** and confirm.
-   - Risk acknowledgement: tick the box and confirm.
-- [ ] **Expect:** status becomes **verified**.
-3. Go to **Listings**.
+2. **Identity: scan your NID.** Press **Scan NID (front)** and choose your specimen card (on a phone this opens the camera).
+- [ ] **Expect:** within a few seconds the page shows what the AI read (name in English and Bangla, date of birth, the NID number with only the last 4 digits shown, father and mother), a note that it is a SPECIMEN card, and a ✓ against every check: NID card, read clearly, number shape, adult, name matches, no signs of editing, not used by another account.
+- Press **This is me: confirm**.
+- [ ] **Expect:** step 1 shows *Specimen (test) card read and checked* with your name and `NID ••••••0017` (or your card's last 4 digits).
+3. Try the failures (each one on a fresh investor account, or before you confirm):
+
+| Scan | Expect |
+| --- | --- |
+| `nid_specimen_minor.png` | ✗ *Age 14: investors must be 18 or older.* No confirm button |
+| A card another tester already confirmed | ✗ *This NID is already used by another investor account.* |
+| Your card, on an account with a different name | ✗ *The name on the card does not match your account name.* |
+| Any bill photo from `bills/` | ✗ *The photo does not look like a Bangladesh NID card.* |
+| **Type the details instead**: a 17-digit number whose first four digits are not the birth year | ✗ *The 17-digit number starts with …, which does not match the date of birth.* |
+
+4. Source of funds: choose **Salary or business income** and confirm. Risk acknowledgement: tick the box and confirm.
+- [ ] **Expect:** status becomes **verified**. As admin, **/admin** now shows your NID check and the masked number.
+5. Go to **Listings**.
 - [ ] **Expect:** only loans the AI approved are listed, from every institution, each showing which lender it belongs to and without shop names. Your Kit Tea Stall is there under your institution's name, even before you released its funds.
 - [ ] **Expect:** each card shows **You earn 10.25% a year** and what Tk 10,000 brings back (for example Tk 10,564 over 12 months).
-4. Open a listing.
+6. Open a listing.
 - [ ] **Expect:** the evidence with checked / owner says labels, the lender's conditions, and **How the interest is shared** (investor rate 10.25% = bank rate 10% + 0.25%), marked as not a promise.
 5. Type different amounts in the commit box: the box under it shows the interest you earn, the total you get back and the monthly amount. Commit `10000`.
 - [ ] **Expect:** "Simulated commitment recorded". There is no personal limit: you can put in as much as the loan still has open.

@@ -10,6 +10,12 @@ const VER: Record<string, { en: string; bn: string; color: string }> = {
   not_started: { en: 'Not started', bn: 'শুরু হয়নি', color: 'var(--muted)' },
 };
 
+const KYC: Record<string, { en: string; bn: string }> = {
+  card_checked: { en: 'Card read and checked', bn: 'কার্ড পড়ে যাচাই' },
+  specimen_checked: { en: 'Specimen card (test)', bn: 'নমুনা কার্ড (পরীক্ষা)' },
+  typed_checked: { en: 'Typed details checked', bn: 'লেখা তথ্য যাচাই' },
+};
+
 export default function Admin() {
   const { t, n, bdt, pick } = useI18n();
   const { data, error } = useApi('/admin/overview');
@@ -77,6 +83,7 @@ export default function Admin() {
               <tr>
                 <th className="py-1.5 pr-3">{t('Investor', 'বিনিয়োগকারী')}</th>
                 <th className="pr-3">{t('Verification', 'যাচাই')}</th>
+                <th className="pr-3">{t('NID check', 'জাতীয় পরিচয়পত্র যাচাই')}</th>
                 <th className="pr-3 text-right">{t('Loans backed', 'সমর্থিত ঋণ')}</th>
                 <th className="pr-3 text-right">{t('Committed', 'প্রতিশ্রুতি')}</th>
                 <th>{t('Joined', 'যোগ দিয়েছে')}</th>
@@ -87,6 +94,7 @@ export default function Admin() {
                 <tr key={i.id} className="border-t border-line">
                   <td className="py-2 pr-3"><b>{i.name}</b><div className="text-[11.5px] text-muted">{i.email}</div></td>
                   <td className="pr-3" style={{ color: VER[i.verification_status]?.color }}>{pick(VER[i.verification_status] || { en: i.verification_status, bn: i.verification_status })}</td>
+                  <td className="pr-3 text-[12px]">{i.kyc_status ? <>{pick(KYC[i.kyc_status] || { en: i.kyc_status, bn: i.kyc_status })}<div className="num text-muted">{i.kyc_name} · {i.nid_masked}</div></> : <span className="text-muted">{t('Not yet', 'এখনো নয়')}</span>}</td>
                   <td className="pr-3 num text-right">{n(i.commitments)}</td>
                   <td className="pr-3 num text-right">{bdt(i.committed_bdt)}</td>
                   <td className="num text-muted">{when(i.joined)}</td>

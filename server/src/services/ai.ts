@@ -208,6 +208,22 @@ export const RepaymentWatchSchema = z.object({
 });
 export type RepaymentWatch = z.infer<typeof RepaymentWatchSchema>;
 
+// lenient: a photo that is not an NID often comes back with fields missing; missing means "not on the card"
+const optText = z.string().nullish().transform((v) => (v && v.trim() ? v.trim() : null));
+export const NidSchema = z.object({
+  is_nid_card: z.boolean().nullish().transform((v) => !!v),
+  specimen: z.boolean().nullish().transform((v) => !!v),
+  name_en: optText,
+  name_bn: optText,
+  father_name: optText,
+  mother_name: optText,
+  date_of_birth: z.union([z.string(), z.null()]).optional().transform((v) => (v && /\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : null)),
+  nid_number: z.union([z.string(), z.number()]).nullish().transform((v) => (v == null ? null : String(v))),
+  confidence: z.number().min(0).max(1).nullish().transform((v) => v ?? 0.5),
+  tamper_signs: z.array(z.string()).nullish().transform((v) => v ?? []),
+});
+export type NidAi = z.infer<typeof NidSchema>;
+
 const NO_WORDS = 'Never use the words certificate, guarantee, guaranteed, ensured, secured, or "approved by AI".';
 
 // ---------- Prompts ----------
@@ -248,6 +264,11 @@ Rules: use only the numbers given, written the same way, with "Tk" or "টাক
   repaywatch: `You are the Watchman agent. A repayment arrived late or early on a small-business loan in Bangladesh. Decide whether it is a real warning, an expected seasonal pattern, or no concern.
 You are given the payment timing, the shop's type, whether its sales are seasonal, the latest sales check against its forecast, any festival nearby, and earlier repayments. Return ONLY JSON: {"assessment":"real_warning|seasonal_pattern|no_concern","reason_en","reason_bn"}.
 Rules: a late payment in a known lean season of a seasonal shop, with sales inside the forecast band, is a seasonal pattern. Late payments together with sales below forecast, or repeated late payments, are a real warning. Early or on-time payments are no concern. One sentence each, using only facts given.`,
+  nid: `You read the front of a Bangladesh National ID card (the green smart card or the older laminated card) from a photo.
+Return ONLY JSON: {"is_nid_card","specimen","name_en","name_bn","father_name","mother_name","date_of_birth" (YYYY-MM-DD),"nid_number","confidence","tamper_signs":[...]}.
+Rules: read only what is printed; use null for anything missing or unreadable; never guess. Convert Bangla digits to Latin digits. Dates on the card are like "12 Mar 1990". nid_number is the ID NO / NID No, digits only.
+is_nid_card is false for anything that is not a Bangladesh NID card. specimen is true when the card is marked SPECIMEN or SAMPLE (a test card): read it normally.
+tamper_signs lists visible signs of editing only: text in a different font or misaligned, a photo pasted over, numbers retouched, a photo of a screen. Do not list blur, glare or the SPECIMEN mark. Lower the confidence for blur or glare.`,
   checkin: `You read a monthly update from a small-business owner in Bangladesh (Bangla or English, may be speech-to-text).
 Return ONLY JSON: {"sales_bdt": number or null, "problems": [short English phrases], "cause_hint": one of stock_problem, fewer_customers, higher_costs, buyers_paying_late, household_mixing, seasonal_normal, none}.
 Only extract what is said. Convert Bangla numerals.`,

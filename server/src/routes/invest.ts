@@ -1,4 +1,9 @@
 import { Router } from 'express';
+import crypto from 'crypto';
+import multer from 'multer';
+import { config } from '../config';
+import { callJson, PROMPTS, NidSchema, NidAi } from '../services/ai';
+import { checkNid, nidFingerprint, maskNid, normaliseNid, NidRead } from '../lib/nid';
 import { z } from 'zod';
 import { requireRole } from '../auth';
 import { Application, Shop, Verdict, Decision, Investor, InvestorVerification, Commitment, InvestorUpdate, EvidenceItem, AuditLog } from '../models';
@@ -71,11 +76,80 @@ r.get('/invest/me', inv, async (req, res) => {
   const i = await me(req.user!.id);
   if (!i) return res.status(404).json({ error: 'investor profile not found' });
   const steps = await InvestorVerification.find({ investor: i._id }).lean();
-  res.json({ investor: i, steps });
+  const strip = (k: Lean | null) => (k ? { ...k, nid_hash: undefined } : null);
+  res.json({ investor: { ...i, kyc: strip(i.kyc), kyc_pending: strip(i.kyc_pending) }, steps });
+});
+
+// ---- NID check: the AI reads the card, the code checks it, the investor confirms. The image is never stored.
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 6 * 1024 * 1024 } });
+const nidSecret = () => crypto.createHmac('sha256', config.jwtSecret).update('bhorsha-nid').digest('hex');
+const today = () => new Date().toISOString().slice(0, 10);
+
+async function runNidChecks(i: Lean, accountName: string, read: NidRead & { specimen?: boolean }, readBy: string) {
+  const num = normaliseNid(read.nid_number);
+  const fp = num ? nidFingerprint(num, nidSecret()) : null;
+  const dup = !!fp && !!(await Investor.exists({ 'kyc.nid_hash': fp, _id: { $ne: i._id } }));
+  const c = checkNid(read, accountName, today(), dup);
+  const pending = {
+    read_by: readBy, specimen: !!read.specimen, pass: c.pass, checks: c.checks,
+    name_en: read.name_en, name_bn: read.name_bn, father_name: read.father_name, mother_name: read.mother_name, date_of_birth: read.date_of_birth,
+    nid_masked: maskNid(num), nid_type: c.type, nid_hash: fp, age: c.age, read_at: new Date(),
+  };
+  await Investor.updateOne({ _id: i._id }, { kyc_pending: pending });
+  const { nid_hash: _h, ...shown } = pending; // the fingerprint never goes to the browser
+  void _h;
+  return shown;
+}
+
+/** Scan the front of the NID. Returns what was read and every check; nothing is final until the investor confirms. */
+r.post('/invest/kyc/nid', inv, upload.single('image'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Add a photo of the front of your NID card.' });
+  if (!/^image\//.test(req.file.mimetype)) return res.status(400).json({ error: 'The file must be a photo (JPG or PNG).' });
+  const i = await me(req.user!.id);
+  const r2 = await callJson<NidAi>({
+    task: 'read_nid', system: PROMPTS.nid, user: 'Read this NID card. Return the JSON object only.', image: { b64: req.file.buffer.toString('base64'), mime: req.file.mimetype },
+    schema: NidSchema, fallback: () => ({ is_nid_card: false, specimen: false, name_en: null, name_bn: null, father_name: null, mother_name: null, date_of_birth: null, nid_number: null, confidence: 0, tamper_signs: [] }),
+    actor: req.user!.email, agent: 'Intake', timeoutMs: 20000, // two tries stay inside the 60-second request limit
+  });
+  // the image buffer is dropped here: it is never written anywhere
+  if (r2.mode !== 'ai') return res.status(503).json({ error: 'The card reader is not available right now. Try again in a minute, or type your details instead.', can_type: true });
+  const shown = await runNidChecks(i, req.user!.display_name, r2.data, 'ai');
+  await AuditLog.create({ actor: req.user!.email, action: 'kyc:nid_read', agent: 'Intake', redacted_payload_json: { image: '[NID photo, not stored]' }, output_json: { pass: shown.pass, failed: shown.checks.filter((c) => !c.pass).map((c) => c.key), specimen: shown.specimen }, mode: 'ai', latency_ms: r2.latency_ms });
+  res.json(shown);
+});
+
+/** When the reader is down: the investor types the details. Same checks, labelled as typed (not read from a card). */
+r.post('/invest/kyc/typed', inv, async (req, res) => {
+  const b = z.object({
+    name_en: z.string().trim().min(2, 'Enter your name as on the card.').max(80),
+    date_of_birth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Enter your date of birth.'),
+    nid_number: z.string().trim().min(10, 'Enter the full NID number.').max(30),
+  }).parse(req.body);
+  const i = await me(req.user!.id);
+  const shown = await runNidChecks(i, req.user!.display_name, { is_nid_card: true, name_en: b.name_en, name_bn: null, father_name: null, mother_name: null, date_of_birth: b.date_of_birth, nid_number: b.nid_number, confidence: 1, tamper_signs: [] }, 'typed');
+  res.json(shown);
+});
+
+/** "This is me": the checked read becomes the investor's identity record and the identity step is done. */
+r.post('/invest/kyc/confirm', inv, async (req, res) => {
+  const i = await me(req.user!.id);
+  const p = i.kyc_pending as Lean | null;
+  if (!p) return res.status(400).json({ error: 'Scan your NID first.' });
+  if (!p.pass) return res.status(400).json({ error: 'The card did not pass every check. Retake the photo or fix the details first.' });
+  if (p.nid_hash && (await Investor.exists({ 'kyc.nid_hash': p.nid_hash, _id: { $ne: i._id } }))) return res.status(400).json({ error: 'This NID is already used by another investor account.' });
+  const kyc = { ...p, status: p.read_by === 'ai' ? (p.specimen ? 'specimen_checked' : 'card_checked') : 'typed_checked', confirmed_at: new Date(), ec_verified: false };
+  delete (kyc as Lean).pass;
+  await Investor.updateOne({ _id: i._id }, { kyc, kyc_pending: null });
+  await InvestorVerification.findOneAndUpdate({ investor: i._id, step: 'identity' }, { status: 'done', simulated_at: new Date(), dummy_value: `NID ${p.nid_masked}` }, { upsert: true });
+  const done = await InvestorVerification.countDocuments({ investor: i._id, status: 'done' });
+  const status = done >= 3 ? 'verified' : 'in_progress';
+  await Investor.updateOne({ _id: i._id }, { verification_status: status });
+  await AuditLog.create({ actor: req.user!.email, action: 'kyc:confirmed', agent: 'Intake', redacted_payload_json: { nid: p.nid_masked, read_by: p.read_by }, output_json: { status: kyc.status }, mode: 'human' });
+  res.json({ verification_status: status, kyc: { ...kyc, nid_hash: undefined } });
 });
 
 r.post('/invest/verify', inv, async (req, res) => {
-  const b = z.object({ step: z.enum(['identity', 'source_of_funds', 'risk_acknowledgement']), dummy_value: z.string().trim().max(60) }).parse(req.body);
+  const b = z.object({ step: z.enum(['source_of_funds', 'risk_acknowledgement'], { errorMap: () => ({ message: 'Identity is checked by scanning your NID.' }) }), dummy_value: z.string().trim().max(60) }).parse(req.body);
   // Simulation only: refuse anything that looks like a real ID number or phone number.
   if (/\d{8,}/.test(b.dummy_value.replace(/\D/g, '')) || /01[3-9]\d{8}/.test(b.dummy_value)) return res.status(400).json({ error: 'This is a simulation. Do not enter a real ID or phone number; use a dummy value such as DUMMY-1234.' });
   const i = await me(req.user!.id);

@@ -135,7 +135,10 @@ async function seedUnlocked(log: (m: string) => void) {
   const investors = [];
   for (const [i, u] of invUsers.entries())
     investors.push(
-      await Investor.create({ user: u._id, label: u.display_name, verification_status: 'verified', cap_per_loan_bdt: 50000, cap_total_bdt: 200000 }),
+      await Investor.create({
+        user: u._id, label: u.display_name, verification_status: 'verified', cap_per_loan_bdt: 50000, cap_total_bdt: 200000,
+        kyc: { status: 'specimen_checked', read_by: 'seed', specimen: true, name_en: u.display_name, nid_masked: `••••••${String(1000 + i).slice(-4)}`, nid_type: 'smart_10', confirmed_at: new Date(), ec_verified: false },
+      }),
     );
   await Investor.create({ user: users['newinvestor@demo.bd']._id, label: 'New investor (demo)', verification_status: 'not_started', cap_per_loan_bdt: 50000, cap_total_bdt: 200000 });
   for (const inv of investors)

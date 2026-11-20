@@ -38,7 +38,7 @@ r.get('/admin/overview', admin, async (_req, res) => {
   const investorRows = investors.map((i) => {
     const u = users.find((x) => String(x._id) === String(i.user));
     const mine = commits.filter((c) => String(c.investor) === String(i._id));
-    return { id: i._id, name: u?.display_name || i.label, email: u?.email, joined: u?.createdAt, verification_status: i.verification_status, commitments: mine.length, committed_bdt: mine.reduce((a, c) => a + (c.amount_bdt || 0), 0) };
+    return { id: i._id, name: u?.display_name || i.label, email: u?.email, joined: u?.createdAt, verification_status: i.verification_status, kyc_status: i.kyc?.status || null, nid_masked: i.kyc?.nid_masked || null, kyc_name: i.kyc?.name_en || null, commitments: mine.length, committed_bdt: mine.reduce((a, c) => a + (c.amount_bdt || 0), 0) };
   });
   res.json({
     totals: { lenders: lenderRows.length, investors: investorRows.length, cases: apps.length, funded_loans: loans.length, committed_bdt: commits.reduce((a, c) => a + (c.amount_bdt || 0), 0) },
