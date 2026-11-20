@@ -49,14 +49,14 @@ export function TopControls() {
 }
 
 const STAFF_NAV = [
-  { to: '/dashboard', en: 'Dashboard', bn: 'ড্যাশবোর্ড', icon: IconHome },
-  { to: '/cases', en: 'Cases', bn: 'কেস', icon: IconFolder },
-  { to: '/cases/new', en: 'New case', bn: 'নতুন কেস', icon: IconPlus },
+  { to: '/dashboard', en: 'Lender console', bn: 'ঋণদাতার কনসোল', icon: IconHome },
+  { to: '/cases', en: 'AI decisions', bn: 'এআই-এর সিদ্ধান্ত', icon: IconFolder },
+  { to: '/apply', en: 'Owner application link', bn: 'মালিকের আবেদন লিংক', icon: IconPlus },
   { to: '/watchlist', en: 'Watchlist', bn: 'নজরতালিকা', icon: IconPulse },
   { to: '/shadow', en: 'Shadow mode', bn: 'শ্যাডো মোড', icon: IconShadow },
   { to: '/evaluation', en: 'Evaluation', bn: 'মূল্যায়ন', icon: IconGauge },
   { to: '/fairness', en: 'Fairness & audit', bn: 'ন্যায্যতা ও অডিট', icon: IconScale },
-  { to: '/settings', en: 'Lender settings', bn: 'ঋণদাতার সেটিংস', icon: IconSliders },
+  { to: '/settings', en: 'Policy', bn: 'নীতি', icon: IconSliders },
   { to: '/structure', en: 'Money structure', bn: 'টাকার কাঠামো', icon: IconFlow },
   { to: '/about', en: 'About', bn: 'পরিচিতি', icon: IconInfo },
 ];
@@ -81,7 +81,7 @@ export function Shell({ children }: { children: ReactNode }) {
     api('/meta').then((m) => setAiMode(m.ai_mode)).catch(() => undefined);
   }, []);
   useEffect(() => setOpen(false), [loc.pathname]);
-  const roleWord = user ? { manager: t('Manager', 'ম্যানেজার'), officer: t('Officer', 'অফিসার'), investor: t('Investor (simulation)', 'বিনিয়োগকারী (সিমুলেশন)') }[user.role] : '';
+
   return (
     <div className="grain min-h-screen">
       <SyntheticRibbon />
@@ -122,7 +122,7 @@ export function Shell({ children }: { children: ReactNode }) {
               </button>
               {user && (
                 <span className="chip hidden sm:inline-flex">
-                  {roleWord} · {user.display_name}
+                  {user.display_name}
                 </span>
               )}
               <DemoBadge />

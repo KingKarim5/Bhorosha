@@ -3,7 +3,7 @@ import { api, setToken } from './api';
 
 export interface User {
   id: string;
-  role: 'manager' | 'officer' | 'investor';
+  role: 'lender' | 'investor';
   email: string;
   display_name: string;
 }

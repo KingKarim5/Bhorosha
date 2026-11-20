@@ -50,17 +50,17 @@ export default function Settings() {
               <label className="label" htmlFor={f.k}>
                 {pick(f)}
               </label>
-              <input id={f.k} type="number" step={f.step} className="input mt-1 num" value={form[f.k] ?? ''} onChange={(e) => setForm({ ...form, [f.k]: Number(e.target.value) })} disabled={user?.role !== 'manager'} />
+              <input id={f.k} type="number" step={f.step} className="input mt-1 num" value={form[f.k] ?? ''} onChange={(e) => setForm({ ...form, [f.k]: Number(e.target.value) })} disabled={user?.role !== 'lender'} />
             </div>
           ))}
         </div>
         <ErrorNote msg={err} />
-        {user?.role === 'manager' ? (
+        {user?.role === 'lender' ? (
           <button className="btn btn-primary mt-4" onClick={save} disabled={busy}>
             {busy ? t('Recomputing…', 'আবার হিসাব হচ্ছে…') : t('Save and recompute', 'সংরক্ষণ ও আবার হিসাব')}
           </button>
         ) : (
-          <p className="text-muted mt-3 text-[13.5px]">{t('Only the manager can change settings.', 'শুধু ম্যানেজার সেটিংস বদলাতে পারেন।')}</p>
+          <p className="text-muted mt-3 text-[13.5px]">{t('Only the lender can change the policy.', 'শুধু ঋণদাতা নীতি বদলাতে পারেন।')}</p>
         )}
       </Card>
       {changes && (

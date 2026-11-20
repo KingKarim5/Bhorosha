@@ -19,7 +19,7 @@ export default function About() {
         <Card title={t('What it is not', 'এটি কী নয়')}>
           <ul className="list-disc pl-5 space-y-1.5 text-[14.5px]">
             <li>{t('Not a lender, and it never holds money.', 'ঋণদাতা নয়, এবং কখনো টাকা রাখে না।')}</li>
-            <li>{t('Not an automatic approval: a manager decides and records why.', 'স্বয়ংক্রিয় অনুমোদন নয়: ম্যানেজার সিদ্ধান্ত নেন ও কারণ লেখেন।')}</li>
+            <li>{t('Not unsupervised: AI agents decide inside a policy the licensed lender owns; the lender sets the policy, reads the audit log and can pause the AI.', 'নিয়ন্ত্রণহীন নয়: লাইসেন্সপ্রাপ্ত ঋণদাতার নীতির ভেতরে এআই এজেন্ট সিদ্ধান্ত নেয়; ঋণদাতা নীতি ঠিক করেন, অডিট লগ দেখেন এবং এআই থামাতে পারেন।')}</li>
             <li>{t('Not a safety stamp or a promise of repayment or returns.', 'নিরাপত্তার সিল বা ঋণ ফেরত/মুনাফার প্রতিশ্রুতি নয়।')}</li>
             <li>{t('Not tested on real borrowers yet. All data here is synthetic.', 'এখনো বাস্তব ঋণগ্রহীতার উপর পরীক্ষা হয়নি। এখানকার সব তথ্য কৃত্রিম।')}</li>
           </ul>

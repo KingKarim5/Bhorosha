@@ -4,7 +4,7 @@ import { config } from './config';
 
 export interface AuthUser {
   id: string;
-  role: 'manager' | 'officer' | 'investor';
+  role: 'lender' | 'investor';
   email: string;
   display_name: string;
 }

@@ -6,7 +6,7 @@ import { seedAll } from './seed';
     await connectDb();
     console.log('Seeding Bhorsha demo data (synthetic)...');
     await seedAll();
-    console.log('Done. Logins: manager@demo.bd / officer@demo.bd / investor@demo.bd, password bhorsha-demo');
+    console.log('Done. Logins: lender@demo.bd / investor@demo.bd / newinvestor@demo.bd, password bhorsha-demo');
   } catch (e) {
     console.error('Seed failed:', (e as Error).message);
     process.exitCode = 1;

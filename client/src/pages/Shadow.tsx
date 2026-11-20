@@ -7,7 +7,7 @@ export default function Shadow() {
   const { data } = useApi('/shadow');
   return (
     <div>
-      <PageTitle title={t('Shadow-mode report', 'শ্যাডো মোড রিপোর্ট')} sub={t("Bhorsha's verdict next to the manager's decision and the outcome at 12 months. In a real trial the file would change no decisions.", 'ভরসার রায়, ম্যানেজারের সিদ্ধান্ত আর ১২ মাস পরের ফলাফল পাশাপাশি। আসল পরীক্ষায় ফাইল কোনো সিদ্ধান্ত বদলাবে না।')} />
+      <PageTitle title={t('Shadow-mode report', 'শ্যাডো মোড রিপোর্ট')} sub={t("Bhorsha's verdict next to the lender's own past decision and the outcome at 12 months. In a real shadow trial the AI would change no decisions.", 'ভরসার রায়, ঋণদাতার নিজের অতীত সিদ্ধান্ত আর ১২ মাস পরের ফলাফল পাশাপাশি। আসল শ্যাডো পরীক্ষায় এআই কোনো সিদ্ধান্ত বদলাবে না।')} />
       <div className="rounded-xl border-2 border-dashed px-4 py-3 mb-5 font-semibold" style={{ borderColor: 'var(--owner)' }}>
         {t('SIMULATION, illustrative only. These are synthetic past files, not results from a real lender.', 'সিমুলেশন, শুধু উদাহরণ। এগুলো কৃত্রিম পুরোনো ফাইল, কোনো আসল ঋণদাতার ফলাফল নয়।')}
       </div>
@@ -30,7 +30,7 @@ export default function Shadow() {
               </div>
             ))}
             <p className="text-[13px] text-muted mt-3">
-              {t('Verdict and manager agree (viable–approve or not viable–decline):', 'রায় ও ম্যানেজার একমত (টেকসই–অনুমোদন বা টেকসই নয়–প্রত্যাখ্যান):')} <span className="num font-semibold">{n(data.summary.agreement_pct)}%</span> · n = {n(data.summary.n)}
+              {t('Verdict and past lender decision agree (viable–approve or not viable–decline):', 'রায় ও ঋণদাতার অতীত সিদ্ধান্ত একমত (টেকসই–অনুমোদন বা টেকসই নয়–প্রত্যাখ্যান):')} <span className="num font-semibold">{n(data.summary.agreement_pct)}%</span> · n = {n(data.summary.n)}
             </p>
           </Card>
           <Card title={t('Files', 'ফাইল')}>
@@ -40,7 +40,7 @@ export default function Shadow() {
                   <tr>
                     <th className="py-1">{t('File', 'ফাইল')}</th>
                     <th>{t('Bhorsha', 'ভরসা')}</th>
-                    <th>{t('Manager', 'ম্যানেজার')}</th>
+                    <th>{t('Past lender decision', 'ঋণদাতার অতীত সিদ্ধান্ত')}</th>
                     <th>{t('Trading at 12 m', '১২ মাসে চালু')}</th>
                   </tr>
                 </thead>

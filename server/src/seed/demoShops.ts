@@ -26,7 +26,7 @@ export interface DemoShop {
   gen: GenConfig;
   docs: { kind: 'bill' | 'note'; sample_key: string; confirm?: boolean }[];
   checkins?: { reported_sales_bdt: number | null; problem_note: string; source: string }[];
-  decision?: { decision: 'approve'; reason: string };
+  decision?: { decision: 'approve'; reason: string }; // seeds the funded loans; text is rewritten by the Underwriter
 }
 
 const onTime = () => 0;

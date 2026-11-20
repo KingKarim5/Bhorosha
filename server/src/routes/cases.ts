@@ -19,9 +19,9 @@ import { validateText, validateCitations, extractNumbers } from '../lib/validate
 type Lean = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 const r = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
-const staff = requireRole('manager', 'officer');
+const staff = requireRole('lender');
 
-r.get('/samples/statement/:slug', staff, (req, res) => {
+r.get('/samples/statement/:slug', (req, res) => {
   const slug = req.params.slug.replace(/[^a-z]/g, '');
   const file = path.join(config.seedDataDir, 'statements', `${slug}.csv`);
   if (!fs.existsSync(file)) return res.status(404).json({ error: 'no such sample' });
@@ -64,7 +64,7 @@ r.get('/cases/:id', staff, async (req, res) => {
     EvidenceItem.find({ application: app._id }).lean(),
     Finding.find({ application: app._id }).lean(),
     Doc.find({ shop: app.shop }).sort({ createdAt: 1 }).lean(),
-    Decision.find({ application: app._id }).sort({ createdAt: -1 }).populate('manager', 'display_name').lean(),
+    Decision.find({ application: app._id }).sort({ createdAt: -1 }).lean(),
     AuditLog.find({ application: app._id }).sort({ createdAt: -1 }).limit(60).lean(),
   ]);
   const docsOut = docs.map((d) => ({ ...d, sample: d.sample_key ? BILLS[d.sample_key] || NOTES[d.sample_key] || null : null }));
@@ -97,7 +97,8 @@ const CreateSchema = z.object({
   note_text: z.string().max(4000).optional(),
 });
 
-r.post('/cases', staff, async (req, res) => {
+// Public intake: the shop owner applies through a link; no login. Returns the owner's private token.
+r.post('/apply', async (req, res) => {
   const b = CreateSchema.parse(req.body);
   const parsed = b.statement_csv ? parseStatementCsv(b.statement_csv) : { txns: [], errors: [] as string[] };
   const shop = await Shop.create({ label: b.label, business_type: b.business_type, months_trading: b.months_trading, owner_label: `${b.label} (owner)`, token: crypto.randomBytes(10).toString('hex'), cohort_flag: 'demo', slug: 'new-' + Date.now() });
@@ -108,11 +109,11 @@ r.post('/cases', staff, async (req, res) => {
   if (parsed.txns.length) await Transaction.insertMany(parsed.txns.map((t) => ({ ...t, shop: shop._id, hidden_until_sim: 0 })));
   if (b.note_text?.trim()) {
     const d = await Doc.create({ shop: shop._id, application: app._id, kind: 'note', raw_text: b.note_text.trim() });
-    await readNote(String(d._id), req.user!.email);
+    await readNote(String(d._id), 'owner');
   }
-  await AuditLog.create({ actor: req.user!.email, action: 'intake:create', application: app._id, redacted_payload_json: { label: b.label, rows: parsed.txns.length, parse_errors: parsed.errors.slice(0, 5) }, output_json: {}, mode: 'human' });
-  await recompute(app._id, { actor: req.user!.email, reason: 'intake' });
-  res.json({ id: app._id, rows: parsed.txns.length, parse_errors: parsed.errors.slice(0, 10) });
+  await AuditLog.create({ actor: 'owner', action: 'intake:create', application: app._id, redacted_payload_json: { label: b.label, rows: parsed.txns.length, parse_errors: parsed.errors.slice(0, 5) }, output_json: {}, mode: 'human' });
+  await recompute(app._id, { actor: 'owner', reason: 'intake' });
+  res.json({ id: app._id, token: shop.token, rows: parsed.txns.length, parse_errors: parsed.errors.slice(0, 10) });
 });
 
 // ---- documents
@@ -126,6 +127,19 @@ r.post('/cases/:id/documents', staff, upload.single('image'), async (req, res) =
   else result = await readNote(String(doc._id), req.user!.email);
   // image buffer is discarded here: nothing is stored
   const v = await recompute(app._id, { actor: req.user!.email, reason: 'new document' });
+  res.json({ doc_id: doc._id, ...result, verdict_version: v.version });
+});
+
+// Owner uploads by private token (no login)
+r.post('/owner/:token/documents', upload.single('image'), async (req, res) => {
+  const shop = await Shop.findOne({ token: req.params.token }).lean();
+  if (!shop) return res.status(404).json({ error: 'not found' });
+  const app = await Application.findOne({ shop: shop._id }).lean();
+  if (!app) return res.status(404).json({ error: 'not found' });
+  const kind = req.body.kind === 'note' ? 'note' : 'bill';
+  const doc = await Doc.create({ shop: shop._id, application: app._id, kind, raw_text: kind === 'note' ? String(req.body.text || '').slice(0, 4000) : undefined });
+  const result = kind === 'bill' ? await readBill(String(doc._id), req.file ? { b64: req.file.buffer.toString('base64'), mime: req.file.mimetype } : null, 'owner') : await readNote(String(doc._id), 'owner');
+  const v = await recompute(app._id, { actor: 'owner', reason: 'owner added a document' });
   res.json({ doc_id: doc._id, ...result, verdict_version: v.version });
 });
 
@@ -151,22 +165,6 @@ r.post('/cases/:id/recompute', staff, async (req, res) => {
   const ai = !!req.body?.ai;
   const v = await recompute(req.params.id, { actor: req.user!.email, ai, reason: ai ? 'AI cross-check and phrasing' : 'manual recompute' });
   res.json({ ok: true, version: v.version, generated_by: v.generated_by, phrased_by: v.phrased_by });
-});
-
-// ---- manager decision (human decides; reason always recorded, required when overriding)
-r.post('/cases/:id/decision', requireRole('manager'), async (req, res) => {
-  const b = z.object({ decision: z.enum(['approve', 'ask_more', 'decline']), reason: z.string().trim().max(1000).default(''), conditions_accepted: z.array(z.string()).default([]) }).parse(req.body);
-  const app = await Application.findById(req.params.id);
-  if (!app) return res.status(404).json({ error: 'case not found' });
-  const v = (await Verdict.findById(app.current_verdict).lean()) as Lean;
-  const overrode = (b.decision === 'approve' && v?.final_verdict === 'not_viable') || (b.decision === 'decline' && v?.final_verdict === 'viable');
-  if (b.reason.length < 5) return res.status(400).json({ error: overrode ? 'You are overriding the file. Write the reason (at least a few words).' : 'Write a short reason for the record.' });
-  const d = await Decision.create({ application: app._id, manager: req.user!.id, decision: b.decision, reason: b.reason, conditions_accepted: b.conditions_accepted, overrode_verdict: overrode, verdict_at_decision: v?.final_verdict });
-  if (b.decision === 'ask_more') app.status = 'draft';
-  else app.status = 'decided';
-  await app.save();
-  await AuditLog.create({ actor: req.user!.email, action: `decision:${b.decision}`, application: app._id, redacted_payload_json: { reason: b.reason, conditions_accepted: b.conditions_accepted }, output_json: { overrode_verdict: overrode, verdict: v?.final_verdict, missing: app.missing }, mode: 'human' });
-  res.json({ ok: true, decision: d, status: app.status, missing: app.missing });
 });
 
 // ---- outcome capture (C3)

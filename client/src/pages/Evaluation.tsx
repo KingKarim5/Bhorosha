@@ -85,7 +85,7 @@ export default function Evaluation() {
         <ul className="list-disc pl-5 space-y-1 text-[14px]">
           <li>{t('That Bhorsha works on real Bangladeshi shops. That needs a lender trial (level 3), which is planned, not done.', 'ভরসা বাস্তব বাংলাদেশি দোকানে কাজ করে কিনা। এর জন্য ঋণদাতার পরীক্ষা (স্তর ৩) দরকার, যা পরিকল্পিত, হয়নি।')}</li>
           <li>{t('That the investor side attracts investors or performs.', 'বিনিয়োগকারীর অংশ বিনিয়োগকারী আকর্ষণ করে বা ভালো ফল দেয় কিনা।')}</li>
-          <li>{t('That extraction is reliable on real handwritten documents. Published benchmarks on handwritten Bengali records report very high error rates; the officer confirmation stays.', 'হাতে লেখা আসল কাগজে পড়া নির্ভরযোগ্য কিনা। হাতে লেখা বাংলা নথিতে প্রকাশিত পরীক্ষায় ভুলের হার খুব বেশি; তাই অফিসারের নিশ্চিতকরণ থাকছে।')}</li>
+          <li>{t('That extraction is reliable on real handwritten documents. Published benchmarks on handwritten Bengali records report very high error rates; a reading counts as checked only when it matches the money trail.', 'হাতে লেখা আসল কাগজে পড়া নির্ভরযোগ্য কিনা। হাতে লেখা বাংলা নথিতে প্রকাশিত পরীক্ষায় ভুলের হার খুব বেশি; তাই টাকার হিসাবের সাথে মিললে তবেই যাচাই করা ধরা হয়।')}</li>
         </ul>
       </Card>
     </div>

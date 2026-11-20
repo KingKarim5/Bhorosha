@@ -12,7 +12,7 @@ export default function Stub({ kind }: { kind: 'field_visit' | 'counterparty' })
         t('Count of customers in 30 minutes', '৩০ মিনিটে ক্রেতার সংখ্যা'),
         t('Check the paper ledger against two wallet days', 'খাতার হিসাব দুই দিনের ওয়ালেটের সাথে মেলানো'),
         t('Confirm the owner runs the shop day to day', 'মালিক নিজে প্রতিদিন দোকান চালান কিনা'),
-        t('Officer signs; items become checked evidence', 'অফিসার স্বাক্ষর করেন; বিষয়গুলো যাচাই করা প্রমাণ হয়'),
+        t('A field partner signs; items become checked evidence', 'মাঠের অংশীদার স্বাক্ষর করেন; বিষয়গুলো যাচাই করা প্রমাণ হয়'),
       ]
     : [
         t('Pick a named buyer or supplier from the statement', 'স্টেটমেন্ট থেকে একজন ক্রেতা বা সরবরাহকারী বাছুন'),

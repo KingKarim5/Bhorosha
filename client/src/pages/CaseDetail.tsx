@@ -27,73 +27,37 @@ function Section({ title, children, open = true, right }: { title: string; child
   );
 }
 
-function DecisionPanel({ data, onDone }: { data: any; onDone: () => void }) {
+const DECISION_WORDS: Record<string, { en: string; bn: string; color: string }> = {
+  approved_with_conditions: { en: 'Approved with conditions', bn: 'শর্তসহ অনুমোদিত', color: 'var(--viable)' },
+  declined_with_plan: { en: 'Declined, with a plan', bn: 'পরিকল্পনাসহ প্রত্যাখ্যাত', color: 'var(--notviable)' },
+  hold_need_evidence: { en: 'On hold: more evidence needed', bn: 'স্থগিত: আরও প্রমাণ দরকার', color: 'var(--unsure)' },
+};
+
+export function DecisionHistory({ decisions }: { decisions: any[] }) {
   const { t, pick } = useI18n();
-  const { user } = useAuth();
-  const v = data.verdict;
-  const [decision, setDecision] = useState<'approve' | 'ask_more' | 'decline'>(v.final_verdict === 'not_viable' ? 'ask_more' : 'approve');
-  const [reason, setReason] = useState('');
-  const [conds, setConds] = useState<string[]>((v.conditions_json || []).map((c: any) => c.key));
-  const [err, setErr] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const overriding = (decision === 'approve' && v.final_verdict === 'not_viable') || (decision === 'decline' && v.final_verdict === 'viable');
-  if (user?.role !== 'manager')
-    return <p className="text-muted text-[14px]">{t('Only the branch manager records the decision. Log in as the manager to decide.', 'শুধু শাখা ম্যানেজার সিদ্ধান্ত লেখেন। সিদ্ধান্ত নিতে ম্যানেজার হিসেবে লগ ইন করুন।')}</p>;
-  const submit = async () => {
-    setBusy(true);
-    setErr(null);
-    try {
-      await api(`/cases/${data.app._id}/decision`, { body: { decision, reason, conditions_accepted: decision === 'approve' ? conds : [] } });
-      setReason('');
-      onDone();
-    } catch (e) {
-      setErr((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-  const opts: { k: typeof decision; en: string; bn: string }[] = [
-    { k: 'approve', en: 'Approve with conditions', bn: 'শর্তসহ অনুমোদন' },
-    { k: 'ask_more', en: 'Ask for more', bn: 'আরও চাওয়া' },
-    { k: 'decline', en: 'Decline', bn: 'প্রত্যাখ্যান' },
-  ];
+  if (!decisions?.length) return <p className="text-muted text-[14px]">{t('No AI decision yet.', 'এখনো এআই-এর সিদ্ধান্ত হয়নি।')}</p>;
   return (
-    <div>
-      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={t('Decision', 'সিদ্ধান্ত')}>
-        {opts.map((o) => (
-          <button key={o.k} role="radio" aria-checked={decision === o.k} onClick={() => setDecision(o.k)} className={`btn justify-center text-[13.5px] ${decision === o.k ? '!border-accent !bg-raised ring-2 ring-[var(--accent)]' : ''}`}>
-            {pick(o)}
-          </button>
-        ))}
-      </div>
-      {decision === 'approve' && (v.conditions_json || []).length > 0 && (
-        <fieldset className="mt-3">
-          <legend className="label mb-1">{t('Conditions attached', 'যুক্ত শর্ত')}</legend>
-          {v.conditions_json.map((c: any) => (
-            <label key={c.key} className="flex items-start gap-2 text-[13.5px] py-1">
-              <input type="checkbox" className="mt-1 h-4 w-4" checked={conds.includes(c.key)} onChange={(e) => setConds(e.target.checked ? [...conds, c.key] : conds.filter((x) => x !== c.key))} />
-              <span>{pick(c)}</span>
-            </label>
-          ))}
-        </fieldset>
-      )}
-      {decision === 'ask_more' && (data.app.missing || []).length > 0 && (
-        <p className="text-[13px] mt-2 text-muted">{t('The case returns to draft and the file lists what is missing.', 'কেসটি খসড়ায় ফিরবে এবং ফাইলে কী বাকি তা দেখাবে।')}</p>
-      )}
-      {overriding && (
-        <p className="mt-3 text-[13.5px] flex gap-1.5" style={{ color: 'var(--unsure)' }}>
-          <IconAlert className="shrink-0" /> {t('You are going against the file. Write why; this is logged.', 'আপনি ফাইলের পরামর্শের বিপরীতে যাচ্ছেন। কারণ লিখুন; এটি রেকর্ড হবে।')}
-        </p>
-      )}
-      <label className="label block mt-3" htmlFor="reason">
-        {t('Reason for the record', 'রেকর্ডের জন্য কারণ')}
-      </label>
-      <textarea id="reason" className="input mt-1 min-h-[80px]" value={reason} onChange={(e) => setReason(e.target.value)} placeholder={t('e.g. Viable; first tranche for stock, bills to be shown within 30 days.', 'যেমন: টেকসই; প্রথম কিস্তি মাল কেনায়, ৩০ দিনের মধ্যে বিল দেখাবেন।')} />
-      <ErrorNote msg={err} />
-      <button className="btn btn-primary w-full justify-center mt-3" onClick={submit} disabled={busy}>
-        {busy ? t('Saving…', 'সংরক্ষণ হচ্ছে…') : t('Record decision', 'সিদ্ধান্ত লিখুন')}
-      </button>
-    </div>
+    <ul className="space-y-2">
+      {decisions.map((d: any, i: number) => {
+        const w = DECISION_WORDS[d.decision] || { en: d.decision, bn: d.decision, color: 'var(--muted)' };
+        return (
+          <li key={d._id} className="text-[13.5px] p-2.5 rounded" style={{ background: 'var(--raised)', opacity: i === 0 ? 1 : 0.75 }}>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="chip" style={{ color: w.color, borderColor: w.color }}>{pick(w)}</span>
+              <span className="text-muted">{d.decided_by}</span>
+              <span className="num text-muted">{new Date(d.createdAt).toLocaleString()}</span>
+              {i === 0 && <span className="chip !py-0">{t('current', 'বর্তমান')}</span>}
+            </div>
+            {(d.reasons || []).map((r: any, j: number) => (
+              <div key={j} className="mt-1">
+                {pick(r)} {r.evidence_ids?.length > 0 && <span className="num text-[11px] text-muted">[{r.evidence_ids.join(', ')}]</span>}
+              </div>
+            ))}
+            {d.legacy_note && <div className="mt-1 text-muted">{d.legacy_note}</div>}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -149,7 +113,7 @@ function memoText(data: any, t: (e: string, b: string) => string) {
     `6. Disbursement plan:\n${(v.tranche_plan_json || []).map((x: any) => `   T${x.n}: ${x.amount_bdt} BDT — ${x.release_en}`).join('\n')}`,
     `7. Monitoring: ${(v.watch_list_json || []).map(L).join(' ')}`,
     `8. Limits: ${(v.cannot_tell_json || []).map(L).join(' ')}`,
-    `Advice for the manager. The decision is the lender's.`,
+    `Decided by Bhorsha AI inside the lender's policy. The lender sets the policy, reads the audit log and can pause the AI.`,
   ].join('\n') + (t('', '') || '');
 }
 
@@ -189,7 +153,7 @@ export default function CaseDetail() {
             {pick(STATUS_WORDS[data.app.status])}
             {lastDecision && (
               <>
-                {' '}· {t('Decision', 'সিদ্ধান্ত')}: <b>{lastDecision.decision}</b>
+                {' '}· {t('AI decision', 'এআই-এর সিদ্ধান্ত')}: <b>{pick(DECISION_WORDS[lastDecision.decision] || { en: lastDecision.decision, bn: lastDecision.decision })}</b>
               </>
             )}
           </div>
@@ -231,7 +195,7 @@ export default function CaseDetail() {
         </div>
         <div className="no-print space-y-4">
           <Section title={t('Documents and AI reading', 'কাগজপত্র ও এআই-এর পড়া')}>
-            <DocumentPanel data={data} onChange={reload} canConfirm={user?.role === 'manager' || user?.role === 'officer'} />
+            <DocumentPanel data={data} onChange={reload} canConfirm={false} />
           </Section>
           <Section title={t('Evidence and proof labels', 'প্রমাণ ও প্রমাণের চিহ্ন')}>
             <ul className="space-y-2">
@@ -278,19 +242,8 @@ export default function CaseDetail() {
               <p className="text-muted text-[13.5px]">{t('No contradictions found between the documents.', 'কাগজগুলোর মধ্যে কোনো অমিল পাওয়া যায়নি।')}</p>
             )}
           </Section>
-          <Section title={t('Manager decision', 'ম্যানেজারের সিদ্ধান্ত')}>
-            {data.decisions.length > 0 && (
-              <ul className="mb-4 space-y-2">
-                {data.decisions.map((d: any) => (
-                  <li key={d._id} className="text-[13.5px] p-2 rounded" style={{ background: 'var(--raised)' }}>
-                    <b>{d.decision}</b> · {d.manager?.display_name} · {new Date(d.createdAt).toLocaleString()}
-                    {d.overrode_verdict && <span className="chip ml-2" style={{ color: 'var(--unsure)' }}>{t('override', 'ভিন্নমত')}</span>}
-                    <div className="mt-0.5 text-muted">“{d.reason}”</div>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <DecisionPanel data={data} onDone={reload} />
+          <Section title={t('AI decision', 'এআই-এর সিদ্ধান্ত')}>
+            <DecisionHistory decisions={data.decisions} />
           </Section>
           <Section title={t('Ask this file', 'এই ফাইলকে জিজ্ঞেস করুন')} open={false}>
             <AskFile caseId={data.app._id} />
@@ -317,7 +270,7 @@ export default function CaseDetail() {
             {stmt.data ? (
               <div className="overflow-x-auto max-h-80">
                 <p className="text-[12px] text-muted mb-1">
-                  {n(stmt.data.total_rows)} {t('rows. Counterparty types are seeded in this demo; real statements would need classification with officer correction.', 'সারি। এই ডেমোতে লেনদেনের পক্ষের ধরন আগে থেকে দেওয়া; আসল স্টেটমেন্টে শ্রেণিবিন্যাস ও অফিসারের সংশোধন লাগবে।')}
+                  {n(stmt.data.total_rows)} {t('rows. Counterparty types are seeded in this demo; real statements would need automatic classification, with unclear rows sent to the owner as questions.', 'সারি। এই ডেমোতে লেনদেনের পক্ষের ধরন আগে থেকে দেওয়া; আসল স্টেটমেন্টে স্বয়ংক্রিয় শ্রেণিবিন্যাস লাগবে, অস্পষ্ট সারি মালিককে প্রশ্ন হিসেবে যাবে।')}
                 </p>
                 <table className="w-full text-[12.5px] num">
                   <tbody>

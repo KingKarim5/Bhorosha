@@ -149,7 +149,7 @@ export function ViabilityFile({ data }: { data: any }) {
         </ul>
       </motion.section>
       <p className="mt-3 text-[12px] italic" style={{ color: 'var(--muted)' }}>
-        {t('Advice for the manager. The decision is yours. Bhorsha does not approve loans.', 'ম্যানেজারের জন্য পরামর্শ। সিদ্ধান্ত আপনার। ভরসা ঋণ অনুমোদন করে না।')}
+        {t('Decided by Bhorsha AI inside the lender’s policy. The lender sets the policy, reads the audit log and can pause the AI.', 'ঋণদাতার নীতির ভেতরে ভরসা এআই-এর সিদ্ধান্ত। ঋণদাতা নীতি ঠিক করেন, অডিট লগ দেখেন এবং এআই থামাতে পারেন।')}
       </p>
     </article>
   );

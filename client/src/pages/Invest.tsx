@@ -11,7 +11,7 @@ export default function Invest() {
   const alloc = useApi(`/invest/allocate?budget=${budget}`, [budget]);
   return (
     <div>
-      <PageTitle title={t('Listed cases', 'তালিকাভুক্ত কেস')} sub={t('Only files with a viable verdict and a manager approval appear here. Names and areas are hidden so a small shop cannot be identified.', 'শুধু "টেকসই" রায় ও ম্যানেজারের অনুমোদন পাওয়া ফাইল এখানে আসে। ছোট দোকান যেন চেনা না যায়, তাই নাম ও এলাকা লুকানো।')} />
+      <PageTitle title={t('Listed cases', 'তালিকাভুক্ত কেস')} sub={t('Only cases the AI approved with conditions, inside the lender’s policy, appear here. Names and areas are hidden so a small shop cannot be identified.', 'শুধু ঋণদাতার নীতির ভেতরে এআই যেসব কেস শর্তসহ অনুমোদন করেছে, সেগুলো এখানে আসে। ছোট দোকান যেন চেনা না যায়, তাই নাম ও এলাকা লুকানো।')} />
       <SimulationBanner />
       <ErrorNote msg={error} />
       {!data ? (

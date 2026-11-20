@@ -36,7 +36,7 @@ export function DemoBadge() {
   return (
     <span className="chip !text-[11.5px] !py-0.5" title={t('This prototype runs on synthetic demo data. Not real borrowers or real lending decisions.', 'এই প্রোটোটাইপ কৃত্রিম ডেমো তথ্যে চলে। বাস্তব ঋণগ্রহীতা বা বাস্তব ঋণের সিদ্ধান্ত নয়।')}>
       <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
-      {t('Demo data', 'ডেমো তথ্য')}
+      {t('Synthetic demo data', 'কৃত্রিম ডেমো তথ্য')}
     </span>
   );
 }

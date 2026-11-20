@@ -34,7 +34,7 @@ function Loading() {
   );
 }
 
-function Guard({ roles, children }: { roles?: ('manager' | 'officer' | 'investor')[]; children: ReactNode }) {
+function Guard({ roles, children }: { roles?: ('lender' | 'investor')[]; children: ReactNode }) {
   const { user, loading } = useAuth();
   const loc = useLocation();
   if (loading) return <Loading />;
@@ -43,11 +43,11 @@ function Guard({ roles, children }: { roles?: ('manager' | 'officer' | 'investor
   return <>{children}</>;
 }
 
-const staff: ('manager' | 'officer')[] = ['manager', 'officer'];
+const staff: 'lender'[] = ['lender'];
 
 export function App() {
   const { user } = useAuth();
-  const inShell = (el: ReactNode, roles?: ('manager' | 'officer' | 'investor')[]) => (
+  const inShell = (el: ReactNode, roles?: ('lender' | 'investor')[]) => (
     <Guard roles={roles}>
       <Shell>
         <Suspense fallback={<Loading />}>{el}</Suspense>
@@ -70,7 +70,8 @@ export function App() {
       />
       <Route path="/dashboard" element={inShell(<Dashboard />, staff)} />
       <Route path="/cases" element={inShell(<Cases />, staff)} />
-      <Route path="/cases/new" element={inShell(<CaseNew />, staff)} />
+      <Route path="/apply" element={<PublicShell><Suspense fallback={<Loading />}><CaseNew /></Suspense></PublicShell>} />
+      <Route path="/cases/new" element={<Navigate to="/apply" replace />} />
       <Route path="/cases/:id" element={inShell(<CaseDetail />, staff)} />
       <Route path="/cases/:id/field-visit" element={inShell(<Stub kind="field_visit" />, staff)} />
       <Route path="/cases/:id/counterparty" element={inShell(<Stub kind="counterparty" />, staff)} />

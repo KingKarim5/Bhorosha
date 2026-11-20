@@ -22,7 +22,7 @@ export default function Owner() {
         ? t('The lender could not approve the loan this time. The points below show what can change.', 'ঋণদাতা এবার ঋণ অনুমোদন করতে পারেননি। নিচের বিষয়গুলো দেখায় কী বদলানো যায়।')
         : data.decision === 'ask_more'
           ? t('The lender needs a little more from you before deciding.', 'সিদ্ধান্তের আগে ঋণদাতা আপনার কাছে আরও কিছু চান।')
-          : t('Your file is with the branch manager. A person will decide.', 'আপনার ফাইল শাখা ম্যানেজারের কাছে। একজন মানুষ সিদ্ধান্ত নেবেন।');
+          : t('Your file is being read. Bhorsha AI decides inside the lender’s policy.', 'আপনার ফাইল পড়া হচ্ছে। ঋণদাতার নীতির ভেতরে ভরসা এআই সিদ্ধান্ত নেবে।');
   const MISSING: Record<string, { en: string; bn: string }> = {
     statement_3_months: { en: 'At least 3 months of your wallet statement', bn: 'অন্তত ৩ মাসের ওয়ালেট স্টেটমেন্ট' },
     statement_12_months: { en: '12 months of your wallet statement', bn: '১২ মাসের ওয়ালেট স্টেটমেন্ট' },
@@ -88,7 +88,7 @@ export default function Owner() {
         <Block title={t('A plan to grow stronger', 'আরও শক্ত হওয়ার পরিকল্পনা')} items={data.recovery_plan} />
         <Block title={t('Please bring', 'অনুগ্রহ করে আনুন')} items={(data.missing || []).map((m: string) => MISSING[m]).filter(Boolean)} />
         <p className="text-[15px] mt-8" style={{ color: '#5b6f6b' }}>
-          {t('This page judges the evidence, not you. Questions? Call your loan officer.', 'এই পাতা প্রমাণ বিচার করে, আপনাকে নয়। প্রশ্ন থাকলে আপনার ঋণ কর্মকর্তাকে ফোন করুন।')}
+          {t('This page judges the evidence, not you. Answer the questions below or add new evidence any time.', 'এই পাতা প্রমাণ বিচার করে, আপনাকে নয়। নিচের প্রশ্নের উত্তর দিন বা যেকোনো সময় নতুন প্রমাণ যোগ করুন।')}
         </p>
       </div>
     </main>

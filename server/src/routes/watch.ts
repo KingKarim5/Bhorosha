@@ -5,7 +5,7 @@ import { Flag, Intervention, AuditLog, CheckIn } from '../models';
 import { simulateNextMonth, watchlist } from '../services/watchman';
 
 const r = Router();
-const staff = requireRole('manager', 'officer');
+const staff = requireRole('lender');
 
 r.get('/watchlist', staff, async (_req, res) => res.json(await watchlist()));
 
@@ -18,7 +18,7 @@ r.post('/flags/:id/interventions', staff, async (req, res) => {
   const b = z.object({ action: z.string().trim().min(2).max(200), result_note: z.string().max(500).default('') }).parse(req.body);
   const flag = await Flag.findById(req.params.id);
   if (!flag) return res.status(404).json({ error: 'flag not found' });
-  const i = await Intervention.create({ flag: flag._id, officer: req.user!.id, ...b });
+  const i = await Intervention.create({ flag: flag._id, actor: req.user!.email, ...b });
   if (flag.status === 'open') {
     flag.status = 'in_progress';
     await flag.save();

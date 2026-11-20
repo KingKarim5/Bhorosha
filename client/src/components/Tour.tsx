@@ -35,7 +35,7 @@ export function Tour() {
     },
     {
       title: t('The verdict tag', 'রায়ের চিহ্ন'),
-      body: t('Not a certificate: a calm tag with a likelihood band. The manager decides.', 'কোনো সনদ নয়: সম্ভাবনার সীমাসহ একটি শান্ত চিহ্ন। সিদ্ধান্ত ম্যানেজারের।'),
+      body: t('Not a certificate: a calm tag with a likelihood band. AI agents decide inside the lender’s policy.', 'কোনো সনদ নয়: সম্ভাবনার সীমাসহ একটি শান্ত চিহ্ন। ঋণদাতার নীতির ভেতরে এআই এজেন্ট সিদ্ধান্ত নেয়।'),
       demo: <VerdictTag verdict="viable" low={72} high={88} showAdvice={false} />,
     },
     {

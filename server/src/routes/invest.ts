@@ -27,7 +27,7 @@ async function me(userId: string) {
   return (await Investor.findOne({ user: userId }).lean()) as Lean;
 }
 
-/** Only cases with a viable verdict AND an approve decision can be listed. */
+/** Only cases whose latest AI decision is approved_with_conditions can be listed. */
 async function listable() {
   const apps = (await Application.find({ status: { $in: ['decided', 'funded'] } }).lean()) as Lean[];
   const out: Lean[] = [];
@@ -36,7 +36,7 @@ async function listable() {
     if (shop?.cohort_flag !== 'demo') continue;
     const v = (await Verdict.findById(a.current_verdict).lean()) as Lean;
     const d = (await Decision.findOne({ application: a._id }).sort({ createdAt: -1 }).lean()) as Lean;
-    const listed = v?.final_verdict === 'viable' && d?.decision === 'approve';
+    const listed = d?.decision === 'approved_with_conditions'; // only AI decisions approved with conditions are listed
     out.push({ a, shop, v, d, listed });
   }
   return out;
@@ -99,7 +99,7 @@ r.post('/invest/commit', inv, async (req, res) => {
   if (i.verification_status !== 'verified') return res.status(403).json({ error: 'Finish the simulated verification before committing.' });
   const all = await listable();
   const x = all.find((y) => String(y.a._id) === b.application);
-  if (!x || !x.listed) return res.status(400).json({ error: 'This case is not listed (it needs a viable file and a manager approval).' });
+  if (!x || !x.listed) return res.status(400).json({ error: 'This case is not listed (only cases the AI approved with conditions are listed).' });
   if (b.amount_bdt > i.cap_per_loan_bdt) return res.status(400).json({ error: `Over your per-loan cap of ${i.cap_per_loan_bdt} BDT.` });
   const amt = b.amount_bdt;
   // Atomic cap checks: each step is a conditional update; any failure rolls back the earlier steps.

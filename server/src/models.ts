@@ -6,7 +6,7 @@ const M = Schema.Types.Mixed;
 
 const UserSchema = new Schema(
   {
-    role: { type: String, enum: ['manager', 'officer', 'investor'], required: true },
+    role: { type: String, enum: ['lender', 'investor'], required: true },
     display_name: String,
     email: { type: String, unique: true, required: true },
     password_hash: String,
@@ -144,15 +144,22 @@ const VerdictSchema = new Schema(
   opts,
 );
 
+// AI decisions (v2): made by the Underwriter agent inside the lender's policy. History is never edited.
 const DecisionSchema = new Schema(
   {
     application: { ...ref('Application'), index: true },
-    manager: ref('User'),
-    decision: { type: String, enum: ['approve', 'ask_more', 'decline'] },
-    reason: String,
-    conditions_accepted: [String],
-    overrode_verdict: Boolean,
-    verdict_at_decision: String,
+    verdict: ref('Verdict'),
+    decision: { type: String, enum: ['approved_with_conditions', 'declined_with_plan', 'hold_need_evidence'] },
+    decided_by: String, // e.g. "Bhorsha AI, policy v1"
+    policy_version: Number,
+    reasons: { type: M, default: [] }, // [{en, bn, evidence_ids}]
+    evidence_ids: [String],
+    conditions: { type: M, default: [] },
+    tranche_plan: { type: M, default: [] },
+    first_tranche_bdt: Number,
+    gates: { type: M, default: [] }, // each fail-safe gate with pass/fail
+    run_id: String,
+    legacy_note: String,
   },
   opts,
 );
@@ -205,7 +212,7 @@ const FlagSchema = new Schema(
 const InterventionSchema = new Schema(
   {
     flag: { ...ref('Flag'), index: true },
-    officer: ref('User'),
+    actor: { type: String, default: 'Servicer agent' },
     action: String,
     result_note: String,
   },

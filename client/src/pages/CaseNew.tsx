@@ -35,7 +35,7 @@ export default function CaseNew() {
     setBusy(true);
     setErr(null);
     try {
-      const r = await api('/cases', {
+      const r = await api('/apply', {
         body: {
           consent: true, ...f, statement_csv: csv || undefined, note_text: note || undefined,
           cash_share_pct: cash === '' ? null : Number(cash), margin_pct: margin === '' ? null : Number(margin), seasonal: seasonal === 'unknown' ? null : seasonal === 'yes',
@@ -46,9 +46,9 @@ export default function CaseNew() {
         const form = new FormData();
         form.append('image', blob, 'bill.jpg');
         form.append('kind', 'bill');
-        await api(`/cases/${r.id}/documents`, { form });
+        await api(`/owner/${r.token}/documents`, { form });
       }
-      go(`/cases/${r.id}`);
+      go(`/owner/${r.token}`);
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -58,7 +58,7 @@ export default function CaseNew() {
   const canNext = step === 0 ? consent && f.label.trim().length >= 2 : true;
   return (
     <div className="max-w-2xl">
-      <PageTitle title={t('New case', 'নতুন কেস')} sub={t('Four short steps. Works on a phone.', 'চারটি ছোট ধাপ। ফোনেও চলে।')} />
+      <PageTitle title={t('Apply for a loan', 'ঋণের আবেদন')} sub={t('For shop owners. Four short steps, works on a phone. Bhorsha AI decides inside the lender’s policy; you get a private link to follow your file.', 'দোকান মালিকদের জন্য। চারটি ছোট ধাপ, ফোনেও চলে। ঋণদাতার নীতির ভেতরে ভরসা এআই সিদ্ধান্ত নেয়; আপনার ফাইল দেখতে একটি ব্যক্তিগত লিংক পাবেন।')} />
       <div className="mb-4 rounded-lg p-3 text-[14px] flex gap-2" style={{ background: 'color-mix(in oklab, var(--notviable) 10%, transparent)' }} role="alert">
         <IconAlert className="shrink-0 mt-0.5" style={{ color: 'var(--notviable)' }} />
         {t('Demo only: do not upload real documents or real personal data.', 'শুধু ডেমো: আসল কাগজ বা আসল ব্যক্তিগত তথ্য আপলোড করবেন না।')}
@@ -78,7 +78,7 @@ export default function CaseNew() {
               <label className="flex items-start gap-3 p-3 rounded-lg border border-line cursor-pointer">
                 <input type="checkbox" className="h-6 w-6 mt-0.5" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
                 <span className="text-[15px]">
-                  {t('The owner agrees that the lender may read these records to judge this loan, and knows a person makes the decision.', 'মালিক সম্মত যে এই ঋণ বিচারের জন্য ঋণদাতা এই কাগজগুলো পড়তে পারবেন, এবং জানেন সিদ্ধান্ত একজন মানুষ নেবেন।')}
+                  {t('I agree that the lender may read these records to judge this loan. I understand Bhorsha AI decides inside the lender’s policy, and that I can add evidence or answer questions later.', 'আমি সম্মত যে এই ঋণ বিচারের জন্য ঋণদাতা এই কাগজগুলো পড়তে পারবেন। আমি জানি ঋণদাতার নীতির ভেতরে ভরসা এআই সিদ্ধান্ত নেয়, এবং পরে প্রমাণ যোগ করা বা প্রশ্নের উত্তর দেওয়া যায়।')}
                 </span>
               </label>
               <div>

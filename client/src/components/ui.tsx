@@ -32,7 +32,7 @@ export function ModeBadge({ mode }: { mode?: string | null }) {
   const { t } = useI18n();
   if (!mode) return null;
   if (mode === 'ai')
-    return <span className="chip" style={{ borderColor: 'var(--checked)', color: 'var(--checked)' }} title={t('Read by the AI model; an officer still confirms each field', 'এআই মডেল পড়েছে; অফিসার প্রতিটি ঘর নিশ্চিত করবেন')}>AI</span>;
+    return <span className="chip" style={{ borderColor: 'var(--checked)', color: 'var(--checked)' }} title={t('Read by the AI model; a field counts as checked only when it matches the money trail', 'এআই মডেল পড়েছে; টাকার হিসাবের সাথে মিললে তবেই ঘরটি যাচাই করা')}>AI</span>;
   if (mode === 'template') return <span className="chip text-muted">{t('Template text', 'টেমপ্লেট লেখা')}</span>;
   return (
     <span className="chip" style={{ borderColor: 'var(--unsure)', color: 'var(--unsure)' }} title={t('No AI key set or the AI call failed: canned output for the seed documents', 'এআই কী নেই বা কল ব্যর্থ: সিড ডকুমেন্টের জন্য তৈরি উত্তর')}>
@@ -45,7 +45,7 @@ export function ProofLabel({ label, compact }: { label: 'checked' | 'owner_says'
   const { t } = useI18n();
   const checked = label === 'checked';
   return (
-    <span className="inline-flex items-center gap-1.5 shrink-0" title={checked ? t('Checked against a statement, a calculation or an officer-confirmed document', 'স্টেটমেন্ট, হিসাব বা অফিসার-নিশ্চিত কাগজের সাথে মিলিয়ে দেখা') : t("Only the owner's word so far", 'এখন পর্যন্ত শুধু মালিকের কথা')}>
+    <span className="inline-flex items-center gap-1.5 shrink-0" title={checked ? t('Matched to the money trail: a wallet transaction, a courier settlement or a calculation', 'টাকার হিসাবের সাথে মিলেছে: ওয়ালেটের লেনদেন, কুরিয়ারের হিসাব বা গণনা') : t("Only the owner's word so far", 'এখন পর্যন্ত শুধু মালিকের কথা')}>
       <span className={`inline-block h-2.5 w-7 rounded-sm ${checked ? '' : 'hatch'}`} style={checked ? { background: 'var(--checked)' } : { border: '1px solid var(--owner)' }} />
       {!compact && (
         <span className="text-[12px] font-semibold" style={{ color: checked ? 'var(--checked)' : 'var(--owner)' }}>
@@ -126,7 +126,7 @@ export function VerdictTag({ verdict, low, high, showAdvice = true }: { verdict:
           </div>
         </div>
       )}
-      {showAdvice && <span className="text-[12.5px] italic text-muted">{t('Advice for the manager. The decision is yours.', 'ম্যানেজারের জন্য পরামর্শ। সিদ্ধান্ত আপনার।')}</span>}
+      {showAdvice && <span className="text-[12.5px] italic text-muted">{t('Decided by Bhorsha AI inside the lender’s policy.', 'ঋণদাতার নীতির ভেতরে ভরসা এআই-এর সিদ্ধান্ত।')}</span>}
     </div>
   );
 }

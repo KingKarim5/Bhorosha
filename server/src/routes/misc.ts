@@ -14,7 +14,7 @@ import { modelStatus, loadModel } from '../lib/model';
 
 type Lean = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 const r = Router();
-const staff = requireRole('manager', 'officer');
+const staff = requireRole('lender');
 
 function readEval(): Lean | null {
   try {
@@ -72,7 +72,7 @@ r.get('/fairness', staff, async (_req, res) => {
 
 r.get('/settings', staff, async (_req, res) => res.json(await getSettingsDoc()));
 
-r.put('/settings', requireRole('manager'), async (req, res) => {
+r.put('/settings', requireRole('lender'), async (req, res) => {
   const b = z
     .object({
       min_coverage_pct: z.number().min(0).max(100),
@@ -104,7 +104,7 @@ r.put('/settings', requireRole('manager'), async (req, res) => {
   res.json({ settings: s, changes });
 });
 
-r.post('/admin/reset', requireRole('manager'), async (_req, res) => {
+r.post('/admin/reset', requireRole('lender'), async (_req, res) => {
   await seedAll(() => undefined);
   loadModel(true);
   res.json({ ok: true });

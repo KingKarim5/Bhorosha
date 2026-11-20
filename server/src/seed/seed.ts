@@ -17,8 +17,7 @@ import { loadModel } from '../lib/model';
 
 export const DEMO_PASSWORD = 'bhorsha-demo';
 export const DEMO_ACCOUNTS = [
-  { role: 'manager', email: 'manager@demo.bd', display_name: 'Branch Manager (demo)' },
-  { role: 'officer', email: 'officer@demo.bd', display_name: 'Loan Officer (demo)' },
+  { role: 'lender', email: 'lender@demo.bd', display_name: 'Lender policy owner (demo)' },
   { role: 'investor', email: 'investor@demo.bd', display_name: 'Investor A (demo)' },
   { role: 'investor', email: 'newinvestor@demo.bd', display_name: 'New investor (demo, not yet verified)' },
 ];
@@ -31,7 +30,7 @@ export async function seedAll(log = console.log) {
   const hash = await bcrypt.hash(DEMO_PASSWORD, 8);
   const users: Record<string, InstanceType<typeof User>> = {};
   for (const a of DEMO_ACCOUNTS) users[a.email] = await User.create({ ...a, password_hash: hash });
-  users.manager = users['manager@demo.bd'];
+  users.lender = users['lender@demo.bd'];
   users.investor = users['investor@demo.bd'];
   const extraInvestors = [];
   for (let i = 2; i <= 5; i++)
@@ -81,10 +80,12 @@ export async function seedAll(log = console.log) {
     await recompute(app._id, { actor: 'seed', reason: 'initial seed' });
     if (s.decision) {
       const v = await Verdict.findById((await Application.findById(app._id))!.current_verdict).lean();
+      // provisional v2 decision record; the Underwriter agent (step 5) recomputes decisions on seed
       await Decision.create({
-        application: app._id, manager: users.manager._id, decision: s.decision.decision, reason: s.decision.reason,
-        overrode_verdict: v?.final_verdict === 'not_viable', verdict_at_decision: v?.final_verdict,
-        conditions_accepted: ((v?.conditions_json as { key: string }[]) || []).map((c) => c.key),
+        application: app._id, verdict: v?._id, decision: v?.final_verdict === 'viable' ? 'approved_with_conditions' : 'hold_need_evidence',
+        decided_by: 'Bhorsha AI, policy v1', policy_version: 1, reasons: [{ en: s.decision.reason, bn: s.decision.reason, evidence_ids: [] }],
+        conditions: v?.conditions_json || [], tranche_plan: v?.tranche_plan_json || [],
+        legacy_note: v?.final_verdict === 'viable' ? undefined : "Existing loan in the partner's book before Bhorsha; monitored by the watchman.",
       });
     }
     log(`  seeded ${s.label}`);

@@ -40,7 +40,7 @@ export default function Dashboard() {
         title={t('Branch dashboard', 'শাখার ড্যাশবোর্ড')}
         sub={t('Files waiting for a decision, borrowers to call this week, and how the file has matched outcomes so far (simulated).', 'সিদ্ধান্তের অপেক্ষায় থাকা ফাইল, এই সপ্তাহে যাদের ফোন করতে হবে, আর ফাইল এখন পর্যন্ত ফলাফলের সাথে কতটা মিলেছে (সিমুলেটেড)।')}
         right={
-          user?.role === 'manager' && (
+          user?.role === 'lender' && (
             <button className="btn" onClick={reset} disabled={resetting}>
               {resetting ? t('Resetting…', 'রিসেট হচ্ছে…') : t('Reset demo data', 'ডেমো তথ্য রিসেট')}
             </button>

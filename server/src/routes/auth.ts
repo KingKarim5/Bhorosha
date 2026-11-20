@@ -14,7 +14,7 @@ r.post('/login', async (req, res) => {
   if (!body.success) return res.status(400).json({ error: 'Enter an email and password.' });
   const u = await User.findOne({ email: body.data.email.toLowerCase() });
   if (!u || !(await bcrypt.compare(body.data.password, u.password_hash || ''))) return res.status(401).json({ error: 'Email or password is wrong.' });
-  const user = { id: String(u._id), role: u.role as 'manager', email: u.email, display_name: u.display_name || u.email };
+  const user = { id: String(u._id), role: u.role as 'lender', email: u.email, display_name: u.display_name || u.email };
   const token = sign(user);
   res.cookie(COOKIE, token, cookieOpts());
   res.json({ user, token });

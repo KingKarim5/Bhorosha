@@ -44,7 +44,7 @@ export default function InvestCase() {
         <div className="space-y-4">
           <Card>
             <VerdictTag verdict={data.verdict} low={data.band_low} high={data.band_high} showAdvice={false} />
-            <p className="text-[13.5px] text-muted mt-2">{t('This is the lender’s file in plain language. The bank manager approved it with the conditions below. It is evidence, not a promise.', 'এটি ঋণদাতার ফাইল, সহজ ভাষায়। ব্যাংক ম্যানেজার নিচের শর্তসহ অনুমোদন দিয়েছেন। এটি প্রমাণ, প্রতিশ্রুতি নয়।')}</p>
+            <p className="text-[13.5px] text-muted mt-2">{t('This is the lender’s file in plain language. Bhorsha AI approved it with the conditions below, inside the lender’s policy. It is evidence, not a promise.', 'এটি ঋণদাতার ফাইল, সহজ ভাষায়। ঋণদাতার নীতির ভেতরে ভরসা এআই নিচের শর্তসহ অনুমোদন করেছে। এটি প্রমাণ, প্রতিশ্রুতি নয়।')}</p>
             <div className="mt-3">
               <RunwayChart points={months} height={150} />
             </div>

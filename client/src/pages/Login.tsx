@@ -20,7 +20,7 @@ export default function Login() {
   const [sp] = useSearchParams();
   const [accounts, setAccounts] = useState<Acc[]>([]);
   const [password, setPassword] = useState('bhorsha-demo');
-  const [email, setEmail] = useState('manager@demo.bd');
+  const [email, setEmail] = useState('lender@demo.bd');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -46,8 +46,7 @@ export default function Login() {
     }
   };
   const roleText: Record<string, { en: string; bn: string }> = {
-    manager: { en: 'Branch manager: decides, overrides with a reason, resets demo data', bn: 'শাখা ম্যানেজার: সিদ্ধান্ত নেন, কারণসহ ভিন্নমত, ডেমো রিসেট' },
-    officer: { en: 'Loan officer: intake, confirms AI readings, logs calls', bn: 'ঋণ কর্মকর্তা: আবেদন গ্রহণ, এআই-এর পড়া নিশ্চিত, ফোনের রেকর্ড' },
+    lender: { en: 'Lender policy owner: sets the policy, reads AI decisions and the audit log, can pause the AI', bn: 'ঋণদাতা: নীতি ঠিক করেন, এআই-এর সিদ্ধান্ত ও অডিট লগ দেখেন, এআই থামাতে পারেন' },
     investor: { en: 'Investor (simulation): listings, portfolio, live updates', bn: 'বিনিয়োগকারী (সিমুলেশন): তালিকা, পোর্টফোলিও, আপডেট' },
   };
   return (
