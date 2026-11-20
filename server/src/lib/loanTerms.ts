@@ -22,6 +22,8 @@ export interface TermsPolicy {
   penalty_max_pts: number;
   grace_days: number;
   match_confidence_min: number;
+  early_pay_discount_pct: number; // share of an instalment's interest waived when it is paid early enough (0 = off)
+  early_pay_min_days: number; // how many days before the due date counts as "early enough"
 }
 
 export const DEFAULT_TERMS: TermsPolicy = {
@@ -41,6 +43,8 @@ export const DEFAULT_TERMS: TermsPolicy = {
   penalty_max_pts: 4,
   grace_days: 3,
   match_confidence_min: 0.8,
+  early_pay_discount_pct: 25,
+  early_pay_min_days: 5,
 };
 
 export function termsFrom(p: Partial<TermsPolicy> | null | undefined): TermsPolicy {
@@ -122,6 +126,7 @@ export interface Installment {
   interest_bdt: number;
   paid_bdt: number;
   status: 'due' | 'paid' | 'partial';
+  discount_bdt?: number; // interest waived because it was paid early
 }
 
 function addMonthsIso(iso: string, k: number) {
@@ -278,6 +283,48 @@ export function classifyPayment(dueIso: string, receivedIso: string, graceDays: 
   const days = Math.round((new Date(receivedIso.slice(0, 10) + 'T00:00:00Z').getTime() - new Date(dueIso + 'T00:00:00Z').getTime()) / DAY);
   const classification: PaymentClass = days < -graceDays ? 'early' : days <= graceDays ? 'on_time' : 'late';
   return { classification, days_from_due: days };
+}
+
+/**
+ * Early-payment discount on one instalment: when it is paid at least `early_pay_min_days` before the due date,
+ * that share of its interest is waived. Returns 0 when the policy has it off or the payment is not early enough.
+ */
+export function earlyDiscount(inst: Installment, daysFromDue: number, p: TermsPolicy) {
+  if (p.early_pay_discount_pct <= 0 || inst.paid_bdt > 0 || inst.discount_bdt) return 0;
+  if (daysFromDue > -p.early_pay_min_days) return 0;
+  return Math.round((inst.interest_bdt * p.early_pay_discount_pct) / 100);
+}
+
+/** The date an instalment must be paid by to earn the early-payment discount. */
+export function earlyPayBy(dueIso: string, p: TermsPolicy) {
+  const d = new Date(dueIso + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() - p.early_pay_min_days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** What an investor gets back on an amount at the investor rate, repaid monthly over the loan's tenor (if the borrower repays in full). */
+export function investorReturn(amount: number, tenor: number, investorRatePct: number) {
+  const s = schedule(amount, investorRatePct, tenor, '2000-01-01');
+  const interest = totalInterest(s);
+  return { amount_bdt: amount, interest_bdt: interest, total_back_bdt: amount + interest, monthly_bdt: s[0]?.amount_bdt ?? 0, tenor_months: tenor, rate_pct: investorRatePct };
+}
+
+/** How much an investor has received so far: each borrower instalment paid passes on the investor's share of that instalment. */
+export function investorReceived(amount: number, investorRatePct: number, loan: Installment[]) {
+  const inv = schedule(amount, investorRatePct, loan.length, '2000-01-01');
+  let received = 0;
+  let principalBack = 0;
+  loan.forEach((x, i) => {
+    const frac = x.amount_bdt > 0 ? Math.min(1, x.paid_bdt / x.amount_bdt) : 0;
+    received += inv[i].amount_bdt * frac;
+    principalBack += inv[i].principal_bdt * frac;
+  });
+  return { received_bdt: Math.round(received), principal_back_bdt: Math.round(principalBack), interest_received_bdt: Math.round(received - principalBack) };
+}
+
+/** A repayment clause that points to Annex A with a stated range is clear: the Pricing agent sets the figure inside it. */
+export function isAnnexRange(text: string | null | undefined) {
+  return !!text && /annex\s*a/i.test(text) && /between\s+[\d.]+\s*%?\s*(?:and|to|-)\s*[\d.]+/i.test(text);
 }
 
 /** The first instalment not yet fully paid. */

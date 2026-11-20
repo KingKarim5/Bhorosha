@@ -418,6 +418,8 @@ const PolicySchema = new Schema(
     penalty_max_pts: { type: Number, default: 4 },
     grace_days: { type: Number, default: 3 }, // a payment up to this many days after the due date is on time
     match_confidence_min: { type: Number, default: 0.8 }, // below this a payment waits in the lender's review queue
+    early_pay_discount_pct: { type: Number, default: 25 }, // share of an instalment's interest waived when paid early enough (0 = off)
+    early_pay_min_days: { type: Number, default: 5 }, // days before the due date that count as early enough
     created_by: String,
     note: String,
   },
@@ -513,6 +515,7 @@ const PaymentSchema = new Schema(
     classification: String, // early | on_time | late
     days_from_due: Number,
     partial: Boolean,
+    discount_bdt: Number, // early-payment discount applied to this instalment
     confidence: Number,
     matched_by: String, // reference | ai | demo_fallback | lender
     match_reason: String,

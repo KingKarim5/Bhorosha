@@ -23,7 +23,7 @@ export function SimulationBanner({ extra }: { extra?: string }) {
   return (
     <div role="note" className="rounded-xl border-2 border-dashed px-4 py-3 mb-5 text-sm font-semibold" style={{ borderColor: 'var(--owner)', color: 'var(--ink)', background: 'color-mix(in oklab, var(--owner) 12%, transparent)' }}>
       <div>{t('SIMULATION: no real money, no real investors.', 'সিমুলেশন: কোনো আসল টাকা নেই, কোনো আসল বিনিয়োগকারী নেই।')}</div>
-      <div className="font-normal text-muted mt-0.5">{extra || t('Investors can lose money. No return is projected or promised. A licensed partner (simulated) holds all funds; Bhorsha never does.', 'বিনিয়োগে লোকসান হতে পারে। কোনো মুনাফার পূর্বাভাস বা প্রতিশ্রুতি নেই। সব টাকা লাইসেন্সপ্রাপ্ত অংশীদারের (সিমুলেটেড) কাছে থাকে; ভরসা কখনো টাকা রাখে না।')}</div>
+      <div className="font-normal text-muted mt-0.5">{extra || t('Returns shown are the contract rate if borrowers repay in full; they are not promised, and investors can lose money. A licensed partner (simulated) holds all funds; Bhorsha never does.', 'দেখানো আয় চুক্তির হার, ঋণগ্রহীতা পুরো শোধ করলে; এটি প্রতিশ্রুতি নয়, বিনিয়োগে লোকসান হতে পারে। সব টাকা লাইসেন্সপ্রাপ্ত অংশীদারের (সিমুলেটেড) কাছে থাকে; ভরসা কখনো টাকা রাখে না।')}</div>
     </div>
   );
 }

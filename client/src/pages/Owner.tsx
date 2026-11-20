@@ -201,7 +201,12 @@ export default function Owner() {
               {t('Paid', 'পরিশোধ')} <b className="num">৳ {digits(data.loan.paid_bdt.toLocaleString('en-IN'))}</b> {t('of', 'মোট')} <span className="num">৳ {digits(data.loan.total_bdt.toLocaleString('en-IN'))}</span>.
               {data.loan.next_due && <> {t('Next', 'পরের কিস্তি')}: <b className="num">৳ {digits((data.loan.next_due.amount_bdt - data.loan.next_due.paid_bdt).toLocaleString('en-IN'))}</b> {t('by', 'তারিখ')} <span className="num">{digits(data.loan.next_due.due_date)}</span>.</>}
             </p>
-            <p className="text-[14px] mt-1" style={{ color: '#5b6f6b' }}>{t(`Pay early and ${data.loan.rebate_pct}% of the interest still to come is waived. A late instalment costs ${data.loan.penalty_pts} extra points a year, only for the days it is late.`, `আগে শোধ করলে বাকি সুদের ${digits(String(data.loan.rebate_pct))}% মাফ। কিস্তি দেরি হলে শুধু দেরির দিনগুলোর জন্য বছরে ${digits(String(data.loan.penalty_pts))} পয়েন্ট বেশি।`)}</p>
+            {data.loan.early_offer && (
+              <p className="text-[16px] mt-2 rounded-lg p-3" style={{ background: 'rgba(47,143,107,0.12)' }}>
+                {t(`Pay your next instalment by ${data.loan.early_offer.pay_by} and pay only ৳ ${data.loan.early_offer.pay_bdt.toLocaleString('en-IN')}: you save ৳ ${data.loan.early_offer.save_bdt.toLocaleString('en-IN')} of interest.`, `পরের কিস্তি ${digits(data.loan.early_offer.pay_by)}-এর মধ্যে দিলে মাত্র ৳ ${digits(data.loan.early_offer.pay_bdt.toLocaleString('en-IN'))} দিতে হবে: ৳ ${digits(data.loan.early_offer.save_bdt.toLocaleString('en-IN'))} সুদ বাঁচবে।`)}
+              </p>
+            )}
+            <p className="text-[14px] mt-1" style={{ color: '#5b6f6b' }}>{t(`Repay the whole loan early and ${data.loan.rebate_pct}% of the interest still to come is waived. A late instalment costs ${data.loan.penalty_pts} extra points a year, only for the days it is late.`, `আগে শোধ করলে বাকি সুদের ${digits(String(data.loan.rebate_pct))}% মাফ। কিস্তি দেরি হলে শুধু দেরির দিনগুলোর জন্য বছরে ${digits(String(data.loan.penalty_pts))} পয়েন্ট বেশি।`)}</p>
             <button
               className="btn mt-3 text-[16px]"
               disabled={busy === 'quote'}

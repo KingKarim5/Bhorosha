@@ -117,3 +117,44 @@ describe('contract', () => {
     expect(validateContract(r.fields, { loan_ask_bdt: 1500000, tenor_months: 24 }, T).length).toBe(2);
   });
 });
+
+import { earlyDiscount, earlyPayBy, investorReturn, investorReceived, isAnnexRange } from './loanTerms';
+
+describe('early-payment discount', () => {
+  const s = schedule(100000, 14, 12, '2026-12-10');
+  it('waives the set share of interest when paid early enough', () => {
+    expect(earlyDiscount(s[0], -6, T)).toBe(Math.round(s[0].interest_bdt * 0.25));
+    expect(earlyDiscount(s[0], -4, T)).toBe(0); // not early enough (5 days needed)
+    expect(earlyDiscount(s[0], -10, { ...T, early_pay_discount_pct: 0 })).toBe(0); // switched off
+    expect(earlyDiscount({ ...s[0], paid_bdt: 100 }, -10, T)).toBe(0); // already part paid
+  });
+  it('gives the pay-by date', () => {
+    expect(earlyPayBy('2026-12-10', T)).toBe('2026-12-05');
+  });
+});
+
+describe('investor return', () => {
+  it('pays back principal plus interest at the investor rate', () => {
+    const r = investorReturn(10000, 12, 10.25);
+    expect(r.total_back_bdt).toBe(10000 + r.interest_bdt);
+    expect(r.interest_bdt).toBeGreaterThan(500);
+    expect(r.interest_bdt).toBeLessThan(600);
+  });
+  it('passes on the investor share as the borrower pays', () => {
+    const loan = schedule(80000, 14, 12, '2026-12-10');
+    const none = investorReceived(10000, 10.25, loan);
+    expect(none.received_bdt).toBe(0);
+    const two = applyToSchedule(loan, loan[0].amount_bdt + loan[1].amount_bdt).schedule;
+    const got = investorReceived(10000, 10.25, two);
+    const inv = investorReturn(10000, 12, 10.25);
+    expect(got.received_bdt).toBeGreaterThan(inv.monthly_bdt * 2 - 2);
+    expect(got.received_bdt).toBeLessThan(inv.monthly_bdt * 2 + 2);
+  });
+});
+
+describe('annex ranges', () => {
+  it('treats a clause with a stated Annex A range as clear', () => {
+    expect(isAnnexRange('at the rebate set in Annex A (between 10% and 30%)')).toBe(true);
+    expect(isAnnexRange('a late fee may apply, as agreed verbally')).toBe(false);
+  });
+});

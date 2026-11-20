@@ -2,9 +2,10 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { requireRole } from '../auth';
 import { Application, Shop, Verdict, Decision, Investor, InvestorVerification, Commitment, InvestorUpdate, EvidenceItem, AuditLog } from '../models';
-import { User } from '../models';
+import { User, LoanAccount } from '../models';
+import { getTerms } from '../services/loan';
+import { investorReturn, investorReceived, investorRatePct, nextOpen, Installment, TermsPolicy } from '../lib/loanTerms';
 import { allocate } from '../services/allocator';
-import { mulberry32, addMonths } from '../lib/util';
 
 type Lean = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 const r = Router();
@@ -31,15 +32,19 @@ async function me(userId: string) {
   return (await Investor.findOne({ user: userId }).lean()) as Lean;
 }
 
-/** Only cases whose latest AI decision is approved_with_conditions can be listed. */
+/** Only cases whose latest AI decision is approved_with_conditions can be listed; every lender's loans are included. */
 async function listable() {
-  const apps = (await Application.find({ status: { $in: ['decided', 'funded'] } }).lean()) as Lean[];
+  const apps = (await Application.find({ status: { $in: ['decided', 'funded'] } }).sort({ createdAt: -1 }).lean()) as Lean[];
   const out: Lean[] = [];
+  const termsCache = new Map<string, TermsPolicy>();
   for (const a of apps) {
     const shop = (await Shop.findById(a.shop).lean()) as Lean;
     if (shop?.cohort_flag !== 'demo') continue;
     const lender = (await User.findById(shop.lender).select('org_name').lean()) as Lean | null;
     shop.lender_name = lender?.org_name || 'Licensed lender';
+    const key = String(shop.lender);
+    if (!termsCache.has(key)) termsCache.set(key, await getTerms(shop.lender));
+    shop.terms = termsCache.get(key);
     const v = (await Verdict.findById(a.current_verdict).lean()) as Lean;
     const d = (await Decision.findOne({ application: a._id }).sort({ createdAt: -1 }).lean()) as Lean;
     const listed = d?.decision === 'approved_with_conditions'; // only AI decisions approved with conditions are listed
@@ -50,7 +55,11 @@ async function listable() {
 
 function listingView(x: Lean) {
   const share = Math.round(x.a.loan_ask_bdt * INVESTOR_SHARE);
+  const rate = investorRatePct(x.shop.terms);
+  const example = investorReturn(10000, x.a.tenor_months, rate);
   return {
+    investor_rate_pct: rate, bank_rate_pct: x.shop.terms.bank_rate_pct, borrower_rate_pct: x.shop.terms.borrower_rate_pct,
+    example_10k: example, released: !!x.shop.funded, listed_at: x.a.updatedAt,
     id: x.a._id, code: code(x.a._id), lender_name: x.shop.lender_name, type: typeLabel(x.shop.business_type), size: sizeRange(x.a.loan_ask_bdt), loan_bdt: x.a.loan_ask_bdt,
     investor_share_bdt: share, committed_bdt: x.a.funded_bdt || 0, open_bdt: Math.max(0, share - (x.a.funded_bdt || 0)),
     verdict: x.v?.final_verdict, band_low: x.v?.band_low, band_high: x.v?.band_high, checked_share: x.v?.features_json?.checked_share ?? 0,
@@ -155,15 +164,41 @@ r.get('/portfolio', inv, async (req, res) => {
   const i = await me(req.user!.id);
   const commits = (await Commitment.find({ investor: i._id }).lean()) as Lean[];
   const all = await listable();
-  const holdings = commits.map((c) => {
-    const x = all.find((y) => String(y.a._id) === String(c.application));
-    return { application: c.application, amount_bdt: c.amount_bdt, code: code(c.application), type: x ? typeLabel(x.shop.business_type) : null, verdict_now: x?.v?.final_verdict, band_low: x?.v?.band_low, band_high: x?.v?.band_high, runway: (x?.v?.features_json?.monthly || []).map((m: Lean) => m.inflow) };
-  });
+  const holdings = await Promise.all(
+    commits.map(async (c) => {
+      const x = all.find((y) => String(y.a._id) === String(c.application));
+      const app = x?.a || ((await Application.findById(c.application).lean()) as Lean);
+      const shop = x?.shop || ((await Shop.findById(app?.shop).lean()) as Lean);
+      const terms = shop?.terms || (await getTerms(shop?.lender));
+      const lenderName = shop?.lender_name || ((await User.findById(shop?.lender).select('org_name').lean()) as Lean | null)?.org_name || 'Licensed lender';
+      const rate = investorRatePct(terms);
+      const tenor = app?.tenor_months || 12;
+      const exp = investorReturn(c.amount_bdt, tenor, rate);
+      const loan = (await LoanAccount.findOne({ application: c.application }).lean()) as Lean | null;
+      const sched = (loan?.schedule || []) as Installment[];
+      const got = loan ? investorReceived(c.amount_bdt, rate, sched) : { received_bdt: 0, principal_back_bdt: 0, interest_received_bdt: 0 };
+      const next = loan ? nextOpen(sched) : null;
+      const status = !loan ? 'awaiting_release' : loan.status === 'settled' ? 'repaid' : 'repaying';
+      return {
+        application: c.application, amount_bdt: c.amount_bdt, code: code(c.application), lender_id: shop?.lender, lender_name: lenderName,
+        type: shop ? typeLabel(shop.business_type) : null, verdict_now: x?.v?.final_verdict, band_low: x?.v?.band_low, band_high: x?.v?.band_high,
+        runway: (x?.v?.features_json?.monthly || []).map((m: Lean) => m.inflow), rate_pct: rate, tenor_months: tenor,
+        expected_interest_bdt: exp.interest_bdt, expected_back_bdt: exp.total_back_bdt, monthly_bdt: exp.monthly_bdt,
+        received_bdt: got.received_bdt, interest_received_bdt: got.interest_received_bdt, still_to_come_bdt: Math.max(0, exp.total_back_bdt - got.received_bdt),
+        status, next_due_date: next?.due_date ?? null,
+      };
+    }),
+  );
+  const sum = (xs: Lean[], k: string) => xs.reduce((a, h) => a + (h[k] || 0), 0);
+  const groups = new Map<string, Lean[]>();
+  for (const h of holdings) groups.set(String(h.lender_id), [...(groups.get(String(h.lender_id)) || []), h]);
+  const by_lender = [...groups.values()].map((hs) => ({
+    lender_name: hs[0].lender_name, loans: hs.length, committed_bdt: sum(hs, 'amount_bdt'), expected_interest_bdt: sum(hs, 'expected_interest_bdt'),
+    expected_back_bdt: sum(hs, 'expected_back_bdt'), received_bdt: sum(hs, 'received_bdt'), still_to_come_bdt: sum(hs, 'still_to_come_bdt'),
+  })).sort((a, b) => b.committed_bdt - a.committed_bdt);
+  const totals = { committed_bdt: sum(holdings, 'amount_bdt'), expected_interest_bdt: sum(holdings, 'expected_interest_bdt'), expected_back_bdt: sum(holdings, 'expected_back_bdt'), received_bdt: sum(holdings, 'received_bdt'), still_to_come_bdt: sum(holdings, 'still_to_come_bdt') };
   const updates = await InvestorUpdate.find({ investor: i._id }).sort({ createdAt: -1 }).limit(30).lean();
-  // simulated pool history (clearly labelled; not a projection and not a return)
-  const rng = mulberry32(99);
-  const history = Array.from({ length: 12 }, (_, k) => ({ month: addMonths('2025-11', k), on_schedule_pct: Math.round(90 + rng() * 7 - (k > 8 ? 4 : 0)), loans_active: 40 + k * 3 }));
-  res.json({ investor: i, holdings, updates: updates.map((u) => ({ ...u, code: code(u.application) })), pool_history: history });
+  res.json({ investor: i, holdings, by_lender, totals, updates: updates.map((u) => ({ ...u, code: code(u.application) })) });
 });
 
 export default r;

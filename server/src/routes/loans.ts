@@ -6,7 +6,7 @@ import { Application, Shop, Decision, LoanContract, LoanAccount, Payment, AuditL
 import { recompute } from '../services/casefile';
 import { getSim } from '../services/watchman';
 import { checkLimits, checkRateSetup, feeFigures, getTerms, replaceContract, confirmContract, earlySettlementQuote, ingestWebhook, signedBody, resolveReview, openLoanAccount, PaymentEvent } from '../services/loan';
-import { nextOpen, Installment, signPayload } from '../lib/loanTerms';
+import { nextOpen, Installment, signPayload, earlyPayBy } from '../lib/loanTerms';
 import { addMonths, monthKey } from '../lib/util';
 import { ownedApp, lenderShopIds } from '../tenancy';
 
@@ -91,19 +91,22 @@ r.get('/repayments', lender, async (req, res) => {
   const loans = (await LoanAccount.find({ shop: { $in: own } }).lean()) as Lean[];
   const shops = (await Shop.find({ _id: { $in: own } }).select('label segment').lean()) as Lean[];
   const sim = await getSim(me);
+  const terms = await getTerms(me);
   const rows = loans.map((l) => {
     const s = l.schedule as Installment[];
     const next = nextOpen(s);
+    const save = next && terms.early_pay_discount_pct > 0 && next.paid_bdt === 0 && !next.discount_bdt ? Math.round((next.interest_bdt * terms.early_pay_discount_pct) / 100) : 0;
+    const early = next && save > 0 ? { pay_by: earlyPayBy(next.due_date, terms), pay_bdt: next.amount_bdt - save, save_bdt: save } : null;
     const overdue = s.filter((x) => x.due_date < sim.day! && x.paid_bdt < x.amount_bdt).reduce((a, x) => a + x.amount_bdt - x.paid_bdt, 0);
     return {
       _id: l._id, ref: l.ref, application: l.application, shop: shops.find((x) => String(x._id) === String(l.shop))?.label, payer_label: l.payer_label,
       principal_bdt: l.principal_bdt, annual_rate_pct: l.annual_rate_pct, tenor_months: l.tenor_months, rebate_pct: l.rebate_pct, penalty_pts: l.penalty_pts, status: l.status,
-      paid_bdt: s.reduce((a, x) => a + x.paid_bdt, 0), total_bdt: s.reduce((a, x) => a + x.amount_bdt, 0), next_due: next, overdue_bdt: overdue, schedule: s,
+      paid_bdt: s.reduce((a, x) => a + x.paid_bdt, 0), total_bdt: s.reduce((a, x) => a + x.amount_bdt, 0), next_due: next, overdue_bdt: overdue, schedule: s, early,
     };
   });
   const payments = (await Payment.find({ lender: me }).sort({ received_at: -1, createdAt: -1 }).limit(120).lean()) as Lean[];
   const withShop: Lean[] = payments.map((p) => ({ ...p, shop_label: shops.find((x) => String(x._id) === String(p.shop))?.label || null, loan_ref: loans.find((l) => String(l._id) === String(p.loan))?.ref || null }));
-  res.json({ day: sim.day, loans: rows, payments: withShop.filter((p) => p.status !== 'review'), review: withShop.filter((p) => p.status === 'review') });
+  res.json({ day: sim.day, early_policy: { pct: terms.early_pay_discount_pct, days: terms.early_pay_min_days }, loans: rows, payments: withShop.filter((p) => p.status !== 'review'), review: withShop.filter((p) => p.status === 'review') });
 });
 
 r.post('/payments/:pid/review', lender, async (req, res) => {

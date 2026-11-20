@@ -7,7 +7,24 @@ import { SimulationBanner, Skeleton, VerdictTag, ProofLabel, ErrorNote, Card } f
 import { RunwayChart } from '../components/RunwayChart';
 import { CAUSE_WORDS } from './Cases';
 import { SplitBar } from '../components/LoanTerms';
+import { investorReturn } from '../lib/money';
 import { ModeBadge } from '../components/ui';
+
+/** What this amount earns at the investor rate if the borrower repays in full. */
+function ReturnBox({ amount, tenor, rate }: { amount: number; tenor: number; rate: number }) {
+  const { t, bdt, n } = useI18n();
+  const r = investorReturn(amount, tenor, rate);
+  if (!r.total_back_bdt) return null;
+  return (
+    <div className="rounded-lg p-3 mt-3 text-[13.5px]" style={{ background: 'color-mix(in oklab, var(--viable) 10%, transparent)' }}>
+      <div className="flex justify-between gap-2"><span className="text-muted">{t('Your rate', 'আপনার হার')}</span><b className="num">{rate}% {t('a year', 'বছরে')}</b></div>
+      <div className="flex justify-between gap-2"><span className="text-muted">{t('Interest you earn', 'আপনার সুদ আয়')}</span><b className="num" style={{ color: 'var(--viable)' }}>+{bdt(r.interest_bdt)}</b></div>
+      <div className="flex justify-between gap-2"><span className="text-muted">{t('You get back in total', 'মোট ফেরত')}</span><b className="num">{bdt(r.total_back_bdt)}</b></div>
+      <div className="flex justify-between gap-2"><span className="text-muted">{t('Paid to you', 'আপনাকে দেওয়া হবে')}</span><span className="num">{bdt(r.monthly_bdt)} × {n(tenor)} {t('months', 'মাস')}</span></div>
+      <p className="text-[11.5px] text-muted mt-1.5">{t('As the borrower repays the lender each month, your share comes back to you. If the borrower does not repay, you can lose money.', 'ঋণগ্রহীতা প্রতি মাসে ঋণদাতাকে শোধ করলে আপনার অংশ আপনার কাছে ফেরে। শোধ না হলে লোকসান হতে পারে।')}</p>
+    </div>
+  );
+}
 
 export default function InvestCase() {
   const { caseId } = useParams();
@@ -40,7 +57,7 @@ export default function InvestCase() {
       <h1 className="font-display text-[28px] font-semibold mt-1">
         {pick(data.type)} <span className="num text-[16px] text-muted">{data.code}</span>
       </h1>
-      <p className="text-muted mb-4">{pick(data.size)} · {n(data.tenor_months)} {t('months', 'মাস')}</p>
+      <p className="text-muted mb-4">{data.lender_name} · {bdt(data.loan_bdt)} · {n(data.tenor_months)} {t('months', 'মাস')}</p>
       <SimulationBanner />
       <div className="grid lg:grid-cols-[1.3fr_1fr] gap-5">
         <div className="space-y-4">
@@ -105,6 +122,7 @@ export default function InvestCase() {
                 {t('Amount (BDT)', 'অঙ্ক (টাকা)')}
               </label>
               <input id="amt" type="number" step={1000} className="input mt-1" value={amt} onChange={(e) => setAmt(Number(e.target.value))} />
+              <ReturnBox amount={amt} tenor={data.tenor_months} rate={data.investor_rate_pct} />
               <button className="btn btn-primary w-full justify-center mt-3" onClick={commit} disabled={busy}>
                 {t('Commit (simulation)', 'প্রতিশ্রুতি দিন (সিমুলেশন)')}
               </button>

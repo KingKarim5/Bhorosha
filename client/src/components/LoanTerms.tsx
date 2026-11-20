@@ -275,7 +275,7 @@ export function LoanTerms({ caseId, onChange }: { caseId: string; onChange: () =
                     <td className="pr-2">{x.due_date}</td>
                     <td className="pr-2 text-right">{n(x.amount_bdt)}</td>
                     <td className="pr-2 text-right">{n(x.paid_bdt)}</td>
-                    <td style={{ color: x.status === 'paid' ? 'var(--checked)' : x.status === 'partial' ? 'var(--unsure)' : 'var(--muted)' }}>{x.status === 'paid' ? t('paid', 'পরিশোধিত') : x.status === 'partial' ? t('part paid', 'আংশিক') : t('due', 'বাকি')}</td>
+                    <td style={{ color: x.status === 'paid' ? 'var(--checked)' : x.status === 'partial' ? 'var(--unsure)' : 'var(--muted)' }}>{x.status === 'paid' ? t('paid', 'পরিশোধিত') : x.status === 'partial' ? t('part paid', 'আংশিক') : t('due', 'বাকি')}{x.discount_bdt ? <span style={{ color: 'var(--viable)' }}> · {t(`early, saved ${n(x.discount_bdt)}`, `আগে, ${n(x.discount_bdt)} বাঁচল`)}</span> : null}</td>
                   </tr>
                 ))}
               </tbody>
@@ -302,6 +302,7 @@ export function PaymentList({ payments, showShop = false }: { payments: any[]; s
             <span className="text-muted">{p.channel === 'bank' ? t('bank', 'ব্যাংক') : 'bKash'}</span>
             {p.classification && <span className="chip !py-0" style={{ color: PAY_WORDS[p.classification]?.color }}>{pick(PAY_WORDS[p.classification])}{p.days_from_due ? ` (${p.days_from_due > 0 ? '+' : ''}${p.days_from_due}d)` : ''}</span>}
             {p.partial && <span className="chip !py-0" style={{ color: 'var(--unsure)' }}>{t('partial', 'আংশিক')}</span>}
+            {p.discount_bdt > 0 && <span className="chip !py-0" style={{ color: 'var(--viable)' }}>{t(`early discount ${bdt(p.discount_bdt)}`, `আগাম ছাড় ${bdt(p.discount_bdt)}`)}</span>}
             {p.status === 'review' && <span className="chip !py-0" style={{ color: 'var(--unsure)' }}>{t('in review', 'পর্যালোচনায়')}</span>}
             {p.status === 'rejected' && <span className="chip !py-0" style={{ color: 'var(--notviable)' }}>{t('rejected', 'বাতিল')}</span>}
             <span className="text-[11.5px] text-muted ml-auto">

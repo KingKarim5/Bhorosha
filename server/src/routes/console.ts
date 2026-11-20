@@ -60,6 +60,8 @@ const PolicyBody = z.object({
   penalty_max_pts: z.number().min(0).max(20).optional(),
   grace_days: z.number().int().min(0).max(15).optional(),
   match_confidence_min: z.number().min(0.5).max(1).optional(),
+  early_pay_discount_pct: z.number().min(0, 'The early-payment discount cannot be negative.').max(100, 'The early-payment discount is a share of the interest: at most 100%.').optional(),
+  early_pay_min_days: z.number().int().min(1, 'Early means at least 1 day before the due date.').max(28, 'Use 28 days or fewer.').optional(),
   note: z.string().trim().max(300).default(''),
 });
 

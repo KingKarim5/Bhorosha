@@ -57,3 +57,13 @@ export function useTheme() {
   const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia?.('(prefers-color-scheme: dark)').matches);
   return { theme, setTheme, isDark };
 }
+
+/** Re-run `reload` every `ms` while the tab is visible, so lists stay current without a page refresh. */
+export function useAutoRefresh(reload: () => unknown, ms = 20000) {
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      if (document.visibilityState === 'visible') reload();
+    }, ms);
+    return () => window.clearInterval(id);
+  }, [reload, ms]);
+}

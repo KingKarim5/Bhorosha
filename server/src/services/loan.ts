@@ -10,6 +10,7 @@ import { lenderOfApp, lenderShopIds } from '../tenancy';
 import {
   TermsPolicy, termsFrom, contractText, readContractRules, validateContract, ContractFields, checkLimits, checkRateSetup, feeSplit, FeeSplit,
   clampPricing, schedule, settlementQuote, SettlementQuote, classifyPayment, applyToSchedule, nextOpen, matchScore, verifySignature, signPayload, lateFee1, Installment,
+  earlyDiscount, isAnnexRange,
 } from '../lib/loanTerms';
 
 // Loan agents (v3). Each agent: the AI reads, proposes or writes; the code validates, clamps and computes.
@@ -93,6 +94,9 @@ export async function readContract(app: Lean, shop: Lean, t: TermsPolicy, o: { u
         fields = { principal_bdt: r.data.principal_bdt, annual_rate_pct: r.data.annual_rate_pct, tenor_months: r.data.tenor_months, early_clause: r.data.early_clause, late_clause: r.data.late_clause, early_rebate_pct: r.data.early_rebate_pct, late_penalty_pts: r.data.late_penalty_pts };
         unclear = r.data.unclear.map((u) => ({ clause: u.clause, why_en: u.why_en, why_bn: u.why_bn || u.why_en }));
         confidence = r.data.confidence;
+        // a clause that points to Annex A with a stated range is clear by rule: the model may not hold a case for it
+        const rangeClause = (u: { clause: string }) => isAnnexRange(u.clause) || [fields.early_clause, fields.late_clause].some((cl) => isAnnexRange(cl) && !!cl && (cl.includes(u.clause) || u.clause.includes(cl.slice(0, 40))));
+        unclear = unclear.filter((u) => !rangeClause(u));
         // the code still flags vague wording the model missed
         for (const u of rules.unclear) if (!unclear.some((x) => x.clause === u.clause)) unclear.push(u);
       }
@@ -353,22 +357,31 @@ async function applyPayment(base: Lean, loanLean: Lean, t: TermsPolicy, o: Inges
   const open = nextOpen(sched);
   const recIso = new Date(base.received_at).toISOString().slice(0, 10);
   const cls = open ? classifyPayment(open.due_date, recIso, t.grace_days) : { classification: 'early' as const, days_from_due: 0 };
+  // paid early enough: part of this instalment's interest is waived before the payment is applied
+  let discount = 0;
+  if (open) {
+    discount = earlyDiscount(open, cls.days_from_due, t);
+    if (discount > 0 && base.amount_bdt >= open.amount_bdt - discount) {
+      const i = sched.findIndex((x) => x.n === open.n);
+      sched[i] = { ...open, amount_bdt: open.amount_bdt - discount, interest_bdt: open.interest_bdt - discount, discount_bdt: discount };
+    } else discount = 0; // the discount needs the whole (discounted) instalment paid early
+  }
   const applied = applyToSchedule(sched, base.amount_bdt);
   loan.schedule = applied.schedule;
   if (!nextOpen(applied.schedule)) loan.status = 'settled';
   loan.markModified('schedule');
   await loan.save();
-  const p = await Payment.create({ ...base, loan: loan._id, application: loan.application, shop: loan.shop, installment_n: applied.first_n, status: 'applied', classification: cls.classification, days_from_due: cls.days_from_due, partial: applied.partial });
-  await AuditLog.create({ actor: o.actor, action: 'payment:applied', agent: 'Payment matcher', application: loan.application, step: `${cls.classification} payment`, redacted_payload_json: { amount_bdt: base.amount_bdt }, output_json: { summary: `Tk ${fmt(base.amount_bdt)} matched to ${loan.ref} (${base.matched_by}, ${Math.round(base.confidence * 100)}%), instalment ${applied.first_n}: ${cls.classification.replace('_', ' ')} (${cls.days_from_due} days from due)${applied.partial ? ', partial' : ''}.` }, mode: base.matched_by === 'ai' ? 'ai' : 'rules', latency_ms: matchMs });
+  const p = await Payment.create({ ...base, loan: loan._id, application: loan.application, shop: loan.shop, installment_n: applied.first_n, status: 'applied', classification: cls.classification, days_from_due: cls.days_from_due, partial: applied.partial, discount_bdt: discount || undefined });
+  await AuditLog.create({ actor: o.actor, action: 'payment:applied', agent: 'Payment matcher', application: loan.application, step: `${cls.classification} payment`, redacted_payload_json: { amount_bdt: base.amount_bdt }, output_json: { summary: `Tk ${fmt(base.amount_bdt)} matched to ${loan.ref} (${base.matched_by}, ${Math.round(base.confidence * 100)}%), instalment ${applied.first_n}: ${cls.classification.replace('_', ' ')} (${cls.days_from_due} days from due)${applied.partial ? ', partial' : ''}${discount ? `; early-payment discount Tk ${fmt(discount)}` : ''}.` }, mode: base.matched_by === 'ai' ? 'ai' : 'rules', latency_ms: matchMs });
   const shop = (await Shop.findById(loan.shop).lean()) as Lean;
   const inst = applied.schedule.find((x) => x.n === applied.first_n);
   // Servicer: receipt (and a late notice when late)
   const still = applied.schedule.reduce((a, x) => a + Math.max(0, x.amount_bdt - x.paid_bdt), 0);
   const next = nextOpen(applied.schedule);
-  const factsR = { loan_ref: loan.ref, paid_bdt: base.amount_bdt, paid_on: recIso, instalment_no: applied.first_n, instalment_due_bdt: inst?.amount_bdt ?? 0, instalment_still_due_bdt: inst ? inst.amount_bdt - inst.paid_bdt : 0, loan_still_due_bdt: still, next_due_date: next?.due_date ?? null };
+  const factsR = { loan_ref: loan.ref, paid_bdt: base.amount_bdt, paid_on: recIso, instalment_no: applied.first_n, instalment_due_bdt: inst?.amount_bdt ?? 0, instalment_still_due_bdt: inst ? inst.amount_bdt - inst.paid_bdt : 0, loan_still_due_bdt: still, next_due_date: next?.due_date ?? null, early_payment_discount_bdt: discount, days_early: discount ? -cls.days_from_due : 0 };
   const receipt = await servicerMessage('receipt', factsR, () => ({
-    text_en: `Thank you. We received Tk ${fmt(base.amount_bdt)} on ${recIso} for loan ${loan.ref}, instalment ${applied.first_n}.${inst && inst.amount_bdt > inst.paid_bdt ? ` Tk ${fmt(inst.amount_bdt - inst.paid_bdt)} of this instalment is still due.` : ''} Still to repay in total: Tk ${fmt(still)}.${next ? ` Next due date: ${next.due_date}.` : ' The loan is fully repaid.'}`,
-    text_bn: `ধন্যবাদ। ${recIso} তারিখে ঋণ ${loan.ref}-এর ${applied.first_n} নম্বর কিস্তির ${fmt(base.amount_bdt)} টাকা পেয়েছি।${inst && inst.amount_bdt > inst.paid_bdt ? ` এই কিস্তির ${fmt(inst.amount_bdt - inst.paid_bdt)} টাকা এখনো বাকি।` : ''} মোট বাকি: ${fmt(still)} টাকা।${next ? ` পরের কিস্তির তারিখ: ${next.due_date}।` : ' ঋণ পুরো শোধ হয়েছে।'}`,
+    text_en: `Thank you. We received Tk ${fmt(base.amount_bdt)} on ${recIso} for loan ${loan.ref}, instalment ${applied.first_n}.${discount ? ` You paid ${-cls.days_from_due} days early, so Tk ${fmt(discount)} of interest was waived.` : ''}${inst && inst.amount_bdt > inst.paid_bdt ? ` Tk ${fmt(inst.amount_bdt - inst.paid_bdt)} of this instalment is still due.` : ''} Still to repay in total: Tk ${fmt(still)}.${next ? ` Next due date: ${next.due_date}.` : ' The loan is fully repaid.'}`,
+    text_bn: `ধন্যবাদ। ${recIso} তারিখে ঋণ ${loan.ref}-এর ${applied.first_n} নম্বর কিস্তির ${fmt(base.amount_bdt)} টাকা পেয়েছি।${discount ? ` আপনি ${-cls.days_from_due} দিন আগে দিয়েছেন, তাই ${fmt(discount)} টাকা সুদ মাফ হয়েছে।` : ''}${inst && inst.amount_bdt > inst.paid_bdt ? ` এই কিস্তির ${fmt(inst.amount_bdt - inst.paid_bdt)} টাকা এখনো বাকি।` : ''} মোট বাকি: ${fmt(still)} টাকা।${next ? ` পরের কিস্তির তারিখ: ${next.due_date}।` : ' ঋণ পুরো শোধ হয়েছে।'}`,
   }), { useAi: o.useAi, actor: o.actor, application: loan.application, timeoutMs: o.timeoutMs });
   await OwnerMessage.create({ shop: loan.shop, application: loan.application, kind: 'receipt', text_en: receipt.text_en, text_bn: receipt.text_bn, offer: { type: 'receipt', payment: String(p._id), by: receipt.by } });
   // Watchman: is an early or late payment a real warning or a seasonal pattern?

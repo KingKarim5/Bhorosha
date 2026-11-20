@@ -104,6 +104,7 @@ Apply again through your link (`Kit Online`). How do you sell: **Shop and online
 | Try | Expect |
 | --- | --- |
 | Reference filled, exact amount | **Applied**, matched by reference, **On time** |
+| Press **Pay early** instead (it fills a date 5 days before the due date and the discounted amount) | **Applied**, **Early**, with "saved Tk …": part of that instalment's interest is waived. The schedule shows "early, saved …" and the owner's receipt says how much was saved |
 | Clear the reference, keep the payer | The AI matches it by payer, amount and timing, with a confidence. High confidence is applied; low confidence goes to the review queue |
 | Clear the reference and change the payer to `Unknown wallet` | **Sent to the review queue**, not applied. Choose your loan and press **Apply to this loan**, or **Reject** |
 | Amount at half the instalment | Applied as **partial** |
@@ -134,6 +135,7 @@ In your own institution, go to **Policy**. Changes apply only to your institutio
 | Try | Expect |
 | --- | --- |
 | Borrower rate `11`, save | **Refused**: below the investor rate plus Bhorsha's fee (at least about 11.13% is needed) |
+| Early-payment discount `50`, days `3`, save | Back on **Repayments**, the note above the review queue shows the new terms and **Pay early** offers a bigger saving. Set it back to `25` and `5` afterwards |
 | Largest loan `50000`, save | Saved as a new version. Re-run a case (Cross-check button): an ask above Tk 50,000 now gets a counter-offer. Set it back to `1000000` afterwards |
 | On the **Lender console**, press **Pause AI decisions** | New decisions are holds while paused ("AI decisions are paused"). Press **Resume AI decisions** afterwards |
 
@@ -148,15 +150,17 @@ In your own institution, go to **Policy**. Changes apply only to your institutio
    - Risk acknowledgement: tick the box and confirm.
 - [ ] **Expect:** status becomes **verified**.
 3. Go to **Listings**.
-- [ ] **Expect:** only loans the AI approved are listed, from every institution, each showing which lender it belongs to and without shop names. Your Kit Tea Stall is there under your institution's name.
+- [ ] **Expect:** only loans the AI approved are listed, from every institution, each showing which lender it belongs to and without shop names. Your Kit Tea Stall is there under your institution's name, even before you released its funds.
+- [ ] **Expect:** each card shows **You earn 10.25% a year** and what Tk 10,000 brings back (for example Tk 10,564 over 12 months).
 4. Open a listing.
 - [ ] **Expect:** the evidence with checked / owner says labels, the lender's conditions, and **How the interest is shared** (investor rate 10.25% = bank rate 10% + 0.25%), marked as not a promise.
-5. Commit `10000`.
+5. Type different amounts in the commit box: the box under it shows the interest you earn, the total you get back and the monthly amount. Commit `10000`.
 - [ ] **Expect:** "Simulated commitment recorded". Try `60000` on one loan: **refused**, over your Tk 50,000 per-loan cap.
 6. In **Suggested spread**, enter `100000`.
 - [ ] **Expect:** a split across the listed loans within your caps.
 7. Go to **Portfolio**.
-- [ ] **Expect:** your holdings, and live updates when the lender simulates months (log in as the lender, press Simulate next month, then come back).
+- [ ] **Expect:** totals (put in, interest you earn, total coming back, received so far), then the same **by lender**, then each loan. A loan whose funds are not released yet says *Waiting for the lender to release*.
+- [ ] **Expect:** after the lender releases the loan and an instalment is paid (Part 7), **Received so far** goes up by your share. The page refreshes on its own every 20 seconds.
 
 ## Part 10: Language and phone
 

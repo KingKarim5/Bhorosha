@@ -11,7 +11,7 @@ import { fmtBdt } from '../lib/util';
 import { LoanAccount, Payment } from '../models';
 import { getTerms, replaceContract, earlySettlementQuote, loanRef } from '../services/loan';
 import { getSim } from '../services/watchman';
-import { contractText, nextOpen, Installment } from '../lib/loanTerms';
+import { contractText, nextOpen, Installment, earlyPayBy } from '../lib/loanTerms';
 
 // Owner experience (v2): private token link, no login, plain Bangla, no internal scoring detail.
 type Lean = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -85,10 +85,15 @@ async function loanView(appId: unknown) {
   if (!l) return null;
   const s = l.schedule as Installment[];
   const payments = (await Payment.find({ loan: l._id, status: 'applied' }).sort({ received_at: -1 }).limit(12).lean()) as Lean[];
+  const shop = (await Shop.findById(l.shop).select('lender').lean()) as Lean;
+  const t = await getTerms(shop?.lender);
+  const nx = nextOpen(s);
+  const early = nx && t.early_pay_discount_pct > 0 && nx.paid_bdt === 0 && !nx.discount_bdt ? { pay_by: earlyPayBy(nx.due_date, t), save_bdt: Math.round((nx.interest_bdt * t.early_pay_discount_pct) / 100), pay_bdt: nx.amount_bdt - Math.round((nx.interest_bdt * t.early_pay_discount_pct) / 100), days: t.early_pay_min_days } : null;
   return {
+    early_offer: early,
     ref: l.ref, principal_bdt: l.principal_bdt, annual_rate_pct: l.annual_rate_pct, tenor_months: l.tenor_months, rebate_pct: l.rebate_pct, penalty_pts: l.penalty_pts, status: l.status,
     paid_bdt: s.reduce((a, x) => a + x.paid_bdt, 0), total_bdt: s.reduce((a, x) => a + x.amount_bdt, 0), next_due: nextOpen(s), schedule: s,
-    payments: payments.map((p) => ({ amount_bdt: p.amount_bdt, received_at: p.received_at, classification: p.classification, installment_n: p.installment_n })),
+    payments: payments.map((p) => ({ amount_bdt: p.amount_bdt, received_at: p.received_at, classification: p.classification, installment_n: p.installment_n, discount_bdt: p.discount_bdt || 0 })),
   };
 }
 

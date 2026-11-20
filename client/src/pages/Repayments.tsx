@@ -41,7 +41,8 @@ export default function Repayments() {
       setErr((e as Error).message);
     }
   };
-  const fill = (l: any) => setForm({ ...form, reference: l.ref, amount_bdt: String(l.next_due ? l.next_due.amount_bdt - l.next_due.paid_bdt : ''), payer_label: l.payer_label });
+  const fill = (l: any) => setForm({ ...form, reference: l.ref, amount_bdt: String(l.next_due ? l.next_due.amount_bdt - l.next_due.paid_bdt : ''), payer_label: l.payer_label, received_at: '' });
+  const fillEarly = (l: any) => setForm({ ...form, reference: l.ref, amount_bdt: String(l.early.pay_bdt), payer_label: l.payer_label, received_at: l.early.pay_by });
   return (
     <div>
       <PageTitle
@@ -70,13 +71,21 @@ export default function Repayments() {
                       <td className="pr-2 num text-[12.5px] whitespace-nowrap">{l.next_due ? <>{l.next_due.due_date}<div className="text-muted">{n(l.next_due.amount_bdt - l.next_due.paid_bdt)}</div></> : t('repaid', 'শোধ')}</td>
                       <td className="pr-2 num text-right" style={{ color: l.overdue_bdt ? 'var(--unsure)' : 'var(--muted)' }}>{n(l.overdue_bdt)}</td>
                       <td className="pr-2 num text-[11.5px] text-muted">{l.annual_rate_pct}% · {t('rebate', 'ছাড়')} {l.rebate_pct}% · +{l.penalty_pts}</td>
-                      <td><button className="btn !min-h-0 !py-1 text-[12px]" onClick={() => fill(l)}>{t('Pay', 'পরিশোধ')}</button></td>
+                      <td className="whitespace-nowrap">
+                        <button className="btn !min-h-0 !py-1 text-[12px]" onClick={() => fill(l)}>{t('Pay', 'পরিশোধ')}</button>
+                        {l.early && <button className="btn !min-h-0 !py-1 text-[12px] ml-1" title={t(`Pay ${n(l.early.pay_bdt)} by ${l.early.pay_by} and save ${n(l.early.save_bdt)}`, `${l.early.pay_by}-এর মধ্যে ${n(l.early.pay_bdt)} দিলে ${n(l.early.save_bdt)} বাঁচে`)} onClick={() => fillEarly(l)}>{t('Pay early', 'আগে দিন')}</button>}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           </Card>
+          <p className="text-[12.5px] text-muted -mt-2">
+            {data.early_policy.pct > 0
+              ? t(`Early-payment discount is on: an instalment paid at least ${data.early_policy.days} days before its due date gets ${data.early_policy.pct}% of its interest waived. Change it under Policy.`, `আগে দিলে ছাড় চালু: নির্ধারিত তারিখের অন্তত ${n(data.early_policy.days)} দিন আগে দিলে কিস্তির সুদের ${n(data.early_policy.pct)}% মাফ। নীতি পাতায় বদলান।`)
+              : t('Early-payment discount is off. Turn it on under Policy.', 'আগে দিলে ছাড় বন্ধ। নীতি পাতায় চালু করুন।')}
+          </p>
           <Card title={t('Review queue', 'পর্যালোচনার তালিকা')} right={<span className="chip">{n(data.review.length)}</span>}>
             {data.review.length === 0 ? (
               <p className="text-muted text-[13.5px]">{t('Nothing waiting. Payments the matcher is unsure about appear here and are not applied until you decide.', 'কিছু অপেক্ষায় নেই। ম্যাচার যেগুলো নিয়ে অনিশ্চিত, সেগুলো এখানে আসে এবং আপনি ঠিক না করা পর্যন্ত যোগ হয় না।')}</p>
@@ -126,6 +135,7 @@ export default function Repayments() {
               <div className="flex flex-wrap items-center gap-2">
                 <b>{sent.payment.status === 'applied' ? t('Applied', 'যোগ হয়েছে') : t('Sent to the review queue', 'পর্যালোচনায় পাঠানো হয়েছে')}</b>
                 {sent.payment.classification && <span className="chip !py-0" style={{ color: PAY_WORDS[sent.payment.classification]?.color }}>{pick(PAY_WORDS[sent.payment.classification])}</span>}
+                {sent.payment.discount_bdt > 0 && <span className="chip !py-0" style={{ color: 'var(--viable)' }}>{t(`saved ${n(sent.payment.discount_bdt)}`, `${n(sent.payment.discount_bdt)} বাঁচল`)}</span>}
                 <span className="text-muted text-[12px]">{Math.round((sent.payment.confidence || 0) * 100)}% · {sent.payment.matched_by}</span>
               </div>
               <div className="text-[12px] text-muted mt-1">{sent.payment.match_reason}</div>
