@@ -311,10 +311,11 @@ export async function recompute(appId: unknown, opts: RecomputeOpts = {}) {
   t0 = Date.now();
   const f = computeFeatures({ txns: salesTxns, business_type: shop.business_type, loan_ask_bdt: app.loan_ask_bdt, tenor_months: app.tenor_months, stated, checks, return_rate: returnRate, festival_share: shop.segment && shop.segment !== 'cash_led' ? shop.online_share ?? 0.5 : 0 });
   const model = loadModel();
-  const j = judge(f, settings, model);
+  const seg = shop.segment || 'cash_led';
+  const j = judge(f, settings, model, seg);
   const cause = likelyCause(f);
-  const judgeFn = (g: Features) => judge(g, settings, model).final_verdict;
-  const cfs = counterfactualSearch(f, settings, app.loan_ask_bdt, judgeFn, 3, (g) => judge(g, settings, model).rules_total);
+  const judgeFn = (g: Features) => judge(g, settings, model, seg).final_verdict;
+  const cfs = counterfactualSearch(f, settings, app.loan_ask_bdt, judgeFn, 3, (g) => judge(g, settings, model, seg).rules_total);
   const conds: Condition[] = [];
   if (cfs[0]) cfs[0].actions.forEach((a, i) => conds.push({ key: a, kind: 'counterfactual', ...cfs[0].texts[i] }));
   for (const p of prudentialConditions(f, cause, settings, app.loan_ask_bdt)) if (!conds.some((c) => c.key === p.key)) conds.push(p);

@@ -9,8 +9,10 @@
     "start": "node dist/index.js",
     "test": "vitest run",
     "seed": "tsx src/seed/run.ts",
-    "cohort": "tsx src/scripts/cohort.ts",
-    "eval": "tsx src/scripts/eval.ts",
+    "cohort": "tsx src/scripts/cohortV2.ts",
+    "cohort:v1": "tsx src/scripts/cohort.ts",
+    "eval": "tsx src/scripts/evalV2.ts",
+    "eval:v1": "tsx src/scripts/eval.ts",
     "ai:check": "tsx src/scripts/aicheck.ts",
     "check:seed": "tsx src/scripts/checkSeed.ts"
   },

@@ -16,8 +16,8 @@
     "ai:check": "npm run ai:check -w server",
     "check:seed": "npm run check:seed -w server",
     "cohort": "npm run cohort -w server",
-    "train": "npm run cohort -w server && python ml/train.py",
-    "eval": "npm run cohort -w server && python ml/train.py && npm run eval -w server"
+    "train": "npm run cohort -w server && python ml/train_v2.py",
+    "eval": "npm run cohort -w server && python ml/train_v2.py && npm run eval -w server"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

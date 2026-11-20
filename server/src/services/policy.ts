@@ -1,5 +1,6 @@
 import { Policy, Control, Decision, Shop, Flag, AuditLog } from '../models';
 import { DEFAULT_SETTINGS, RuleSettings } from '../lib/rules';
+import { breakerReasons } from '../lib/breaker';
 
 type Lean = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -56,11 +57,7 @@ export async function breakerMetrics(p: Lean) {
 export async function checkBreaker(actor = 'system') {
   const p = await getActivePolicy();
   const m = await breakerMetrics(p);
-  const reasons: string[] = [];
-  if (m.recent >= p.breaker_min_decisions && m.holdRate > p.breaker_max_hold_rate)
-    reasons.push(`hold rate ${(m.holdRate * 100).toFixed(0)}% over the last ${m.recent} decisions is above the limit of ${(p.breaker_max_hold_rate * 100).toFixed(0)}%`);
-  if (m.funded >= 3 && m.defaultRate > p.breaker_max_default_rate)
-    reasons.push(`simulated default rate ${(m.defaultRate * 100).toFixed(0)}% (${m.calls} of ${m.funded} funded loans at call level) is above the limit of ${(p.breaker_max_default_rate * 100).toFixed(0)}%`);
+  const reasons = breakerReasons(m, p as never);
   const c = await getControl();
   if (reasons.length && !c.paused) await setPause(true, 'circuit_breaker', `Circuit breaker: ${reasons.join('; ')}.`, actor, m);
   return { tripped: reasons.length > 0, reasons, metrics: m, policy_version: p.version };

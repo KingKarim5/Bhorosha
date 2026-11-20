@@ -19,7 +19,7 @@ export interface ModelFile {
   feature_names: string[];
   gbm: { init: number; learning_rate: number; trees: Tree[] };
   calibration: { x: number[]; y: number[] };
-  conformal: { alpha: number; qhat: number };
+  conformal: { alpha: number; qhat: number; qhat_by_segment?: Record<string, number> };
   band_half: number;
   medians: number[];
   selftest: { x: number[]; p: number }[];
@@ -90,10 +90,11 @@ export function predictProba(m: ModelFile, x: number[]) {
 }
 
 /** Split-conformal prediction set. Score = 1 - p(true class); include a label when its score <= qhat. */
-export function conformalSet(m: ModelFile, p: number): Verdict[] {
+export function conformalSet(m: ModelFile, p: number, segment?: string | null): Verdict[] {
+  const q: number = (segment ? m.conformal.qhat_by_segment?.[segment] : undefined) ?? m.conformal.qhat; // group-conditional by segment
   const set: Verdict[] = [];
-  if (1 - p <= m.conformal.qhat) set.push('viable');
-  if (p <= m.conformal.qhat) set.push('not_viable');
+  if (1 - p <= q) set.push('viable');
+  if (p <= q) set.push('not_viable');
   return set;
 }
 

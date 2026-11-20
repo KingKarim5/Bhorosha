@@ -159,8 +159,12 @@ export function likelihoodBand(p: number, baseHalf: number, f: Features, s: Rule
     half *= 1.25;
     widened.push('seasonal');
   }
-  const low = Math.max(0.02, p - half);
-  const high = Math.min(0.95, p + half);
+  // Keep the width when the band touches a limit: shift it instead of cutting it, so a widened band always looks wider.
+  const width = Math.min(0.93, 2 * half);
+  let low = p - half;
+  let high = p + half;
+  if (high > 0.95) [low, high] = [0.95 - width, 0.95];
+  if (low < 0.02) [low, high] = [0.02, 0.02 + width];
   return { low: Math.round(low * 100), high: Math.round(high * 100), mid: Math.round(p * 100), widened };
 }
 

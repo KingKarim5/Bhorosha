@@ -25,7 +25,7 @@ export interface Judgement {
 const V = { viable: 'viable', not_sure: 'not sure', not_viable: 'not viable' } as const;
 const VBN = { viable: 'টেকসই', not_sure: 'নিশ্চিত নয়', not_viable: 'এখন টেকসই নয়' } as const;
 
-export function judge(f: Features, s: RuleSettings, model: ModelFile | null): Judgement {
+export function judge(f: Features, s: RuleSettings, model: ModelFile | null, segment?: string | null): Judgement {
   const rules = evaluateRules(f, s);
   const total = rulesTotal(rules);
   const rv = rulesVerdict(total, f, s);
@@ -37,7 +37,7 @@ export function judge(f: Features, s: RuleSettings, model: ModelFile | null): Ju
     };
   }
   const p = predictProba(model, featureVector(f));
-  const set = conformalSet(model, p);
+  const set = conformalSet(model, p, segment);
   const mv = setToVerdict(set);
   let final: Verdict = rv;
   let en: string | null = null;

@@ -26,6 +26,8 @@ export interface OnlineConfig {
   dropBatch?: 'smallest' | number | null; // a settlement batch that never reaches the wallet
   duplicateCredit?: boolean; // the same batch credited twice (a bank-side duplicate)
   maxLagDays?: number; // settlement -> wallet lag (1..maxLag)
+  multiplier?: (monthIdx: number) => number; // e.g. a decline
+  quietWeekProb?: number; // chance that a week has no orders at all
 }
 
 export interface OnlineOutput {
@@ -58,10 +60,13 @@ export function generateOnline(cfg: OnlineConfig): OnlineOutput {
     return m + 1;
   };
   let n = 0;
+  const quiet = new Map<number, boolean>();
   for (let t = start.getTime(); t < endAll.getTime(); t += DAY) {
     const day = new Date(t);
     const monthIdx = (day.getUTCFullYear() - start.getUTCFullYear()) * 12 + day.getUTCMonth() - start.getUTCMonth();
-    const rate = cfg.ordersPerDay * (1 + cfg.growth) ** monthIdx * festivalLift(day);
+    const weekIdx = Math.floor((t - start.getTime()) / (7 * DAY));
+    if (cfg.quietWeekProb && quiet.get(weekIdx) === undefined) quiet.set(weekIdx, rng() < cfg.quietWeekProb);
+    const rate = quiet.get(weekIdx) ? 0 : cfg.ordersPerDay * (1 + cfg.growth) ** monthIdx * festivalLift(day) * (cfg.multiplier ? cfg.multiplier(monthIdx) : 1);
     // Poisson-ish order count
     let k = 0;
     let p = Math.exp(-rate);
