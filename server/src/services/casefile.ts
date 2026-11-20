@@ -1,5 +1,6 @@
 import { Application, Shop, Transaction, Doc, EvidenceItem, Finding, Verdict, AuditLog, CourierSettlement, OrderRecord } from '../models';
 import { orderSummary } from '../lib/online';
+import { verify } from './verifier';
 import type { Txn } from '../lib/statement';
 import { runChecks, CheckResult } from '../lib/checks';
 import { computeFeatures, likelyCause, CAUSES, Features, Stated, Cause, RATE } from '../lib/features';
@@ -19,6 +20,7 @@ type Lean = Record<string, any>; // eslint-disable-line @typescript-eslint/no-ex
 export async function loadTxns(shopId: unknown, includeHiddenUpTo = 0): Promise<Txn[]> {
   const rows = await Transaction.find({ shop: shopId, hidden_until_sim: { $lte: includeHiddenUpTo } }).sort({ date: 1, _id: 1 }).lean();
   return rows.map((r) => ({
+    id: String(r._id),
     date: new Date(r.date as Date),
     amount_bdt: r.amount_bdt as number,
     direction: r.direction as 'in' | 'out',
@@ -47,8 +49,8 @@ interface Ev {
   source_ref: string;
 }
 
-/** Merge owner-stated inputs with document readings. Owner statements stay owner_says; only confirmed documents become checked. */
-function mergeStated(app: Lean, docs: Lean[]): { stated: Stated; noteClaims: string[]; receivableDoc: Lean | null } {
+/** Merge owner-stated inputs with document readings. Owner statements stay owner_says; documents become checked only by matching the money trail. */
+function mergeStated(app: Lean, docs: Lean[], receivableVerified = false): { stated: Stated; noteClaims: string[]; receivableDoc: Lean | null } {
   const stated: Stated = { ...(app.stated || {}) };
   const noteClaims: string[] = [];
   let receivableDoc: Lean | null = null;
@@ -65,11 +67,10 @@ function mergeStated(app: Lean, docs: Lean[]): { stated: Stated; noteClaims: str
       }
       noteClaims.push(...(x.claims || []), ...(x.concerns || []));
     }
-    if (d.kind === 'bill' && /receivable|sales_invoice/i.test(String(x.document_type || ''))) {
-      const amtOk = d.confirmed_fields?.amount_bdt;
-      if (amtOk) {
+    if (d.kind === 'bill' && /receivable|sales_invoice/i.test(String(x.document_type || '')) && x.amount_bdt != null) {
+      stated.receivable_bdt = Number(x.amount_bdt);
+      if (receivableVerified) {
         receivableDoc = d;
-        stated.receivable_bdt = Number(amtOk.value);
         stated.receivable_confirmed = true;
       }
     }
@@ -97,7 +98,7 @@ function buildEvidence(f: Features, stated: Stated, app: Lean, docs: Lean[], che
   if (stated.seasonal != null)
     add({ claim_key: 'seasonal', claim_text: stated.seasonal ? 'The business is seasonal.' : 'The business is not seasonal.', claim_text_bn: stated.seasonal ? 'ব্যবসা মৌসুমি।' : 'ব্যবসা মৌসুমি নয়।', value: stated.seasonal, label: 'owner_says', source_kind: 'owner', source_ref: 'note' });
   if (stated.receivable_bdt)
-    add({ claim_key: 'receivable', claim_text: `A buyer owes ${fmtBdt(stated.receivable_bdt)} BDT, outstanding about ${stated.receivable_days ?? '?'} days.`, claim_text_bn: `একজন ক্রেতার কাছে ${fmtBdt(stated.receivable_bdt)} টাকা পাওনা, প্রায় ${stated.receivable_days ?? '?'} দিন ধরে।`, value: stated.receivable_bdt, label: receivableDoc ? 'checked' : 'owner_says', source_kind: receivableDoc ? 'document' : 'owner', source_ref: receivableDoc ? String(receivableDoc._id) : 'note' });
+    add({ claim_key: 'receivable', claim_text: `A buyer owes ${fmtBdt(stated.receivable_bdt)} BDT, outstanding about ${stated.receivable_days ?? '?'} days.${receivableDoc ? ' The invoice is from a buyer who pays this shop regularly through the wallet.' : ''}`, claim_text_bn: `একজন ক্রেতার কাছে ${fmtBdt(stated.receivable_bdt)} টাকা পাওনা, প্রায় ${stated.receivable_days ?? '?'} দিন ধরে।${receivableDoc ? ' চালানটি এমন ক্রেতার, যিনি নিয়মিত ওয়ালেটে টাকা দেন।' : ''}`, value: stated.receivable_bdt, label: receivableDoc ? 'checked' : 'owner_says', source_kind: receivableDoc ? 'invoice + buyer payments in wallet' : 'owner', source_ref: receivableDoc ? String(receivableDoc._id) : 'note' });
   if (stated.cib_status)
     add({ claim_key: 'cib_status', claim_text: `Credit bureau (CIB) status declared: ${stated.cib_status}.`, claim_text_bn: `সিআইবি অবস্থা (ঘোষিত): ${stated.cib_status}।`, value: stated.cib_status, label: 'owner_says', source_kind: 'owner', source_ref: 'intake' });
   for (const c of noteClaims.slice(0, 4)) add({ claim_key: 'note_claim', claim_text: `Owner's note: "${c}".`, claim_text_bn: `মালিকের নোট: "${c}"।`, value: c, label: 'owner_says', source_kind: 'owner', source_ref: 'note' });
@@ -112,15 +113,20 @@ function buildEvidence(f: Features, stated: Stated, app: Lean, docs: Lean[], che
     const share = sum.delivered ? matched / sum.delivered : 0;
     add({ claim_key: 'order_log', claim_text: `Order log: ${sum.n} online orders, ${sum.delivered} delivered, returns ${pct(sum.return_rate)}; ${matched} delivered orders matched to money received.`, claim_text_bn: `অর্ডারের খাতা: ${sum.n}টি অনলাইন অর্ডার, ${sum.delivered}টি পৌঁছেছে, ফেরত ${pct(sum.return_rate)}; ${matched}টি পৌঁছানো অর্ডারের টাকা মিলেছে।`, value: Math.round(sum.return_rate * 1000) / 1000, label: share >= 0.8 ? 'checked' : 'owner_says', source_kind: share >= 0.8 ? 'orders matched to courier/wallet' : 'owner order log', source_ref: 'order log' });
   }
-  for (const d of docs.filter((x) => x.kind === 'bill')) {
-    const cf = d.confirmed_fields || {};
-    const keys = Object.keys(cf);
-    if (!keys.length) continue;
-    const x = d.extracted_json || {};
-    const amt = cf.amount_bdt?.value;
-    const who = cf.supplier_label?.value ?? x.supplier_label ?? 'unknown party';
-    const date = cf.date?.value ?? '';
-    add({ claim_key: `doc_${d._id}`, claim_text: `Bill confirmed by the officer: ${amt != null ? fmtBdt(Number(amt)) + ' BDT' : 'amount unconfirmed'} from ${who}${date ? ' on ' + date : ''} (${keys.length} fields ticked).`, claim_text_bn: `অফিসার নিশ্চিত করা বিল: ${who}${date ? ', ' + date : ''}, ${amt != null ? fmtBdt(Number(amt)) + ' টাকা' : 'অঙ্ক নিশ্চিত নয়'} (${keys.length}টি ঘর টিক দেওয়া)।`, value: amt ?? null, label: 'checked', source_kind: 'document', source_ref: String(d._id) });
+  for (const d of docs.filter((x) => x.kind === 'bill' && x.extracted_json && !/receivable|sales_invoice/i.test(String(x.extracted_json.document_type || '')))) {
+    const x = d.extracted_json;
+    const amt = x.amount_bdt;
+    const who = x.supplier_label ?? 'unknown party';
+    const ok = d.match_status === 'checked';
+    add({
+      claim_key: `doc_${d._id}`,
+      claim_text: `Bill: ${amt != null ? fmtBdt(Number(amt)) + ' BDT' : 'amount unreadable'} from ${who}${x.date ? ' on ' + x.date : ''}. ${d.match_reason_en || ''}`.trim(),
+      claim_text_bn: `বিল: ${who}${x.date ? ', ' + x.date : ''}, ${amt != null ? fmtBdt(Number(amt)) + ' টাকা' : 'অঙ্ক পড়া যায়নি'}। ${d.match_reason_bn || ''}`.trim(),
+      value: amt ?? null,
+      label: ok ? 'checked' : 'owner_says',
+      source_kind: ok ? 'bill matched to wallet debit' : 'document (unmatched)',
+      source_ref: ok && d.matched_txn ? `txn:${d.matched_txn}` : String(d._id),
+    });
   }
   return ev;
 }
@@ -161,21 +167,15 @@ export function crossCheckRules(f: Features, ev: Ev[], docs: Lean[], txns: Txn[]
   if (personalClaim && f.household_share > 0.25)
     push({ kind: 'contradiction', code: 'personal_as_stock', text: `The owner says transfers to personal numbers are stock payments, but the statement shows them as personal (${pct(f.household_share)} of outflows). Kept as owner says until the wholesaler's bills are shown.`, text_bn: `মালিক বলছেন ব্যক্তিগত নম্বরে পাঠানো টাকা মালের দাম, কিন্তু স্টেটমেন্টে তা ব্যক্তিগত (খরচের ${pct(f.household_share)})। পাইকারের বিল না দেখানো পর্যন্ত "মালিক বলছেন"।`, cited_evidence_ids: [personalClaim.eid, id('household_share')!], severity: 'medium' });
 
-  // bills: duplicates and statement matching
-  const bills = docs.filter((d) => d.kind === 'bill' && d.confirmed_fields?.amount_bdt);
-  const seen = new Map<string, Lean>();
+  // bills: duplicates and unmatched payments (from the Verifier's matching)
+  const bills = docs.filter((d) => d.kind === 'bill' && d.extracted_json && d.match_status);
   for (const b of bills) {
-    const key = `${b.confirmed_fields.amount_bdt.value}|${b.confirmed_fields.date?.value ?? b.extracted_json?.date ?? ''}`;
-    const prev = seen.get(key);
-    if (prev)
-      push({ kind: 'contradiction', code: 'duplicate_bill', text: `Two uploaded bills have the same amount and date (${fmtBdt(Number(b.confirmed_fields.amount_bdt.value))} BDT). Counted once, not twice.`, text_bn: `দুটি আপলোড করা বিলের অঙ্ক ও তারিখ একই (${fmtBdt(Number(b.confirmed_fields.amount_bdt.value))} টাকা)। একবারই গোনা হয়েছে।`, cited_evidence_ids: [id(`doc_${prev._id}`)!, id(`doc_${b._id}`)!], severity: 'medium' });
-    seen.set(key, b);
-    const amt = Number(b.confirmed_fields.amount_bdt.value);
-    const isReceivable = /receivable|sales_invoice/i.test(String(b.extracted_json?.document_type || ''));
-    if (!isReceivable) {
-      const match = txns.some((t) => t.direction === 'out' && Math.abs(t.amount_bdt - amt) <= Math.max(5, amt * 0.01));
-      if (!match)
-        push({ kind: 'contradiction', code: 'bill_not_in_statement', text: `The confirmed bill of ${fmtBdt(amt)} BDT is not visible as a payment in the statement (may have been paid in cash).`, text_bn: `নিশ্চিত করা ${fmtBdt(amt)} টাকার বিলটি স্টেটমেন্টে পরিশোধ হিসেবে দেখা যায় না (নগদে দেওয়া হতে পারে)।`, cited_evidence_ids: [id(`doc_${b._id}`)!, id('monthly_inflow')!], severity: 'low' });
+    const amt = Number(b.extracted_json.amount_bdt || 0);
+    if (b.match_status === 'duplicate') {
+      const twin = bills.find((o) => o !== b && o.extracted_json.amount_bdt === b.extracted_json.amount_bdt && o.extracted_json.date === b.extracted_json.date);
+      push({ kind: 'contradiction', code: 'duplicate_bill', text: `Two uploaded bills have the same amount and date (${fmtBdt(amt)} BDT). Counted once, not twice.`, text_bn: `দুটি আপলোড করা বিলের অঙ্ক ও তারিখ একই (${fmtBdt(amt)} টাকা)। একবারই গোনা হয়েছে।`, cited_evidence_ids: [twin ? id(`doc_${twin._id}`)! : '', id(`doc_${b._id}`)!], severity: 'medium' });
+    } else if (b.match_status === 'unmatched' || b.match_status === 'weak') {
+      push({ kind: 'contradiction', code: 'bill_not_matched', text: `The ${fmtBdt(amt)} BDT bill does not match a wallet payment (${b.match_status}). It stays owner says and the owner has been asked how it was paid.`, text_bn: `${fmtBdt(amt)} টাকার বিলটি ওয়ালেটের পরিশোধের সাথে মেলেনি। এটি "মালিক বলছেন" থাকছে, এবং মালিককে জিজ্ঞেস করা হয়েছে কীভাবে পরিশোধ হয়েছে।`, cited_evidence_ids: [id(`doc_${b._id}`)!, id('monthly_inflow')!], severity: 'low' });
     }
   }
   const swing = f.monthly.length >= 6 ? Math.max(...f.monthly.map((x) => x.inflow)) / Math.max(1, Math.min(...f.monthly.map((x) => x.inflow))) : 1;
@@ -260,15 +260,20 @@ export async function recompute(appId: unknown, opts: RecomputeOpts = {}) {
   if (!app) throw new Error('application not found');
   const shop = (await Shop.findById(app.shop).lean()) as Lean;
   const docs = (await Doc.find({ shop: app.shop }).sort({ createdAt: 1 }).lean()) as Lean[];
-  const txns = await loadTxns(app.shop, 0);
+  const rawTxns = await loadTxns(app.shop, 0);
   const settings: RuleSettings = await getRuleSettings();
   const settlements = (await CourierSettlement.find({ shop: app.shop }).sort({ settlement_date: 1 }).lean()) as Lean[];
   const orders = (await OrderRecord.find({ shop: app.shop }).lean()) as Lean[];
+  const vr = await verify(app, shop, docs, rawTxns, settlements, orders);
+  const txns = vr.txns; // raw wallet rows: consistency checks
+  const salesTxns = vr.salesTxns; // verified sales timing: features
+  const docsAfter = (await Doc.find({ shop: app.shop }).sort({ createdAt: 1 }).lean()) as Lean[];
+  docs.splice(0, docs.length, ...docsAfter);
   const online: OnlineEv | null = settlements.length || orders.length ? { settlements, orders, netTotal: settlements.reduce((a, x) => a + (x.net_remitted || 0), 0) } : null;
   const returnRate = orders.length ? orderSummary(orders as never).return_rate : null;
-  const { stated, noteClaims, receivableDoc } = mergeStated(app, docs);
+  const { stated, noteClaims, receivableDoc } = mergeStated(app, docs, vr.receivableVerified);
   const checks = runChecks(txns);
-  const f = computeFeatures({ txns, business_type: shop.business_type, loan_ask_bdt: app.loan_ask_bdt, tenor_months: app.tenor_months, stated, checks, return_rate: returnRate });
+  const f = computeFeatures({ txns: salesTxns, business_type: shop.business_type, loan_ask_bdt: app.loan_ask_bdt, tenor_months: app.tenor_months, stated, checks, return_rate: returnRate, festival_share: shop.segment && shop.segment !== 'cash_led' ? shop.online_share ?? 0.5 : 0 });
   const model = loadModel();
   const j = judge(f, settings, model);
   const cause = likelyCause(f);

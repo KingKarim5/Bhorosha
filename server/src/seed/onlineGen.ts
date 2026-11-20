@@ -93,7 +93,7 @@ export function generateOnline(cfg: OnlineConfig): OnlineOutput {
       const settle = nextThursday(delivered);
       let net = amount - fee;
       if (visible && cfg.partialRows && rng() < cfg.partialRows / 400) net = Math.round(net / 2); // courier hold-back
-      if (visible) settlements.push({ order_id: id, date: delivered, amount_collected: amount, fee, net_remitted: net, settlement_date: settle, courier: cfg.courier });
+      if (visible && settle < endVisible) settlements.push({ order_id: id, date: delivered, amount_collected: amount, fee, net_remitted: net, settlement_date: settle, courier: cfg.courier });
       const key = settle.toISOString().slice(0, 10);
       const b = batches.get(key) || { date: settle, net: 0, rows: 0 };
       b.net += net;

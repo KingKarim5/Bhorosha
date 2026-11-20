@@ -2,7 +2,15 @@ import type { Txn } from './statement';
 import { summarise } from './statement';
 import type { CheckResult } from './checks';
 import { seasonalIndex, isSeasonal } from './seasonal';
-import { calMonth, clamp, cv, installment, mean, median, monthKey, slope } from './util';
+import { calMonth, clamp, cv, installment, mean, median, monthKey } from './util';
+import { windowLift } from './festivals';
+
+/** Theil-Sen slope: the median of pairwise slopes. Robust to one noisy or festival month. */
+export function robustSlope(ys: number[]) {
+  const sl: number[] = [];
+  for (let i = 0; i < ys.length; i++) for (let j = i + 1; j < ys.length; j++) sl.push((ys[j] - ys[i]) / (j - i));
+  return sl.length ? median(sl) : 0;
+}
 
 export const RATE = 0.09; // refinance cap rate used for the instalment
 
@@ -26,6 +34,7 @@ export interface CaseInput {
   stated: Stated;
   checks: CheckResult[];
   return_rate?: number | null; // from the order log (hybrid / digital_first)
+  festival_share?: number; // share of sales exposed to festival rushes (online share); 0 = no festival adjustment
 }
 
 /** The model feature vector. Order matters: it is shared with ml/train.py through the cohort CSV header. */
@@ -79,7 +88,11 @@ export function computeFeatures(c: CaseInput): Features {
   const seasonalUsed = isSeasonal(c.business_type, !!c.stated.seasonal);
   const monthly = s.months.map((m) => {
     const idx = seasonalUsed ? seasonalIndex(c.business_type, calMonth(m.month), !!c.stated.seasonal) : 1;
-    return { month: m.month, inflow: m.inflow, adjusted: m.inflow / idx };
+    // festival rush months: divide out the expected lift on the online share, so a spike is not read as growth (or decline)
+    const [y, mo] = m.month.split('-').map(Number);
+    const days = new Date(Date.UTC(y, mo, 0)).getUTCDate();
+    const fest = c.festival_share ? 1 + c.festival_share * (windowLift(new Date(Date.UTC(y, mo - 1, 1)), days) - 1) : 1;
+    return { month: m.month, inflow: m.inflow, adjusted: m.inflow / idx / fest };
   });
   const adjW = winsorise(monthly.map((m) => m.adjusted));
   const n = adjW.length;
@@ -87,7 +100,7 @@ export function computeFeatures(c: CaseInput): Features {
   const prev3 = adjW.slice(-6, -3);
   const trend3 = n >= 4 && mean(prev3) > 0 ? mean(last3) / mean(prev3) - 1 : 0;
   const last6 = adjW.slice(-6);
-  const trend6 = last6.length >= 4 && mean(last6) > 0 ? slope(last6) / mean(last6) : 0;
+  const trend6 = last6.length >= 4 && mean(last6) > 0 ? robustSlope(last6) / mean(last6) : 0;
   const seasonalDev = n >= 2 && mean(adjW) > 0 ? adjW[n - 1] / mean(adjW) - 1 : 0;
 
   const avg3 = mean(monthly.slice(-3).map((m) => m.inflow));
@@ -120,7 +133,7 @@ export function computeFeatures(c: CaseInput): Features {
       byCust.set(k, (byCust.get(k) || 0) + t.amount_bdt);
       custTotal += t.amount_bdt;
     }
-  const named = [...byCust.entries()].filter(([k]) => !/walk|customer|retail|বিক্রি/i.test(k));
+  const named = [...byCust.entries()].filter(([k]) => !/walk|customer|retail|courier|online|prepaid|বিক্রি/i.test(k)); // channels are not buyers
   const conc = custTotal && named.length ? Math.max(...named.map(([, v]) => v)) / custTotal : 0;
 
   const bal = c.txns.map((t) => t.balance_after_bdt).filter((b): b is number => b != null);

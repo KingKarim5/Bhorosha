@@ -78,6 +78,10 @@ const DocumentSchema = new Schema(
     officer_confirmed: { type: Boolean, default: false },
     confirmed_at: Date,
     read_by: { type: String, default: null }, // ai | demo_fallback
+    match_status: { type: String, default: null }, // checked | weak | unmatched | duplicate | relationship
+    matched_txn: { type: Schema.Types.ObjectId, default: null },
+    match_reason_en: String,
+    match_reason_bn: String,
   },
   opts,
 );
@@ -194,6 +198,24 @@ const OrderRecordSchema = new Schema(
     status: { type: String, enum: ['delivered', 'returned', 'cancelled'] },
     matched: { type: Boolean, default: false },
     matched_via: String,
+  },
+  opts,
+);
+
+// Questions the Verifier sends the owner about evidence it could not match (v2). Answers stay "owner says".
+const OwnerQuestionSchema = new Schema(
+  {
+    application: { ...ref('Application'), index: true },
+    shop: ref('Shop'),
+    item_kind: String, // bill | courier_batch
+    item_key: { type: String, index: true },
+    amount_bdt: Number,
+    material: Boolean,
+    question_en: String,
+    question_bn: String,
+    status: { type: String, enum: ['open', 'answered', 'resolved'], default: 'open' },
+    answer: String,
+    answered_at: Date,
   },
   opts,
 );
@@ -374,6 +396,7 @@ export const Finding = mongoose.model('Finding', FindingSchema);
 export const Verdict = mongoose.model('Verdict', VerdictSchema);
 export const Decision = mongoose.model('Decision', DecisionSchema);
 export const CheckIn = mongoose.model('CheckIn', CheckInSchema);
+export const OwnerQuestion = mongoose.model('OwnerQuestion', OwnerQuestionSchema);
 export const CourierSettlement = mongoose.model('CourierSettlement', CourierSettlementSchema);
 export const OrderRecord = mongoose.model('OrderRecord', OrderRecordSchema);
 export const Forecast = mongoose.model('Forecast', ForecastSchema);
@@ -391,7 +414,7 @@ export const SimState = mongoose.model('SimState', SimStateSchema);
 export const ShadowCase = mongoose.model('ShadowCase', ShadowCaseSchema);
 
 export const ALL_MODELS = [
-  User, Shop, Application, Transaction, Doc, CourierSettlement, OrderRecord, EvidenceItem, Finding, Verdict, Decision, CheckIn, Forecast, Flag,
+  User, Shop, Application, Transaction, Doc, CourierSettlement, OrderRecord, OwnerQuestion, EvidenceItem, Finding, Verdict, Decision, CheckIn, Forecast, Flag,
   Intervention, Outcome, Investor, InvestorVerification, Commitment, InvestorUpdate, AuditLog, LenderSettings,
   EvalRun, SimState, ShadowCase,
 ];

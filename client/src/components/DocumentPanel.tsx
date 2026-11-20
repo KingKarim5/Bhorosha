@@ -23,14 +23,33 @@ const NOTE_LABEL: Record<string, { en: string; bn: string }> = {
   claims: { en: 'Claims', bn: 'দাবি' },
 };
 
-function Bill({ doc, caseId, onChange, canConfirm }: { doc: any; caseId: string; onChange: () => void; canConfirm: boolean }) {
+const MATCH: Record<string, { en: string; bn: string; color: string }> = {
+  checked: { en: 'Matched to the wallet: checked', bn: 'ওয়ালেটের সাথে মিলেছে: যাচাই করা', color: 'var(--checked)' },
+  relationship: { en: 'Buyer relationship matched: checked', bn: 'ক্রেতার সম্পর্ক মিলেছে: যাচাই করা', color: 'var(--checked)' },
+  weak: { en: 'Weak match: owner says', bn: 'দুর্বল মিল: মালিক বলছেন', color: 'var(--unsure)' },
+  unmatched: { en: 'No match: owner says, question sent', bn: 'মেলেনি: মালিক বলছেন, প্রশ্ন পাঠানো হয়েছে', color: 'var(--owner)' },
+  duplicate: { en: 'Duplicate of another bill: counted once', bn: 'আরেকটি বিলের নকল: একবার গোনা', color: 'var(--unsure)' },
+};
+
+function MatchStatus({ doc }: { doc: any }) {
+  const { t, pick, lang } = useI18n();
+  const m = doc.match_status ? MATCH[doc.match_status] : null;
+  if (!m) return <p className="text-[11.5px] text-muted mt-1.5">{t('Not matched yet.', 'এখনো মেলানো হয়নি।')}</p>;
+  return (
+    <div className="mt-2 rounded p-2 text-[12.5px]" style={{ border: `1px solid ${m.color}`, background: `color-mix(in oklab, ${m.color} 8%, transparent)` }}>
+      <div className="font-semibold" style={{ color: m.color }}>{pick(m)}</div>
+      <div className="text-muted mt-0.5">{lang === 'bn' ? doc.match_reason_bn || doc.match_reason_en : doc.match_reason_en}</div>
+    </div>
+  );
+}
+
+function Bill({ doc, caseId, onChange }: { doc: any; caseId: string; onChange: () => void }) {
   const { t, pick, n } = useI18n();
   const img = useRef<BillImageHandle>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const x = doc.extracted_json || {};
   const fc = doc.field_confidences || {};
-  const cf = doc.confirmed_fields || {};
   const review = new Set(x.fields_needing_review || []);
   const read = async () => {
     setBusy('read');
@@ -48,17 +67,7 @@ function Bill({ doc, caseId, onChange, canConfirm }: { doc: any; caseId: string;
       setBusy(null);
     }
   };
-  const tick = async (field: string, value: unknown, confirmed: boolean) => {
-    setBusy(field);
-    try {
-      await api(`/cases/${caseId}/documents/${doc._id}/confirm`, { body: { field, value, confirmed } });
-      onChange();
-    } catch (e) {
-      setErr((e as Error).message);
-    } finally {
-      setBusy(null);
-    }
-  };
+
   return (
     <motion.div initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} className="card p-3">
       <div className="flex items-center justify-between gap-2 mb-2">
@@ -80,7 +89,6 @@ function Bill({ doc, caseId, onChange, canConfirm }: { doc: any; caseId: string;
               {Object.keys(FIELD_LABEL).map((f, i) => {
                 const val = x[f];
                 const conf = fc[f] ?? 0;
-                const isOn = !!cf[f];
                 return (
                   <motion.tr key={f} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.05 * i }} className="border-b border-line last:border-0">
                     <td className="py-1.5 pr-2 text-muted align-top">{pick(FIELD_LABEL[f])}</td>
@@ -94,20 +102,13 @@ function Bill({ doc, caseId, onChange, canConfirm }: { doc: any; caseId: string;
                         {review.has(f) && <span className="text-[10.5px] font-semibold" style={{ color: 'var(--unsure)' }}>{t('review', 'যাচাই করুন')}</span>}
                       </div>
                     </td>
-                    <td className="py-1.5 align-top text-right">
-                      {val != null && (
-                        <label className={`inline-flex items-center gap-1 text-[12px] ${canConfirm ? 'cursor-pointer' : 'opacity-60'}`}>
-                          <input type="checkbox" className="h-5 w-5 accent-[var(--checked)]" checked={isOn} disabled={!canConfirm || busy === f} onChange={(e) => tick(f, val, e.target.checked)} aria-label={t(`Confirm ${FIELD_LABEL[f].en}`, `${FIELD_LABEL[f].bn} নিশ্চিত করুন`)} />
-                          {isOn ? t('ticked', 'টিক') : ''}
-                        </label>
-                      )}
-                    </td>
+
                   </motion.tr>
                 );
               })}
             </tbody>
           </table>
-          <p className="text-[11.5px] text-muted mt-1.5">{t('Unticked fields do not count. Ticked fields become checked evidence.', 'টিক না দেওয়া ঘর গোনা হয় না। টিক দেওয়া ঘর যাচাই করা প্রমাণ হয়।')}</p>
+          <MatchStatus doc={doc} />
         </div>
       </div>
       <ErrorNote msg={err} />
@@ -194,7 +195,7 @@ export function DocumentPanel({ data, onChange, canConfirm }: { data: any; onCha
   };
   return (
     <div className="space-y-3">
-      {data.docs.map((d: any) => (d.kind === 'bill' ? <Bill key={d._id} doc={d} caseId={data.app._id} onChange={onChange} canConfirm={canConfirm} /> : <Note key={d._id} doc={d} caseId={data.app._id} onChange={onChange} />))}
+      {data.docs.map((d: any) => (d.kind === 'bill' ? <Bill key={d._id} doc={d} caseId={data.app._id} onChange={onChange} /> : <Note key={d._id} doc={d} caseId={data.app._id} onChange={onChange} />))}
       <label className="btn w-full justify-center cursor-pointer">
         {busy ? t('Uploading and reading…', 'আপলোড ও পড়া হচ্ছে…') : t('Add a bill photo', 'বিলের ছবি যোগ করুন')}
         <input type="file" accept="image/*" className="sr-only" disabled={busy} onChange={(e) => e.target.files?.[0] && upload(e.target.files[0])} />

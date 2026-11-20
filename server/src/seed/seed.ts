@@ -78,13 +78,8 @@ export async function seedAll(log = console.log) {
     for (const d of s.docs) {
       const ex = CANNED[d.sample_key] as Record<string, unknown>;
       const fc = (ex.field_confidences as Record<string, number>) || {};
-      const confirmed: Record<string, unknown> = {};
-      if (d.confirm && d.kind === 'bill')
-        for (const k of ['document_type', 'supplier_label', 'date', 'amount_bdt', 'due_date', 'paid_date'])
-          if (ex[k] != null) confirmed[k] = { value: ex[k], at: new Date(), by: 'officer@demo.bd' };
       await Doc.create({
-        shop: shop._id, application: app._id, kind: d.kind, sample_key: d.sample_key, extracted_json: ex, field_confidences: fc,
-        confirmed_fields: confirmed, officer_confirmed: !!d.confirm, confirmed_at: d.confirm ? new Date() : undefined, read_by: 'demo_fallback',
+        shop: shop._id, application: app._id, kind: d.kind, sample_key: d.sample_key, extracted_json: ex, field_confidences: fc, read_by: 'demo_fallback',
       });
     }
     for (const [i, c] of (s.checkins || []).entries())

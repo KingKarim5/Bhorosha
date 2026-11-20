@@ -6,10 +6,10 @@ import path from 'path';
 import { config } from '../config';
 import { z } from 'zod';
 import { requireRole } from '../auth';
-import { Application, Shop, Verdict, EvidenceItem, Finding, Doc, Decision, AuditLog, Transaction, Outcome, CourierSettlement, OrderRecord } from '../models';
+import { Application, Shop, Verdict, EvidenceItem, Finding, Doc, Decision, AuditLog, Transaction, Outcome, CourierSettlement, OrderRecord, OwnerQuestion } from '../models';
 import { parseCourierCsv, parseOrderLogCsv } from '../lib/online';
 import { recompute, loadTxns } from '../services/casefile';
-import { readBill, readNote, confirmField } from '../services/documents';
+import { readBill, readNote } from '../services/documents';
 import { parseStatementCsv, summarise } from '../lib/statement';
 import { runChecks } from '../lib/checks';
 import { BILLS, NOTES } from '../seed/sampleDocs';
@@ -67,6 +67,7 @@ r.get('/cases/:id', staff, async (req, res) => {
   const app = (await Application.findById(req.params.id).lean()) as Lean;
   if (!app) return res.status(404).json({ error: 'case not found' });
   const shop = await Shop.findById(app.shop).lean();
+  const questions = await OwnerQuestion.find({ application: app._id }).sort({ createdAt: 1 }).lean();
   const [verdict, history, evidence, findings, docs, decisions, audit] = await Promise.all([
     Verdict.findById(app.current_verdict).lean(),
     Verdict.find({ application: app._id }).sort({ version: -1 }).select('version final_verdict band_low band_high generated_by phrased_by createdAt').lean(),
@@ -77,7 +78,7 @@ r.get('/cases/:id', staff, async (req, res) => {
     AuditLog.find({ application: app._id }).sort({ createdAt: -1 }).limit(60).lean(),
   ]);
   const docsOut = docs.map((d) => ({ ...d, sample: d.sample_key ? BILLS[d.sample_key] || NOTES[d.sample_key] || null : null }));
-  res.json({ app, shop, verdict, history, evidence, findings, docs: docsOut, decisions, audit });
+  res.json({ app, shop, verdict, history, evidence, findings, docs: docsOut, decisions, audit, questions });
 });
 
 r.get('/cases/:id/statement', staff, async (req, res) => {
@@ -170,13 +171,6 @@ r.post('/cases/:id/documents/:docId/read', staff, upload.single('image'), async 
       : await readBill(String(doc._id), req.file ? { b64: req.file.buffer.toString('base64'), mime: req.file.mimetype } : null, req.user!.email);
   const v = await recompute(req.params.id, { actor: req.user!.email, reason: 'document re-read' });
   res.json({ ...result, verdict_version: v.version });
-});
-
-r.post('/cases/:id/documents/:docId/confirm', staff, async (req, res) => {
-  const b = z.object({ field: z.string().min(1).max(40), value: z.union([z.string(), z.number(), z.null()]), confirmed: z.boolean() }).parse(req.body);
-  await confirmField(req.params.docId, b.field, b.value, b.confirmed, req.user!.email);
-  const v = await recompute(req.params.id, { actor: req.user!.email, reason: 'officer confirmation' });
-  res.json({ ok: true, verdict_version: v.version });
 });
 
 r.post('/cases/:id/recompute', staff, async (req, res) => {

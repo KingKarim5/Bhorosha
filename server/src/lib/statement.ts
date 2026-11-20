@@ -3,6 +3,7 @@ import { bnToLatinDigits, cv, mean, monthKey, monthsBetween, addMonths } from '.
 
 export type CounterpartyKind = 'customer' | 'supplier' | 'personal' | 'utility' | 'other';
 export interface Txn {
+  id?: string;
   date: Date;
   amount_bdt: number;
   direction: 'in' | 'out';

@@ -51,6 +51,16 @@ export const BILLS: Record<string, BillTemplate> = {
   },
 };
 BILLS.bill_tania_b = { ...BILLS.bill_tania_a, key: 'bill_tania_b' }; // the same bill uploaded twice
+BILLS.bill_rahima_b = {
+  key: 'bill_rahima_b',
+  kind: 'bill',
+  style: 'handwritten',
+  header: 'পদ্মা হোলসেল',
+  sub: 'ক্যাশ মেমো',
+  lines: ['তারিখ: ০৫/১০/২০২৬', 'চানাচুর ও বিস্কুট (খোলা)', 'মোট ২৬ প্যাকেট'],
+  total: 'মোট: ৳ ২,৬০০',
+  footer: ['নগদে পরিশোধিত', 'স্বাক্ষর: ......'],
+};
 
 export const NOTES: Record<string, NoteTemplate> = {
   note_rahima: {
@@ -137,3 +147,15 @@ export const CANNED: Record<string, Record<string, unknown>> = {
   note_tania: { cash_share: 0.1, margin: 0.25, seasonal: false, receivables: [], concerns: [], language: 'bn', confidence: 0.85, claims: ['trading for 12 months', 'festival sales spike'] },
 };
 CANNED.bill_tania_b = CANNED.bill_tania_a;
+CANNED.bill_rahima_b = {
+  document_type: 'cash_memo',
+  supplier_label: 'Padma Wholesale',
+  date: '2026-10-05',
+  amount_bdt: 2600,
+  due_date: null,
+  paid_date: null,
+  language: 'bn',
+  confidence: 0.62,
+  field_confidences: { document_type: 0.8, supplier_label: 0.7, date: 0.66, amount_bdt: 0.72, due_date: 0.2, paid_date: 0.2 },
+  fields_needing_review: ['date', 'supplier_label'],
+};

@@ -64,6 +64,7 @@ export const DEMO_SHOPS: DemoShop[] = [
     },
     docs: [
       { kind: 'bill', sample_key: 'bill_rahima' },
+      { kind: 'bill', sample_key: 'bill_rahima_b' },
       { kind: 'note', sample_key: 'note_rahima' },
     ],
   },
@@ -249,11 +250,11 @@ export const DEMO_SHOPS: DemoShop[] = [
     online_share: 0.6,
     stated: { cash_share: 0.4, margin: 0.3, seasonal: false, cib_status: 'clean', grace_months: 2 },
     online: {
-      seed: 707, startMonth: HISTORY_START, months: 12, postMonths: 6, ordersPerDay: 2.4, avgOrder: 1150, growth: 0.012,
+      seed: 707, startMonth: HISTORY_START, months: 12, postMonths: 6, ordersPerDay: 4.5, avgOrder: 600, growth: 0.03,
       codShare: 0.7, returnRate: 0.06, feeFlat: 60, feePct: 0.01, courier: 'Pathao', partialRows: 3, dropBatch: 'smallest',
     },
     gen: {
-      seed: 707, startMonth: HISTORY_START, months: 12, postMonths: 6, base: 11000, growth: 0.012, noise: 0.05, businessType: 'attar_online',
+      seed: 707, startMonth: HISTORY_START, months: 12, postMonths: 6, base: 11000, growth: 0.03, noise: 0.05, businessType: 'attar_online',
       mode: 'retail', txPerDay: 0.6, supplierRatio: 4.2, supplierBills: 2, lateDays: (_: number, r: () => number) => (r() < 0.04 ? 4 : r() * 0.8), household: 0.06, utility: 1800, startBalance: 60000,
       supplierNames: ['Supplier: Chawkbazar Attar House', 'Supplier: Gulistan Bottle Mart'],
     },
