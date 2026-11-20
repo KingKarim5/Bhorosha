@@ -63,8 +63,8 @@ If the Vercel link is mandatory, deploy a first version early (even by 3pm) so h
 ## 0. Name, tagline and one-line idea
 
 - **Name:** Bhorsha (ভরসা), meaning something you can rely on. Keep the name and both taglines in one config file.
-- **English tagline:** Lend on evidence. Stay ahead of trouble.
-- **Bangla tagline:** প্রমাণ দেখে ঋণ দিন। বিপদের আগেই সজাগ থাকুন।
+- **English tagline (v2):** Read the trail. Build the trust.
+- **Bangla tagline (v2):** হিসাব পড়ে, ভরসা গড়ে।
 - **One line:** Small businesses and small investors both lack a trustworthy view of each other. Bhorsha provides that view, and licensed partners move the money.
 
 ## 1. What you are building

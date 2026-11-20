@@ -10,6 +10,7 @@ import { Card, ProofLabel, FileSkeleton, ErrorNote, ModeBadge, VerdictChip, VERD
 import { IconPrint, IconAlert, IconCheck } from '../components/icons';
 import { STATUS_WORDS } from './Dashboard';
 import { CAUSE_WORDS } from './Cases';
+import { BRAND } from '../brand';
 
 function Section({ title, children, open = true, right }: { title: string; children: ReactNode; open?: boolean; right?: ReactNode }) {
   return (
@@ -138,6 +139,7 @@ function memoText(data: any, t: (e: string, b: string) => string) {
   const v = data.verdict;
   const L = (o: any) => o?.en || '';
   return [
+    `${BRAND.name} — ${BRAND.taglineEn}`,
     `CREDIT MEMO (draft) — ${data.shop.label}  [SYNTHETIC DEMO DATA]`,
     `1. Borrower and request: ${data.shop.business_type}; ask ${data.app.loan_ask_bdt} BDT over ${data.app.tenor_months} months; purpose: ${data.app.purpose}`,
     `2. Viability file verdict: ${VERDICT_WORDS[v.final_verdict as VerdictKey].en}; likelihood of trading in 12 months ${v.band_low}%–${v.band_high}%; coverage ${v.coverage_pct}%`,

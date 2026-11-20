@@ -7,6 +7,7 @@ export default function About() {
   return (
     <div className="max-w-4xl">
       <PageTitle title={t('About Bhorsha', 'ভরসা পরিচিতি')} sub={t(BRAND.oneLineEn, BRAND.oneLineBn)} />
+      <p className="font-display text-[22px] text-accent -mt-3 mb-6">{t(BRAND.taglineEn, BRAND.taglineBn)}</p>
       <div className="grid md:grid-cols-2 gap-5">
         <Card title={t('What it is', 'এটি কী')}>
           <ul className="list-disc pl-5 space-y-1.5 text-[14.5px]">

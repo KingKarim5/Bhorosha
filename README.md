@@ -1,6 +1,6 @@
 # Bhorsha (ভরসা)
 
-**Lend on evidence. Stay ahead of trouble.** · প্রমাণ দেখে ঋণ দিন। বিপদের আগেই সজাগ থাকুন।
+**Read the trail. Build the trust.** · হিসাব পড়ে, ভরসা গড়ে।
 
 Bhorsha is a prototype of decision support for small-business lending in Bangladesh. It turns a shop's mobile-money statement, bill photos and a Bangla note into a one-page **viability file**. The file separates what is **checked** from what the **owner says**, and gives a verdict with a likelihood band, a likely cause, conditions, a staged release plan and a recovery plan. A bank manager makes the decision. After funding, a seasonal forecasting **watchman** warns when a shop falls below its expected range. A simulated investor view shows the same evidence in plain language.
 

@@ -1,4 +1,5 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
+import { BRAND } from '../brand';
 import { motion } from 'framer-motion';
 import { useI18n } from '../lib/i18n';
 import { IconCheck, IconSpeech, IconLeaf, IconQuestion, IconPause, IconInfo } from './icons';
@@ -177,6 +178,9 @@ export function Card({ title, children, right, className = '' }: { title?: React
 }
 
 export function PageTitle({ title, sub, right }: { title: string; sub?: string; right?: ReactNode }) {
+  useEffect(() => {
+    document.title = `${title} · ${BRAND.name} — ${BRAND.taglineEn}`;
+  }, [title]);
   return (
     <div className="flex flex-wrap items-end justify-between gap-3 mb-6">
       <div>

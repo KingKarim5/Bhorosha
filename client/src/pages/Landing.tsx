@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { useI18n } from '../lib/i18n';
 import { BRAND } from '../brand';
 import { TopControls } from '../components/Shell';
-import { TopShimmer, DemoBadge, Marquee, TiltCard, Footer, useIsDark } from '../components/Chrome';
+import { TopShimmer, DemoBadge, TiltCard, Footer, useIsDark } from '../components/Chrome';
 import { VerdictTag, CoverageRing, ProofSummary, Sparkline, ProofLabel } from '../components/ui';
 import { IconDoc, IconCheck, IconPulse } from '../components/icons';
 
@@ -47,7 +47,7 @@ function FloatingFile() {
       </div>
       {/* floating chips around the sheet */}
       <motion.div className="absolute z-10 -left-10 -top-5 hidden sm:inline-flex chip shadow-xl !py-1.5 !px-3 !bg-surface" animate={{ y: [0, 8, 0] }} transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}>
-        <IconCheck width={14} height={14} style={{ color: 'var(--checked)' }} /> {t('Bill read · officer ticked', 'বিল পড়া · অফিসার টিক দিয়েছেন')}
+        <IconCheck width={14} height={14} style={{ color: 'var(--checked)' }} /> {t('Bill matched to wallet debit', 'বিল ওয়ালেটের খরচের সাথে মিলেছে')}
       </motion.div>
       <motion.div className="absolute z-10 -right-4 -bottom-5 hidden sm:inline-flex chip shadow-xl !py-1.5 !px-3 !bg-surface" animate={{ y: [0, -9, 0] }} transition={{ duration: 5.2, repeat: Infinity, ease: 'easeInOut', delay: 0.6 }}>
         <IconPulse width={14} height={14} style={{ color: 'var(--unsure)' }} /> {t('Watchman: holding', 'ওয়াচম্যান: ঠিক আছে')}
@@ -68,9 +68,9 @@ export default function Landing() {
     }
   }, []);
   const steps = [
-    { icon: IconDoc, en: 'Reads', bn: 'পড়ে', den: 'Wallet statement, bill photos, a Bangla note.', dbn: 'ওয়ালেট স্টেটমেন্ট, বিলের ছবি, বাংলা নোট।' },
-    { icon: IconCheck, en: 'Proves', bn: 'যাচাই করে', den: 'Every claim: checked, or owner says.', dbn: 'প্রতিটি দাবি: যাচাই করা, নাকি মালিকের কথা।' },
-    { icon: IconPulse, en: 'Watches', bn: 'নজর রাখে', den: 'Warns early, never cries wolf in a lean season.', dbn: 'আগেই সতর্ক করে, মৌসুমি মন্দায় অকারণে নয়।' },
+    { icon: IconDoc, en: 'Reads', bn: 'পড়ে', den: 'Wallet, courier settlements, bills, a Bangla note.', dbn: 'ওয়ালেট, কুরিয়ারের হিসাব, বিল, বাংলা নোট।' },
+    { icon: IconCheck, en: 'Matches', bn: 'মিলিয়ে দেখে', den: 'A claim is checked only when the money trail matches.', dbn: 'টাকার হিসাব মিললে তবেই দাবি যাচাই করা।' },
+    { icon: IconPulse, en: 'Watches', bn: 'নজর রাখে', den: 'Weekly or monthly, festival-aware, supportive first.', dbn: 'সাপ্তাহিক বা মাসিক, উৎসব বুঝে, আগে সহায়তা।' },
   ];
   return (
     <div className="min-h-screen overflow-x-hidden">
@@ -100,9 +100,9 @@ export default function Landing() {
         <div className="relative z-10 flex-1 flex items-center">
           <div className="w-full max-w-6xl mx-auto px-5 md:px-10 pb-24 pt-6">
             <motion.h1 {...fade(0.1)} className="text-[40px] sm:text-[56px] md:text-[76px] leading-[1.12] font-semibold max-w-4xl" style={{ fontFamily: 'Noto Serif Bengali, serif', textShadow: dark ? '0 2px 30px rgba(0,0,0,.55)' : 'none' }}>
-              প্রমাণ দেখে ঋণ দিন।
+              {BRAND.taglineBn.split(/,\s*/)[0]},
               <br />
-              <span className="shimmer-text">বিপদের আগেই সজাগ থাকুন।</span>
+              <span className="shimmer-text">{BRAND.taglineBn.split(/,\s*/).slice(1).join(', ')}</span>
             </motion.h1>
             <motion.p {...fade(0.35)} className="font-display text-[22px] md:text-[30px] text-muted mt-4">
               {BRAND.taglineEn}
@@ -122,13 +122,12 @@ export default function Landing() {
         </motion.a>
       </section>
 
-      <Marquee />
 
       {/* ---------- how it works ---------- */}
       <section id="how" className="max-w-6xl mx-auto px-5 md:px-10 py-24 grid lg:grid-cols-[1fr_1.05fr] gap-14 items-center">
         <div>
           <motion.h2 initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="font-display text-[34px] md:text-[46px] font-semibold leading-tight">
-            {t('One page a manager can trust.', 'এক পাতা, যার উপর ম্যানেজার ভরসা করতে পারেন।')}
+            {t('One page. Decided inside the lender’s policy.', 'এক পাতা। সিদ্ধান্ত ঋণদাতার নীতির ভেতরে।')}
           </motion.h2>
           <div className="mt-8 grid gap-4">
             {steps.map((s, i) => (
@@ -159,7 +158,7 @@ export default function Landing() {
           {[
             { big: '1', en: 'page per business, in Bangla and English', bn: 'প্রতি ব্যবসায় এক পাতা, বাংলা ও ইংরেজিতে' },
             { big: '2', en: 'labels on every claim: checked or owner says', bn: 'প্রতিটি দাবিতে দুই চিহ্ন: যাচাই করা বা মালিকের কথা' },
-            { big: '0', en: 'decisions made by AI. People decide.', bn: 'এআই-এর নেওয়া সিদ্ধান্ত। সিদ্ধান্ত মানুষের।' },
+            { big: '5', en: 'AI agents, one policy the lender owns', bn: 'এআই এজেন্ট, একটি নীতি যা ঋণদাতার' },
           ].map((x, i) => (
             <motion.div key={i} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className="card p-6 text-center">
               <div className="font-display text-[64px] leading-none font-semibold shimmer-text">{x.big}</div>

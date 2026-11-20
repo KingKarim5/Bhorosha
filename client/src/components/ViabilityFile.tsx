@@ -5,6 +5,7 @@ import { RunwayChart } from './RunwayChart';
 import { CAUSE_WORDS } from '../pages/Cases';
 import { useReducedMotion } from '../lib/hooks';
 import { IconAlert } from './icons';
+import { BRAND } from '../brand';
 
 const sec = (i: number, reduce: boolean) => ({ initial: { opacity: reduce ? 1 : 0, y: reduce ? 0 : 6 }, animate: { opacity: 1, y: 0 }, transition: { delay: reduce ? 0 : 0.08 * i, duration: 0.3 } });
 
@@ -20,7 +21,7 @@ export function ViabilityFile({ data }: { data: any }) {
   const statusTxt = (s: string) => (s === 'pass' ? t('Pass', 'উত্তীর্ণ') : s === 'fail' ? t('Fail', 'ব্যর্থ') : t('Unknown', 'অজানা'));
   return (
     <article className="sheet p-5 md:p-8 text-[14.5px]" aria-label={t('Viability file', 'টেকসইতার ফাইল')}>
-      <div className="print-ribbon">SYNTHETIC DEMO DATA. Not real borrowers, not a real lending decision. · কৃত্রিম ডেমো তথ্য</div>
+      <div className="print-ribbon">{BRAND.name} · {BRAND.taglineEn} · {BRAND.taglineBn} — SYNTHETIC DEMO DATA. Not real borrowers, not a real lending decision.</div>
       <motion.header {...sec(0, reduce)} className="flex flex-wrap justify-between gap-3">
         <div>
           <div className="text-[11.5px] uppercase tracking-[0.16em]" style={{ color: 'var(--muted)' }}>

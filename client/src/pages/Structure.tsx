@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { useI18n } from '../lib/i18n';
 import { PageTitle, SimulationBanner, Card } from '../components/ui';
 import { useReducedMotion } from '../lib/hooks';
+import { BRAND } from '../brand';
 
 export default function Structure() {
   const { t } = useI18n();
@@ -21,6 +22,7 @@ export default function Structure() {
   return (
     <div>
       <PageTitle title={t('How the money would move', 'টাকা কীভাবে চলবে')} sub={t('Bhorsha never holds, receives or pays out funds. It supplies evidence, the viability file, verification workflow and servicing information.', 'ভরসা কখনো টাকা রাখে, নেয় বা দেয় না। এটি প্রমাণ, টেকসইতার ফাইল, যাচাইয়ের ধাপ ও ঋণ-পরবর্তী তথ্য দেয়।')} />
+      <p className="font-display text-[20px] text-accent -mt-3 mb-4">{t(BRAND.taglineEn, BRAND.taglineBn)}</p>
       <SimulationBanner />
       <Card>
         <svg viewBox="0 0 520 230" className="w-full h-auto" role="img" aria-label={t('Money flow diagram', 'টাকার প্রবাহের চিত্র')}>

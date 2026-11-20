@@ -307,28 +307,6 @@ html[lang='bn'] .font-display {
   from { background-position: -50% 0; }
   to { background-position: 150% 0; }
 }
-.marquee-track {
-  animation: marquee-ltr 38s linear infinite;
-}
-.marquee:hover .marquee-track {
-  animation-play-state: paused;
-}
-@keyframes marquee-ltr {
-  from { transform: translateX(-50%); }
-  to { transform: translateX(0); }
-}
-.marquee::before,
-.marquee::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 80px;
-  z-index: 1;
-  pointer-events: none;
-}
-.marquee::before { left: 0; background: linear-gradient(90deg, #c8922c, transparent); }
-.marquee::after { right: 0; background: linear-gradient(-90deg, #d9a441, transparent); }
 .hero-bg {
   background:
     radial-gradient(1200px 600px at 80% 10%, color-mix(in oklab, var(--accent) 12%, transparent), transparent 60%),

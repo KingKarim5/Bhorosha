@@ -5,6 +5,7 @@ import { useI18n } from '../lib/i18n';
 import { useAuth } from '../lib/auth';
 import { api } from '../lib/api';
 import { ErrorNote } from '../components/ui';
+import { BRAND } from '../brand';
 
 interface Acc {
   role: string;
@@ -53,6 +54,7 @@ export default function Login() {
     <PublicShell>
       <div className="px-4 md:px-10 py-8 max-w-4xl mx-auto grid md:grid-cols-[1.2fr_1fr] gap-6">
         <div>
+          <p className="text-accent font-semibold">{t(BRAND.taglineEn, BRAND.taglineBn)}</p>
           <h1 className="font-display text-[30px] font-semibold">{t('Demo accounts', 'ডেমো অ্যাকাউন্ট')}</h1>
           <p className="text-muted mt-1">
             {t('All accounts use the password', 'সব অ্যাকাউন্টের পাসওয়ার্ড')} <code className="num chip">{password}</code>

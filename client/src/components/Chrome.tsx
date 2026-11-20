@@ -41,31 +41,6 @@ export function DemoBadge() {
   );
 }
 
-/** A gold band that scrolls continuously from left to right. */
-export function Marquee() {
-  const words = ['প্রমাণ', 'Evidence', 'যাচাই', 'Checked', 'নজরদারি', 'Watchman', 'শর্ত', 'Conditions', 'ভরসা', 'Trust', 'মৌসুম', 'Seasons', 'সিদ্ধান্ত মানুষের', 'People decide'];
-  const row = (
-    <div className="flex shrink-0 items-center gap-8 pr-8">
-      {words.map((w, i) => (
-        <span key={i} className="flex items-center gap-8 whitespace-nowrap">
-          <span className={i % 2 ? 'font-display italic' : ''} style={i % 2 ? undefined : { fontFamily: 'Noto Serif Bengali, serif' }}>
-            {w}
-          </span>
-          <span aria-hidden className="text-[0.7em]">✦</span>
-        </span>
-      ))}
-    </div>
-  );
-  return (
-    <div className="marquee relative overflow-hidden py-4 text-[22px] md:text-[28px] font-semibold" style={{ background: 'linear-gradient(90deg, #c8922c, #e8c063 45%, #d9a441)', color: '#1b1405' }} aria-hidden>
-      <div className="marquee-track flex w-max">
-        {row}
-        {row}
-      </div>
-    </div>
-  );
-}
-
 /** Card that tilts in 3D under the pointer. */
 export function TiltCard({ children, className = '' }: { children: ReactNode; className?: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -116,8 +91,8 @@ export function Footer() {
         </div>
         <div>
           <div className="label uppercase tracking-[0.14em] !text-[11.5px]">{t('Built by', 'নির্মাতা')}</div>
-          <div className="mt-2 font-semibold text-[16px]">Team Excuse Me</div>
-          <div className="text-muted text-[14.5px]">Kha Merul Badda, Dhaka</div>
+          <div className="mt-2 font-semibold text-[16px]">{BRAND.team}</div>
+          <div className="text-muted text-[14.5px]">{BRAND.teamPlace}</div>
         </div>
         <div>
           <div className="label uppercase tracking-[0.14em] !text-[11.5px]">{t('Explore', 'ঘুরে দেখুন')}</div>
