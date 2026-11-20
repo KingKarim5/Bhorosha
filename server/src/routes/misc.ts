@@ -93,13 +93,7 @@ r.put('/settings', requireRole('lender'), async (req, res) => {
   const s = await getSettingsDoc();
   Object.assign(s, b);
   await s.save();
-  const apps = await Application.find({ status: { $in: ['draft', 'filed'] } }).lean();
-  const changes: { id: unknown; before: string; after: string }[] = [];
-  for (const a of apps) {
-    const before = (await Verdict.findById(a.current_verdict).lean())?.final_verdict as string;
-    const v = await recompute(a._id, { actor: req.user!.email, reason: 'lender settings changed' });
-    changes.push({ id: a._id, before, after: v.final_verdict as string });
-  }
+  const changes: { id: unknown; before: string; after: string }[] = []; // v2: policy changes apply only to new decisions
   await AuditLog.create({ actor: req.user!.email, action: 'settings:update', redacted_payload_json: b, output_json: { changes }, mode: 'human' });
   res.json({ settings: s, changes });
 });

@@ -11,6 +11,7 @@ import { IconPrint, IconAlert, IconCheck } from '../components/icons';
 import { STATUS_WORDS } from './Dashboard';
 import { CAUSE_WORDS } from './Cases';
 import { BRAND } from '../brand';
+import { AgentTrace } from '../components/AgentTrace';
 
 function Section({ title, children, open = true, right }: { title: string; children: ReactNode; open?: boolean; right?: ReactNode }) {
   return (
@@ -54,6 +55,21 @@ export function DecisionHistory({ decisions }: { decisions: any[] }) {
               </div>
             ))}
             {d.legacy_note && <div className="mt-1 text-muted">{d.legacy_note}</div>}
+            {i === 0 && (d.gates || []).length > 0 && (
+              <ul className="mt-2 grid sm:grid-cols-2 gap-x-3 gap-y-0.5 text-[12px]">
+                {d.gates.map((g: any) => (
+                  <li key={g.key} className="flex gap-1.5">
+                    <span style={{ color: g.pass ? 'var(--checked)' : 'var(--notviable)' }}>{g.pass ? '✓' : '✗'}</span>
+                    <span className="text-muted">{pick(g)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {i === 0 && d.first_tranche_bdt && (
+              <div className="mt-2 text-[12.5px]">
+                {t('First tranche', 'প্রথম কিস্তি')}: <b className="num">{d.first_tranche_bdt.toLocaleString('en-IN')} BDT</b>
+              </div>
+            )}
           </li>
         );
       })}
@@ -194,6 +210,28 @@ export default function CaseDetail() {
           <ViabilityFile data={data} />
         </div>
         <div className="no-print space-y-4">
+          <Section title={t('Agent trace', 'এজেন্টদের কাজের ধারা')}>
+            <AgentTrace caseId={data.app._id} refreshKey={data.verdict?._id} />
+          </Section>
+          <Section title={t('AI decision', 'এআই-এর সিদ্ধান্ত')}>
+            <DecisionHistory decisions={data.decisions} />
+          </Section>
+          {(data.questions || []).length > 0 && (
+            <Section title={t('Questions sent to the owner', 'মালিককে পাঠানো প্রশ্ন')}>
+              <ul className="space-y-2">
+                {data.questions.map((q: any) => (
+                  <li key={q._id} className="text-[13.5px] p-2 rounded" style={{ background: 'var(--raised)' }}>
+                    <div className="flex flex-wrap gap-2 mb-1">
+                      <span className="chip" style={{ color: q.status === 'open' ? 'var(--unsure)' : 'var(--checked)' }}>{q.status}</span>
+                      {q.material && <span className="chip" style={{ color: 'var(--notviable)' }}>{t('material', 'গুরুত্বপূর্ণ')}</span>}
+                    </div>
+                    <div style={{ fontFamily: 'Noto Sans Bengali, sans-serif' }}>{q.question_bn}</div>
+                    {q.answer && <div className="text-muted mt-1">↳ {q.answer} <span className="chip !py-0">{t('owner says', 'মালিক বলছেন')}</span></div>}
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
           <Section title={t('Documents and AI reading', 'কাগজপত্র ও এআই-এর পড়া')}>
             <DocumentPanel data={data} onChange={reload} canConfirm={false} />
           </Section>
@@ -241,9 +279,6 @@ export default function CaseDetail() {
             ) : (
               <p className="text-muted text-[13.5px]">{t('No contradictions found between the documents.', 'কাগজগুলোর মধ্যে কোনো অমিল পাওয়া যায়নি।')}</p>
             )}
-          </Section>
-          <Section title={t('AI decision', 'এআই-এর সিদ্ধান্ত')}>
-            <DecisionHistory decisions={data.decisions} />
           </Section>
           <Section title={t('Ask this file', 'এই ফাইলকে জিজ্ঞেস করুন')} open={false}>
             <AskFile caseId={data.app._id} />

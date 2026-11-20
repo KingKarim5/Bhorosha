@@ -81,6 +81,18 @@ r.get('/cases/:id', staff, async (req, res) => {
   res.json({ app, shop, verdict, history, evidence, findings, docs: docsOut, decisions, audit, questions });
 });
 
+// Agent trace: the latest pipeline run's steps from the audit log (works in DEMO FALLBACK too).
+r.get('/cases/:id/trace', staff, async (req, res) => {
+  const last = await AuditLog.findOne({ application: req.params.id, run_id: { $ne: null } }).sort({ createdAt: -1 }).lean();
+  if (!last) return res.json({ run_id: null, agents: [] });
+  const rows = await AuditLog.find({ run_id: last.run_id }).sort({ createdAt: 1 }).lean();
+  const order = ['Intake', 'Verifier', 'Underwriter', 'Watchman', 'Servicer'];
+  const agents = order
+    .map((a) => ({ agent: a, steps: rows.filter((x) => x.agent === a).map((x) => ({ step: x.step || x.action, mode: x.mode, ms: x.latency_ms, summary: (x.output_json as Record<string, unknown>)?.summary ?? null, ai: String(x.action).startsWith('ai:'), at: x.createdAt })) }))
+    .filter((a) => a.steps.length);
+  res.json({ run_id: last.run_id, at: last.createdAt, agents, fallback: rows.some((x) => x.mode === 'demo_fallback') });
+});
+
 r.get('/cases/:id/statement', staff, async (req, res) => {
   const app = await Application.findById(req.params.id).lean();
   if (!app) return res.status(404).json({ error: 'case not found' });

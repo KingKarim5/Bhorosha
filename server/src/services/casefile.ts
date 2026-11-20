@@ -1,6 +1,9 @@
 import { Application, Shop, Transaction, Doc, EvidenceItem, Finding, Verdict, AuditLog, CourierSettlement, OrderRecord } from '../models';
 import { orderSummary } from '../lib/online';
 import { verify } from './verifier';
+import { decide } from '../lib/decide';
+import { getActivePolicy, getControl, checkBreaker } from './policy';
+import { Decision } from '../models';
 import type { Txn } from '../lib/statement';
 import { runChecks, CheckResult } from '../lib/checks';
 import { computeFeatures, likelyCause, CAUSES, Features, Stated, Cause, RATE } from '../lib/features';
@@ -244,8 +247,8 @@ function templateText(verdict: V, j: Judgement, cause: Cause, checkedShare: numb
         ? { en: `What can change it: ${conds[0].en} `, bn: `যা বদলালে রায় বদলাতে পারে: ${conds[0].bn} ` }
         : { en: 'More evidence would make this clearer. ', bn: 'আরও প্রমাণ পেলে বিষয়টি পরিষ্কার হবে। ' };
   return {
-    en: `${lead.en}Verdict: ${vt.en}. Likelihood of still trading in 12 months: ${j.band.low}% to ${j.band.high}%. Likely weak point: ${CAUSES[cause].en.toLowerCase()}. ${checkedShare}% of the claims in this file are checked; the rest are what the owner says. Advice for the manager; the decision is yours.`,
-    bn: `${lead.bn}রায়: ${vt.bn}। ১২ মাস পরেও ব্যবসা চালু থাকার সম্ভাবনা: ${j.band.low}% থেকে ${j.band.high}%। সম্ভাব্য দুর্বল দিক: ${CAUSES[cause].bn}। এই ফাইলের ${checkedShare}% দাবি যাচাই করা; বাকিগুলো মালিকের কথা। এটি ম্যানেজারের জন্য পরামর্শ; সিদ্ধান্ত আপনার।`,
+    en: `${lead.en}Verdict: ${vt.en}. Likelihood of still trading in 12 months: ${j.band.low}% to ${j.band.high}%. Likely weak point: ${CAUSES[cause].en.toLowerCase()}. ${checkedShare}% of the claims in this file are checked; the rest are what the owner says. ${POLICY_EN}`,
+    bn: `${lead.bn}রায়: ${vt.bn}। ১২ মাস পরেও ব্যবসা চালু থাকার সম্ভাবনা: ${j.band.low}% থেকে ${j.band.high}%। সম্ভাব্য দুর্বল দিক: ${CAUSES[cause].bn}। এই ফাইলের ${checkedShare}% দাবি যাচাই করা; বাকিগুলো মালিকের কথা। ${POLICY_BN}`,
   };
 }
 
@@ -253,18 +256,48 @@ export interface RecomputeOpts {
   actor?: string;
   ai?: boolean; // run the AI cross-check and AI phrasing
   reason?: string;
+  run_id?: string;
+  decide?: boolean; // record an Underwriter decision (default true)
 }
+
+/** Writes one agent step to the audit log; the case page reads these back as the agent trace. */
+function tracer(appId: unknown, runId: string, actor: string) {
+  return async (agent: string, step: string, t0: number, detail: Record<string, unknown>, mode = 'rules') => {
+    await AuditLog.create({ actor, action: `agent:${agent}`, agent, step, run_id: runId, application: appId, redacted_payload_json: {}, output_json: detail, mode, latency_ms: Date.now() - t0 });
+  };
+}
+
+const POLICY_EN = 'Decided by Bhorsha AI inside the lender\'s policy.';
+const POLICY_BN = 'ঋণদাতার নীতির ভেতরে ভরসা এআই-এর সিদ্ধান্ত।';
 
 export async function recompute(appId: unknown, opts: RecomputeOpts = {}) {
   const app = (await Application.findById(appId).lean()) as Lean;
   if (!app) throw new Error('application not found');
   const shop = (await Shop.findById(app.shop).lean()) as Lean;
+  const lastV = (await Verdict.findOne({ application: app._id }).sort({ version: -1 }).select('version').lean()) as Lean;
+  const runId = opts.run_id || `${app._id}:v${(lastV?.version || 0) + 1}`;
+  const actor = opts.actor || 'system';
+  const trace = tracer(app._id, runId, actor);
+  let t0 = Date.now();
   const docs = (await Doc.find({ shop: app.shop }).sort({ createdAt: 1 }).lean()) as Lean[];
+  {
+    const read = docs.filter((d) => d.extracted_json);
+    const conf = read.map((d) => Number(d.extracted_json.confidence ?? 0)).filter((x) => x > 0);
+    const lowFields = read.reduce((a, d) => a + ((d.extracted_json.fields_needing_review || []).length || 0), 0);
+    const aiRead = read.some((d) => d.read_by === 'ai');
+    await trace('Intake', 'read documents', t0, {
+      summary: `${docs.length} document(s): ${docs.filter((d) => d.kind === 'bill').length} bill(s), ${docs.filter((d) => d.kind === 'note').length} note(s); mean reading confidence ${conf.length ? Math.round((conf.reduce((a, b) => a + b, 0) / conf.length) * 100) : 0}%; ${lowFields} low-confidence field(s) flagged. Phone numbers, ID numbers and names are replaced with tokens before any model call.`,
+      read_by: aiRead ? 'ai' : 'demo_fallback',
+    }, aiRead ? 'ai' : 'demo_fallback');
+  }
+  t0 = Date.now();
   const rawTxns = await loadTxns(app.shop, 0);
   const settings: RuleSettings = await getRuleSettings();
   const settlements = (await CourierSettlement.find({ shop: app.shop }).sort({ settlement_date: 1 }).lean()) as Lean[];
   const orders = (await OrderRecord.find({ shop: app.shop }).lean()) as Lean[];
   const vr = await verify(app, shop, docs, rawTxns, settlements, orders);
+  for (const st of vr.steps) await trace('Verifier', st.step, t0, { summary: st.detail });
+  t0 = Date.now();
   const txns = vr.txns; // raw wallet rows: consistency checks
   const salesTxns = vr.salesTxns; // verified sales timing: features
   const docsAfter = (await Doc.find({ shop: app.shop }).sort({ createdAt: 1 }).lean()) as Lean[];
@@ -273,6 +306,8 @@ export async function recompute(appId: unknown, opts: RecomputeOpts = {}) {
   const returnRate = orders.length ? orderSummary(orders as never).return_rate : null;
   const { stated, noteClaims, receivableDoc } = mergeStated(app, docs, vr.receivableVerified);
   const checks = runChecks(txns);
+  await trace('Verifier', 'consistency and tamper checks', t0, { summary: `${checks.filter((c) => !c.passed && c.severity !== 'low').length} of ${checks.length} checks raised a concern${checks.some((c) => !c.passed && c.severity === 'high') ? '; the statement does not reconcile' : ''}. Checks show internal consistency only, never authenticity.` });
+  t0 = Date.now();
   const f = computeFeatures({ txns: salesTxns, business_type: shop.business_type, loan_ask_bdt: app.loan_ask_bdt, tenor_months: app.tenor_months, stated, checks, return_rate: returnRate, festival_share: shop.segment && shop.segment !== 'cash_led' ? shop.online_share ?? 0.5 : 0 });
   const model = loadModel();
   const j = judge(f, settings, model);
@@ -282,6 +317,9 @@ export async function recompute(appId: unknown, opts: RecomputeOpts = {}) {
   const conds: Condition[] = [];
   if (cfs[0]) cfs[0].actions.forEach((a, i) => conds.push({ key: a, kind: 'counterfactual', ...cfs[0].texts[i] }));
   for (const p of prudentialConditions(f, cause, settings, app.loan_ask_bdt)) if (!conds.some((c) => c.key === p.key)) conds.push(p);
+  const hasSupplierBill = docs.some((d) => d.kind === 'bill' && !/receivable|sales_invoice/i.test(String(d.extracted_json?.document_type || '')));
+  if (!hasSupplierBill && salesTxns.some((t) => t.counterparty_kind === 'supplier') && !conds.some((c) => c.key === 'supplier_invoices'))
+    conds.push({ key: 'supplier_invoices', kind: 'prudential', en: 'Provide supplier invoices for stock bought with the loan (photos in the app, within 30 days).', bn: 'ঋণের টাকায় কেনা মালের সরবরাহকারীর চালান দিন (অ্যাপে ছবি, ৩০ দিনের মধ্যে)।' });
   const tranches = tranchePlan(app.loan_ask_bdt, conds, f, settings);
   const ev = buildEvidence(f, stated, app, docs, checks, noteClaims, receivableDoc, online);
   const checkedShare = ev.length ? Math.round((ev.filter((e) => e.label === 'checked').length / ev.length) * 100) : 0;
@@ -301,7 +339,7 @@ export async function recompute(appId: unknown, opts: RecomputeOpts = {}) {
     const facts = ev.map((e) => ({ id: e.eid, label: e.label, text: e.claim_text }));
     const r = await callJson({
       task: 'cross_check', system: PROMPTS.crosscheck, user: redact(JSON.stringify({ facts }), names).text,
-      schema: FindingsSchema, fallback: () => ({ findings: [] }), actor: opts.actor, application: app._id,
+      schema: FindingsSchema, fallback: () => ({ findings: [] }), actor: opts.actor, application: app._id, agent: 'Verifier', run_id: runId,
       extraCheck: (d) => {
         const bad = d.findings.filter((x) => !validateCitations(x.cites, known).ok || x.cites.length < 2);
         return bad.length ? `findings cite unknown ids: ${bad.map((b) => b.cites.join('/')).join(', ')}` : null;
@@ -338,7 +376,7 @@ export async function recompute(appId: unknown, opts: RecomputeOpts = {}) {
     const r = await callJson<Phrase>({
       task: 'phrase_file', system: PROMPTS.phrase, user: redact(factText, names).text, schema: PhraseSchema,
       fallback: () => ({ summary_en: tmpl.en, summary_bn: tmpl.bn, reasons: reasons.map((x) => ({ en: x.en, bn: x.bn, cites: x.cites })) as Phrase['reasons'] }),
-      actor: opts.actor, application: app._id,
+      actor: opts.actor, application: app._id, agent: 'Underwriter', run_id: runId,
       extraCheck: (d) => {
         const texts = [d.summary_en, d.summary_bn, ...d.reasons.flatMap((x) => [x.en, x.bn])];
         const probs = texts.flatMap((t) => validateText(t, allowed).problems);
@@ -386,7 +424,7 @@ export async function recompute(appId: unknown, opts: RecomputeOpts = {}) {
     generated_by,
     phrased_by,
     disagreement_flag: j.disagreement,
-    disagreement_text: j.disagreement_en ? JSON.stringify({ en: j.disagreement_en, bn: j.disagreement_bn }) : null,
+    disagreement_text: j.disagreement_en ? JSON.stringify({ en: j.disagreement_en, bn: j.disagreement_bn, kind: j.conformal_set && !j.conformal_set.includes(j.rules_verdict) ? 'contradiction' : 'less_certain' }) : null,
     verdict_source: j.source,
   });
   await EvidenceItem.deleteMany({ application: app._id });
@@ -400,6 +438,45 @@ export async function recompute(appId: unknown, opts: RecomputeOpts = {}) {
     output_json: { rules_total: j.rules_total, rules_verdict: j.rules_verdict, model_probability: j.model_probability, conformal_set: j.conformal_set, final: j.final_verdict, band: j.band },
     mode: j.source === 'model_hybrid' ? 'model' : 'rules',
   });
+  await trace('Underwriter', 'coverage, rules and model', t0, {
+    summary: `Coverage ${f.coverage}%. Rules: ${j.rules_total >= 0 ? '+' : ''}${j.rules_total} points, ${j.rules_verdict.replace('_', ' ')}. ${j.model_probability == null ? 'No model loaded: rules only.' : `Model probability ${Math.round(j.model_probability * 100)}%, prediction set {${(j.conformal_set || []).join(', ')}}${j.disagreement ? '; less certain than the rules' : ''}.`} Band ${j.band.low}% to ${j.band.high}%.`,
+  }, j.source === 'model_hybrid' ? 'model' : 'rules');
+  t0 = Date.now();
+
+  if (opts.decide !== false) {
+    const policy = await getActivePolicy();
+    const control = await getControl();
+    const required: string[] = policy.min_documents || ['statement'];
+    const missingDocs: string[] = [];
+    if (required.includes('statement') && !rawTxns.length) missingDocs.push('statement');
+    if (required.includes('online_evidence') && shop.segment && shop.segment !== 'cash_led' && !settlements.length && !orders.length) missingDocs.push('online evidence (courier settlements or order log)');
+    if (required.includes('supplier_bill') && !hasSupplierBill) missingDocs.push('a supplier bill');
+    const eid = (k: string) => ev.find((e) => e.claim_key === k)?.eid;
+    const ruleEids = [...new Set(j.rules.filter((r) => r.fired).flatMap((r) => r.evidence_keys.map(eid)).filter(Boolean) as string[])];
+    const d = decide({
+      paused: !!control.paused, pauseReason: control.reason || undefined, missingDocs,
+      tamper: checks.some((c) => !c.passed && c.severity === 'high'), monthsHistory: f.months_history,
+      rulesVerdict: j.rules_verdict, finalVerdict: j.final_verdict, modelSet: j.conformal_set,
+      materialOpen: vr.materialOpen, loanAsk: app.loan_ask_bdt, autonomyCap: policy.autonomy_cap_bdt,
+      conditions: conds, tranches,
+      evidenceIds: { statement: [eid('monthly_inflow'), eid('months_history')].filter(Boolean) as string[], consistency: [eid('consistency')].filter(Boolean) as string[], rules: ruleEids },
+    });
+    const decisionDoc = await Decision.create({
+      application: app._id, verdict: verdict._id, decision: d.decision, decided_by: `Bhorsha AI, policy v${policy.version}`, policy_version: policy.version,
+      reasons: d.reasons, evidence_ids: [...new Set(d.reasons.flatMap((r) => r.evidence_ids))], conditions: d.decision === 'approved_with_conditions' ? conds : [],
+      tranche_plan: d.tranche_plan, first_tranche_bdt: d.first_tranche_bdt, gates: d.gates, run_id: runId,
+    });
+    if (d.decision === 'approved_with_conditions' && d.tranche_plan.length) await Verdict.updateOne({ _id: verdict._id }, { tranche_plan_json: d.tranche_plan });
+    if (app.status !== 'funded') await Application.updateOne({ _id: app._id }, { status: d.decision === 'hold_need_evidence' ? 'filed' : 'decided' });
+    await trace('Underwriter', 'fail-safe decision', t0, {
+      summary: `${d.decision.replace(/_/g, ' ')} under policy v${policy.version}. Gates: ${d.gates.map((g) => `${g.key} ${g.pass ? 'pass' : 'FAIL'}`).join(', ')}.${d.first_tranche_bdt ? ` First tranche ${fmtBdt(d.first_tranche_bdt)} BDT.` : ''}`,
+      decision: d.decision, decision_id: String(decisionDoc._id),
+    });
+    t0 = Date.now();
+    await trace('Servicer', 'owner explanation', t0, { summary: 'Plain Bangla explanation of the decision and what to fix prepared for the owner\'s private page.' });
+    if (shop.funded) await trace('Watchman', 'monitoring cadence', t0, { summary: `Funded loan: ${shop.segment === 'cash_led' || !shop.segment ? 'monthly' : 'weekly'} forecast checks, festival-aware.` });
+    await checkBreaker(actor);
+  }
   findings = findings.slice();
   return verdict;
 }

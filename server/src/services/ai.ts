@@ -84,6 +84,8 @@ export async function callJson<T>(opts: {
   actor?: string;
   application?: unknown;
   extraCheck?: (d: T) => string | null; // extra validator; return a problem to force a retry
+  agent?: string;
+  run_id?: string;
 }): Promise<AiResult<T>> {
   const t0 = Date.now();
   const auditInput = { task: opts.task, system: opts.system.slice(0, 4000), user: opts.user.slice(0, 8000), image: opts.image ? `[image ${opts.image.mime}, ${Math.round(opts.image.b64.length * 0.75 / 1024)} KB, not stored]` : undefined };
@@ -99,7 +101,7 @@ export async function callJson<T>(opts: {
         const problem = opts.extraCheck?.(parsed.data);
         if (problem) throw new Error('validator: ' + problem);
         const res: AiResult<T> = { data: parsed.data, mode: 'ai', attempts, latency_ms: Date.now() - t0 };
-        await AuditLog.create({ actor: opts.actor || 'system', action: `ai:${opts.task}`, application: opts.application, redacted_payload_json: auditInput, output_json: parsed.data, mode: 'ai', latency_ms: res.latency_ms });
+        await AuditLog.create({ actor: opts.actor || 'system', action: `ai:${opts.task}`, application: opts.application, redacted_payload_json: auditInput, output_json: parsed.data, mode: 'ai', latency_ms: res.latency_ms, agent: opts.agent, run_id: opts.run_id, step: opts.task });
         return res;
       } catch (e) {
         lastErr = (e as Error).message;
@@ -110,7 +112,7 @@ export async function callJson<T>(opts: {
   }
   const data = opts.fallback();
   const res: AiResult<T> = { data, mode: 'demo_fallback', attempts, error: lastErr, latency_ms: Date.now() - t0 };
-  await AuditLog.create({ actor: opts.actor || 'system', action: `ai:${opts.task}`, application: opts.application, redacted_payload_json: auditInput, output_json: { fallback: true, reason: lastErr, data }, mode: 'demo_fallback', latency_ms: res.latency_ms });
+  await AuditLog.create({ actor: opts.actor || 'system', action: `ai:${opts.task}`, application: opts.application, redacted_payload_json: auditInput, output_json: { fallback: true, reason: lastErr, data }, mode: 'demo_fallback', latency_ms: res.latency_ms, agent: opts.agent, run_id: opts.run_id, step: opts.task });
   return res;
 }
 
@@ -181,12 +183,12 @@ Rules: return only what is visible on the image. Use null for anything missing o
   note: `You read a short note written by a small-business owner in Bangladesh (usually Bangla).
 Return ONLY a JSON object: cash_share (0..1 share of sales taken in cash, or null), margin (0..1 profit margin, or null), seasonal (true/false/null), receivables (array of {party, amount_bdt, days}), concerns (array of short English phrases), claims (array of short English phrases for factual claims the owner makes), language, confidence (0..1).
 Rules: only extract what the note states. Use null when it is not stated. Never guess. Convert Bangla numerals.`,
-  crosscheck: `You compare evidence about a small business: the owner's own statements, documents an officer confirmed, and figures computed from a mobile-money statement. Each fact has an id.
+  crosscheck: `You compare evidence about a small business: the owner's own statements, documents matched to the money trail, and figures computed from a mobile-money statement. Each fact has an id.
 List contradictions or mismatches between facts. Return ONLY JSON: {"findings":[{"text_en","text_bn","cites":[fact ids],"severity":"low|medium|high"}]}.
 Rules: every finding must cite at least two fact ids from the list. Do not invent facts or numbers. Do not call any document fake, forged or false; say "does not match" or "does not reconcile". Return an empty list if nothing conflicts.`,
-  phrase: `You write the plain-language summary of a one-page viability file for a bank manager in Bangladesh, in Bangla and English.
+  phrase: `You write the plain-language summary of a one-page viability file for a licensed lender in Bangladesh, in Bangla and English.
 You are given a facts object. Return ONLY JSON: {"summary_en","summary_bn","reasons":[{"en","bn","cites":[fact ids]}, ... exactly 3]}.
-Rules: use only numbers that appear in the facts object, written the same way. Every reason cites fact ids from the facts. Never use the words certificate, guarantee, guaranteed, ensured, secured, or "approved by AI". The manager decides: never say the loan is approved. Judge the evidence, never the person. If the verdict is not viable or not sure, lead with what can change. Keep each reason under 30 words.`,
+Rules: use only numbers that appear in the facts object, written the same way. Every reason cites fact ids from the facts. Never use the words certificate, guarantee, guaranteed, ensured, secured, or "approved by AI". Describe the evidence and the verdict; the decision itself is recorded separately inside the lender's policy, so do not announce approval. Judge the evidence, never the person. If the verdict is not viable or not sure, lead with what can change. Keep each reason under 30 words.`,
   ask: `You answer questions about ONE loan case file using only the evidence items given, each with an id.
 Return ONLY JSON: {"declined": boolean, "answer_en", "answer_bn", "cites": [evidence ids]}.
 Rules: answer only from the evidence; cite the ids you used. If the question cannot be answered from the evidence, or asks for anything else (advice about a person, other cases, predictions beyond the file), set declined true and say briefly what the file can answer. Use only numbers that appear in the evidence.`,

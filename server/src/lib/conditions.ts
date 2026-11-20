@@ -161,8 +161,8 @@ export function prudentialConditions(f: Features, cause: Cause, s: RuleSettings,
     out.push({
       key: 'stock_bills',
       kind: 'prudential',
-      en: 'Use the first tranche for stock and show the supplier bills to the officer within 30 days.',
-      bn: 'প্রথম কিস্তির টাকা মাল কেনায় ব্যবহার করুন এবং ৩০ দিনের মধ্যে সরবরাহকারীর বিল অফিসারকে দেখান।',
+      en: 'Use the first tranche for stock and upload the supplier bills in the app within 30 days.',
+      bn: 'প্রথম কিস্তির টাকা মাল কেনায় ব্যবহার করুন এবং ৩০ দিনের মধ্যে অ্যাপে সরবরাহকারীর বিল আপলোড করুন।',
     });
   if (f.household_share > 0.15 && f.household_share * 100 <= s.household_mixing_pct)
     out.push({ key: 'separate_wallet', kind: 'prudential', en: 'Keep business and household money in separate wallets.', bn: 'ব্যবসা ও সংসারের টাকা আলাদা ওয়ালেটে রাখুন।' });
@@ -209,7 +209,7 @@ export function recoveryPlan(cause: Cause, f: Features): { en: string; bn: strin
       { en: 'Pay suppliers through the wallet so purchases stay visible as evidence.', bn: 'ওয়ালেটের মাধ্যমে সরবরাহকারীকে পরিশোধ করুন, যাতে কেনাকাটা প্রমাণ হিসেবে দেখা যায়।' },
     ],
     fewer_customers: [
-      { en: 'Call the officer if sales stay below the expected range for a second month.', bn: 'পরপর দ্বিতীয় মাস বিক্রি প্রত্যাশিত সীমার নিচে থাকলে অফিসারকে ফোন করুন।' },
+      { en: 'Send a check-in if sales stay below the expected range for a second month; the Servicer will offer support.', bn: 'পরপর দ্বিতীয় মাস বিক্রি প্রত্যাশিত সীমার নিচে থাকলে আপডেট পাঠান; সার্ভিসার সহায়তা দেবে।' },
       { en: 'Review prices and the product mix against nearby competitors.', bn: 'আশেপাশের প্রতিযোগীর সাথে দাম ও পণ্যের তালিকা মিলিয়ে দেখুন।' },
       { en: 'Ask the lender about a short restructure before payments fall behind.', bn: 'কিস্তি পিছিয়ে পড়ার আগেই ঋণদাতার সাথে পুনর্গঠন নিয়ে কথা বলুন।' },
     ],

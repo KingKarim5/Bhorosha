@@ -36,25 +36,25 @@ export function ruleReadNote(text: string): Note {
   };
 }
 
-export async function readBill(docId: string, image: { b64: string; mime: string } | null, actor: string) {
+export async function readBill(docId: string, image: { b64: string; mime: string } | null, actor: string, run_id?: string) {
   const doc = (await Doc.findById(docId).lean()) as Lean;
   if (!doc) throw new Error('document not found');
   const canned = doc.sample_key && CANNED[doc.sample_key] ? (CANNED[doc.sample_key] as unknown as Bill) : null;
   const r = image
     ? await callJson<Bill>({
         task: 'read_bill', system: PROMPTS.bill, user: 'Read this bill. Return the JSON object only.', image, schema: BillSchema,
-        fallback: () => canned || emptyBill(), actor, application: doc.application,
+        fallback: () => canned || emptyBill(), actor, application: doc.application, agent: 'Intake', run_id,
       })
     : { data: canned || emptyBill(), mode: 'demo_fallback' as const, attempts: 0, latency_ms: 0, error: 'no image sent' };
-  // fields below 0.6 confidence always go to the officer
+  // fields below 0.6 confidence are flagged for review; nothing counts as checked until it matches the money trail
   const fc = r.data.field_confidences || {};
   const review = new Set([...(r.data.fields_needing_review || []), ...BILL_FIELDS.filter((f) => (fc[f] ?? 0) < 0.6 && (r.data as Lean)[f] != null)]);
   const extracted = { ...r.data, fields_needing_review: [...review] };
-  await Doc.updateOne({ _id: docId }, { extracted_json: extracted, field_confidences: fc, read_by: r.mode, confirmed_fields: {}, officer_confirmed: false });
+  await Doc.updateOne({ _id: docId }, { extracted_json: extracted, field_confidences: fc, read_by: r.mode });
   return { mode: r.mode, extracted, error: r.mode === 'demo_fallback' ? r.error : undefined };
 }
 
-export async function readNote(docId: string, actor: string) {
+export async function readNote(docId: string, actor: string, run_id?: string) {
   const doc = (await Doc.findById(docId).lean()) as Lean;
   if (!doc) throw new Error('document not found');
   const shop = (await Shop.findById(doc.shop).lean()) as Lean;
@@ -63,25 +63,8 @@ export async function readNote(docId: string, actor: string) {
   const canned = doc.sample_key && CANNED[doc.sample_key] ? (CANNED[doc.sample_key] as unknown as Note) : null;
   const r = await callJson<Note>({
     task: 'read_note', system: PROMPTS.note, user: `Owner's note:\n${red.text}`, schema: NoteSchema,
-    fallback: () => canned || ruleReadNote(text), actor, application: doc.application,
+    fallback: () => canned || ruleReadNote(text), actor, application: doc.application, agent: 'Intake', run_id,
   });
   await Doc.updateOne({ _id: docId }, { extracted_json: r.data, read_by: r.mode });
   return { mode: r.mode, extracted: r.data, redacted_preview: red.text, error: r.mode === 'demo_fallback' ? r.error : undefined };
-}
-
-export async function confirmField(docId: string, field: string, value: unknown, confirmed: boolean, actor: string) {
-  const doc = await Doc.findById(docId);
-  if (!doc) throw new Error('document not found');
-  const cf = { ...((doc.confirmed_fields as Lean) || {}) };
-  const prev = cf[field];
-  if (confirmed) cf[field] = { value, at: new Date(), by: actor };
-  else delete cf[field];
-  doc.confirmed_fields = cf;
-  doc.markModified('confirmed_fields');
-  doc.officer_confirmed = Object.keys(cf).length > 0;
-  doc.confirmed_at = new Date();
-  await doc.save();
-  // two confirmations of one field: the last wins and both are in the audit log
-  await AuditLog.create({ actor, action: confirmed ? 'officer:confirm_field' : 'officer:untick_field', application: doc.application, redacted_payload_json: { document: String(doc._id), field, value, previous: prev ?? null }, output_json: { confirmed }, mode: 'human' });
-  return doc;
 }

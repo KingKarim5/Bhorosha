@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import {
   ALL_MODELS, User, Shop, Application, Transaction, Doc, CheckIn, CourierSettlement, OrderRecord, Decision, Investor, Commitment, InvestorVerification,
-  LenderSettings, SimState, ShadowCase, AuditLog, Verdict,
+  LenderSettings, SimState, ShadowCase, AuditLog,
 } from '../models';
 import { DEMO_SHOPS, SIM_BASE_MONTH } from './demoShops';
 import { generate } from './generator';
@@ -85,15 +85,13 @@ export async function seedAll(log = console.log) {
     for (const [i, c] of (s.checkins || []).entries())
       await CheckIn.create({ shop: shop._id, month: addMonths(SIM_BASE_MONTH, i), sim_index: i + 1, ...c, revealed: false });
     await recompute(app._id, { actor: 'seed', reason: 'initial seed' });
-    if (s.decision) {
-      const v = await Verdict.findById((await Application.findById(app._id))!.current_verdict).lean();
-      // provisional v2 decision record; the Underwriter agent (step 5) recomputes decisions on seed
-      await Decision.create({
-        application: app._id, verdict: v?._id, decision: v?.final_verdict === 'viable' ? 'approved_with_conditions' : 'hold_need_evidence',
-        decided_by: 'Bhorsha AI, policy v1', policy_version: 1, reasons: [{ en: s.decision.reason, bn: s.decision.reason, evidence_ids: [] }],
-        conditions: v?.conditions_json || [], tranche_plan: v?.tranche_plan_json || [],
-        legacy_note: v?.final_verdict === 'viable' ? undefined : "Existing loan in the partner's book before Bhorsha; monitored by the watchman.",
-      });
+    if (s.status === 'funded') {
+      // a funded loan whose AI decision was not an approval is an existing loan in the partner's book (Karim)
+      const last = await Decision.findOne({ application: app._id }).sort({ createdAt: -1 });
+      if (last && last.decision !== 'approved_with_conditions') {
+        last.legacy_note = "Existing loan in the partner's book before Bhorsha (not approved by Bhorsha); monitored by the watchman.";
+        await last.save();
+      }
     }
     log(`  seeded ${s.label}`);
   }

@@ -43,7 +43,7 @@ export function ViabilityFile({ data }: { data: any }) {
           <div className="mt-3 rounded-md px-3 py-2 text-[13.5px] flex gap-2" style={{ background: 'color-mix(in oklab, var(--unsure) 14%, transparent)' }} role="note">
             <IconAlert className="shrink-0 mt-0.5" style={{ color: 'var(--unsure)' }} />
             <span>
-              <b>{t('Rules and model disagree.', 'নিয়ম ও মডেল একমত নয়।')}</b> {pick(dis)}
+              <b>{dis.kind === 'less_certain' ? t('The model is less certain.', 'মডেল কম নিশ্চিত।') : t('Rules and model disagree.', 'নিয়ম ও মডেল একমত নয়।')}</b> {pick(dis)}
             </span>
           </div>
         )}

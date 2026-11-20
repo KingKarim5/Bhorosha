@@ -335,6 +335,9 @@ const AuditLogSchema = new Schema(
     output_json: M,
     mode: String, // ai | demo_fallback | rules | model | human
     latency_ms: Number,
+    agent: { type: String, index: true }, // Intake | Verifier | Underwriter | Watchman | Servicer
+    run_id: { type: String, index: true },
+    step: String,
   },
   opts,
 );
@@ -356,6 +359,32 @@ const LenderSettingsSchema = new Schema(
   },
   opts,
 );
+
+// Lender policy (v2): versioned. A new version applies only to new decisions; old decisions keep theirs.
+const PolicySchema = new Schema(
+  {
+    version: { type: Number, unique: true },
+    autonomy_cap_bdt: { type: Number, default: 300000 },
+    min_documents: { type: [String], default: ['statement'] }, // statement | online_evidence (hybrid/digital) | supplier_bill
+    household_mixing_pct: { type: Number, default: 25 },
+    trend_drop_pct: { type: Number, default: 15 },
+    good_installment_to_margin: { type: Number, default: 0.35 },
+    max_installment_to_margin: { type: Number, default: 0.5 },
+    viable_points: { type: Number, default: 3 },
+    not_viable_points: { type: Number, default: -3 },
+    min_coverage_pct: { type: Number, default: 50 },
+    breaker_max_default_rate: { type: Number, default: 0.34 }, // share of funded loans at "call" level
+    breaker_max_hold_rate: { type: Number, default: 0.8 }, // share of holds among recent decisions
+    breaker_window: { type: Number, default: 10 }, // recent decisions considered for the hold rate
+    breaker_min_decisions: { type: Number, default: 6 },
+    created_by: String,
+    note: String,
+  },
+  opts,
+);
+
+// AI control switch: manual pause by the lender, or automatic circuit breaker.
+const ControlSchema = new Schema({ key: { type: String, unique: true }, paused: Boolean, source: String, reason: String, metrics: M }, opts);
 
 const EvalRunSchema = new Schema(
   {
@@ -410,13 +439,15 @@ export const InvestorUpdate = mongoose.model('InvestorUpdate', InvestorUpdateSch
 export const AuditLog = mongoose.model('AuditLog', AuditLogSchema);
 export const LenderSettings = mongoose.model('LenderSettings', LenderSettingsSchema);
 export const EvalRun = mongoose.model('EvalRun', EvalRunSchema);
+export const Policy = mongoose.model('Policy', PolicySchema);
+export const Control = mongoose.model('Control', ControlSchema);
 export const SimState = mongoose.model('SimState', SimStateSchema);
 export const ShadowCase = mongoose.model('ShadowCase', ShadowCaseSchema);
 
 export const ALL_MODELS = [
   User, Shop, Application, Transaction, Doc, CourierSettlement, OrderRecord, OwnerQuestion, EvidenceItem, Finding, Verdict, Decision, CheckIn, Forecast, Flag,
   Intervention, Outcome, Investor, InvestorVerification, Commitment, InvestorUpdate, AuditLog, LenderSettings,
-  EvalRun, SimState, ShadowCase,
+  EvalRun, SimState, ShadowCase, Policy, Control,
 ];
 
 export type Id = Types.ObjectId | string;
