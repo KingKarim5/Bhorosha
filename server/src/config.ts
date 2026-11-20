@@ -1,3 +1,4 @@
+import os from 'os';
 import path from 'path';
 import fs from 'fs';
 import dotenv from 'dotenv';
@@ -28,7 +29,9 @@ export const config = {
   aiTimeoutMs: Number(process.env.AI_TIMEOUT_MS || 45000),
   modelPath: rootPath(process.env.MODEL_PATH || 'ml/model/model.json'),
   evalPath: rootPath(process.env.EVAL_PATH || 'ml/model/eval.json'),
-  seedDataDir: path.join(ROOT, 'server', 'seed-data'),
+  // On Vercel the code folder is read-only: the seed writes its sample CSVs to the temp folder instead.
+  seedDataDir: process.env.VERCEL ? path.join(os.tmpdir(), 'bhorsha-seed-data') : path.join(ROOT, 'server', 'seed-data'),
+  committedSeedDataDir: path.join(ROOT, 'server', 'seed-data'),
 };
 
 export function aiKeyPresent() {

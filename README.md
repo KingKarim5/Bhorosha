@@ -121,6 +121,13 @@ EVAL_PROTOCOL.md     tests and pass marks, committed before any evaluation run
 DECISIONS.md         choices the brief left open
 ```
 
-## Deployment
+## Deployment (Vercel, one project)
 
-Not done. The client would be a static Vite build (`client/vercel.json` rewrites routes to `index.html`) with `VITE_API_URL` pointing to the API. The server would run on a long-running host with MongoDB Atlas. For cross-site cookies, set `COOKIE_SAMESITE=none`, `COOKIE_SECURE=true` and `CORS_ORIGIN`.
+The website and the API deploy together as one Vercel project: `vercel.json` builds the server and the client, serves `client/dist`, and runs the whole Express API as one serverless function (`api/index.js` → `server/src/vercel.ts`). Same address, so no CORS or cross-site cookie setup is needed.
+
+1. Create a free MongoDB Atlas cluster and allow access from anywhere (`0.0.0.0/0`).
+2. Seed it once from your machine (faster than seeding on the first visit): `$env:MONGODB_URI="<atlas uri>"; npm run seed`
+3. In the Vercel project settings, add `MONGODB_URI`, `JWT_SECRET` (new, long, random), `COOKIE_SECURE=true`, `AI_PROVIDER=gemini`, `GEMINI_API_KEY`, `GEMINI_MODEL=gemini-3.1-flash-lite`. Leave `VITE_API_URL` unset.
+4. `vercel login`, then `vercel deploy --prod` from the repo root.
+
+Limits: one request may run up to 60 seconds, uploads are capped near 4.5 MB by Vercel, and on Vercel the seed writes its sample CSVs to the temp folder (the committed copies are served if it is empty).

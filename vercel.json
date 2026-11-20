@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm install",
+  "buildCommand": "npm run build -w server && npm run build -w client",
+  "outputDirectory": "client/dist",
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 60,
+      "includeFiles": "{brand.config.json,ml/model/model.json,ml/model/eval.json,ml/model/eval_v1.json,ml/model/eval_v2_0.json,server/seed-data/**}"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/index" },
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
+}

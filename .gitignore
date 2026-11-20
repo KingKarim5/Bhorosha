@@ -8,3 +8,4 @@ ml/data/
 ml/__pycache__/
 .vite/
 coverage/
+.vercel

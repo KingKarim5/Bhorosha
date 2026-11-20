@@ -22,18 +22,27 @@ const r = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 const staff = requireRole('lender');
 
+/** The freshly seeded copy if there is one, else the committed copy (identical: the seed is deterministic). */
+function sampleFile(dir: string, name: string): string | null {
+  for (const base of [config.seedDataDir, config.committedSeedDataDir]) {
+    const f = path.join(base, dir, name);
+    if (fs.existsSync(f)) return f;
+  }
+  return null;
+}
+
 r.get('/samples/statement/:slug', (req, res) => {
   const slug = req.params.slug.replace(/[^a-z]/g, '');
-  const file = path.join(config.seedDataDir, 'statements', `${slug}.csv`);
-  if (!fs.existsSync(file)) return res.status(404).json({ error: 'no such sample' });
+  const file = sampleFile('statements', `${slug}.csv`);
+  if (!file) return res.status(404).json({ error: 'no such sample' });
   res.json({ csv: fs.readFileSync(file, 'utf8') });
 });
 
 r.get('/samples/online/:slug/:kind', (req, res) => {
   const slug = req.params.slug.replace(/[^a-z]/g, '');
   const kind = req.params.kind === 'orders' ? 'orders' : 'courier';
-  const file = path.join(config.seedDataDir, 'online', `${slug}_${kind}.csv`);
-  if (!fs.existsSync(file)) return res.status(404).json({ error: 'no such sample' });
+  const file = sampleFile('online', `${slug}_${kind}.csv`);
+  if (!file) return res.status(404).json({ error: 'no such sample' });
   res.json({ csv: fs.readFileSync(file, 'utf8') });
 });
 
