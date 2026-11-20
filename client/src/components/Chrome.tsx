@@ -99,7 +99,6 @@ export function Footer() {
           <ul className="mt-2 space-y-1.5 text-[14.5px]">
             <li><Link className="hover:text-accent" to="/login">{t('Open the demo', 'ডেমো খুলুন')}</Link></li>
             <li><Link className="hover:text-accent" to="/about">{t('About Bhorsha', 'ভরসা পরিচিতি')}</Link></li>
-            <li><Link className="hover:text-accent" to="/evaluation">{t('Evaluation', 'মূল্যায়ন')}</Link></li>
           </ul>
         </div>
       </div>

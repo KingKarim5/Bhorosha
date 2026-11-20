@@ -11,7 +11,7 @@ export default function Invest() {
   const alloc = useApi(`/invest/allocate?budget=${budget}`, [budget]);
   return (
     <div>
-      <PageTitle title={t('Listed cases', 'তালিকাভুক্ত কেস')} sub={t('Only cases the AI approved with conditions, inside the lender’s policy, appear here. Names and areas are hidden so a small shop cannot be identified.', 'শুধু ঋণদাতার নীতির ভেতরে এআই যেসব কেস শর্তসহ অনুমোদন করেছে, সেগুলো এখানে আসে। ছোট দোকান যেন চেনা না যায়, তাই নাম ও এলাকা লুকানো।')} />
+      <PageTitle title={t('Listed cases', 'তালিকাভুক্ত কেস')} sub={t('Loans approved inside the lender’s policy. Shop names are hidden.', 'ঋণদাতার নীতির ভেতরে অনুমোদিত ঋণ। দোকানের নাম লুকানো।')} />
       <SimulationBanner />
       <ErrorNote msg={error} />
       {!data ? (
@@ -52,8 +52,8 @@ export default function Invest() {
           ))}
         </div>
       )}
-      <Card title={t('Suggested spread (pool allocator, simulation)', 'প্রস্তাবিত বণ্টন (পুল অ্যালোকেটর, সিমুলেশন)')} className="mt-6">
-        <p className="text-[13.5px] text-muted mb-3">{t('Spreads an amount across listed cases to limit concentration and expected loss under the bands, within your caps. A suggestion only.', 'আপনার সীমার মধ্যে, তালিকার কেসগুলোতে টাকা ভাগ করে যাতে এক জায়গায় বেশি না থাকে এবং সম্ভাব্য লোকসান কম হয়। শুধু প্রস্তাব।')}</p>
+      <Card title={t('Suggested spread', 'প্রস্তাবিত বণ্টন')} className="mt-6">
+        <p className="text-[13.5px] text-muted mb-3">{t('Enter an amount and Bhorsha spreads it across the listed loans, within your caps.', 'একটি অঙ্ক দিন, ভরসা আপনার সীমার মধ্যে তালিকার ঋণগুলোতে ভাগ করে দেবে।')}</p>
         <div className="flex items-center gap-3 mb-3">
           <label className="label" htmlFor="b">{t('Amount', 'অঙ্ক')}</label>
           <input id="b" type="number" step={10000} className="input max-w-[180px]" value={budget} onChange={(e) => setBudget(Math.max(1000, Number(e.target.value)))} />
@@ -73,9 +73,6 @@ export default function Invest() {
                 );
               })}
             </ul>
-            <div className="text-[12.5px] text-muted mt-2 num">
-              {t('Concentration (HHI)', 'কেন্দ্রীভবন (HHI)')}: {n(alloc.data.metrics.concentration_hhi, { digits: 2 })} {t('vs all-in-one', 'বনাম এক জায়গায় সব')} {n(alloc.data.metrics.naive_concentration_hhi, { digits: 2 })} · {t('caps respected', 'সীমা মানা হয়েছে')}: {alloc.data.metrics.cap_compliant ? '✓' : '✗'} · {t('room under your total cap', 'আপনার মোট সীমায় বাকি')}: {bdt(alloc.data.room_under_total_cap)}
-            </div>
           </div>
         )}
       </Card>

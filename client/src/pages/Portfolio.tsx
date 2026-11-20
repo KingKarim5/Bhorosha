@@ -16,7 +16,7 @@ export default function Portfolio() {
       <PageTitle title={t('Your portfolio', 'আপনার পোর্টফোলিও')} sub={t('Holdings, spread across loans, and live updates from the watchman.', 'বিনিয়োগ, ঋণে ঋণে বণ্টন, আর ওয়াচম্যানের সর্বশেষ খবর।')} />
       <SimulationBanner />
       <div className="grid lg:grid-cols-[1fr_1.1fr] gap-5">
-        <div className="space-y-5">
+        <div>
           <Card title={t('Holdings', 'বিনিয়োগ')} right={<span className="num font-semibold">{bdt(total)}</span>}>
             {data.holdings.length === 0 && <p className="text-muted">{t('No commitments yet.', 'এখনো কোনো প্রতিশ্রুতি নেই।')} <Link to="/invest" className="text-accent">{t('See listings', 'তালিকা দেখুন')}</Link></p>}
             <ul className="divide-y divide-line">
@@ -42,18 +42,6 @@ export default function Portfolio() {
                 </div>
               </div>
             )}
-          </Card>
-          <Card title={t("Simulated pool history (not a projection)", 'সিমুলেটেড পুলের ইতিহাস (পূর্বাভাস নয়)')}>
-            <p className="text-[12.5px] text-muted mb-2">{t('SIMULATION. Share of loans in the pool repaying on schedule each month. Past simulated behaviour says nothing certain about the future.', 'সিমুলেশন। প্রতি মাসে পুলের যত ঋণ সময়মতো কিস্তি দিয়েছে তার হার। অতীতের সিমুলেশন ভবিষ্যৎ নিশ্চিত করে না।')}</p>
-            <div className="flex items-end gap-1 h-24">
-              {data.pool_history.map((p: any) => (
-                <div key={p.month} className="flex-1 rounded-t" style={{ height: `${p.on_schedule_pct - 60}%`, background: 'color-mix(in oklab, var(--owner) 60%, transparent)' }} title={`${p.month}: ${p.on_schedule_pct}%`} />
-              ))}
-            </div>
-            <div className="flex justify-between text-[11px] text-muted num mt-1">
-              <span>{data.pool_history[0]?.month}</span>
-              <span>{data.pool_history[data.pool_history.length - 1]?.month}</span>
-            </div>
           </Card>
         </div>
         <Card title={t('Live updates', 'সর্বশেষ খবর')}>

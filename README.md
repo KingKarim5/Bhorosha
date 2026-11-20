@@ -43,11 +43,10 @@ Shop owners need no account. Each shop has a private link (`/owner/<token>`), op
 5. On a held case, open **Owner's link**. The owner sees a plain Bangla explanation, answers questions and can **Resubmit with new evidence**.
 6. **Watchlist → Simulate next week / next month.** Karim Pharmacy's sales slip, and the Watchman raises a watch, then a call. The Servicer reaches out and offers a new repayment date. Jahan's seasonal dip stays calm, where a fixed 30% rule would have raised a false alarm.
 7. Log in as **investor@demo.bd**. Listings show only approved files, and the portfolio feed carries live Servicer updates.
-8. Open **/evaluation** for the full, per-segment results with confidence intervals and the protocol commit hash.
 
 ## Results (synthetic evaluation, cohort v2.1)
 
-The evaluation plan and its pass marks were committed **before** any run (`EVAL_PROTOCOL.md`), and `/evaluation` shows that commit hash, so every number can be checked.
+The evaluation plan and its pass marks were committed **before** any run (`EVAL_PROTOCOL.md`), and `ml/model/eval.json` records that commit hash, so every number can be checked.
 
 - **Matching:** 99.9% recall with a 0.2% false-check rate across about 94,000 courier payouts.
 - **Fail-safe:** 100% of trap cases blocked in every segment (forged statements, short history, unanswered evidence, paused AI).
@@ -56,7 +55,7 @@ The evaluation plan and its pass marks were committed **before** any run (`EVAL_
 - **Safety:** zero personal-data leaks in redaction tests; every seeded bad AI output is rejected by the validator.
 - **Tamper detection, counterfactual conditions and the investor allocator** all meet their marks.
 
-The full results, including the targets still in progress, are on `/evaluation`.
+The full per-segment results, with confidence intervals, are in `ml/model/eval.json` (`npm run eval` regenerates them).
 
 ## Roadmap
 
@@ -85,7 +84,7 @@ npm run build        # builds server and client
 npm run check:seed   # asserts the seed expectations and that every seed gives the same state
 npm run ai:check     # shows the AI provider and whether a key is set (never prints the key)
 npm run train        # cohort v2.1 + training -> ml/model/model.json
-npm run eval         # cohort v2.1 + training + every test in EVAL_PROTOCOL.md -> ml/model/eval.json (/evaluation)
+npm run eval         # cohort v2.1 + training + every test in EVAL_PROTOCOL.md -> ml/model/eval.json
 ```
 
 `pip install scikit-learn numpy pandas` covers the Python side.

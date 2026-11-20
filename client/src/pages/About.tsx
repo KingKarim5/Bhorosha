@@ -33,14 +33,6 @@ export default function About() {
             <li>{t('Data: all shops, statements, bills, notes, investors and outcomes are synthetic. Context figures in the pitch come from public news sources listed in the README.', 'তথ্য: সব দোকান, স্টেটমেন্ট, বিল, নোট, বিনিয়োগকারী ও ফলাফল কৃত্রিম। উপস্থাপনার প্রেক্ষাপটের সংখ্যা README-তে তালিকাভুক্ত প্রকাশ্য সংবাদসূত্র থেকে।')}</li>
           </ul>
         </Card>
-        <Card title={t('Honest limits', 'সৎ সীমাবদ্ধতা')} className="md:col-span-2">
-          <ul className="list-disc pl-5 space-y-1 text-[14px]">
-            <li>{t('Every result is synthetic unless it is labelled "Public real data". No public real dataset has been run yet.', '"প্রকাশ্য বাস্তব তথ্য" লেবেল না থাকলে প্রতিটি ফল কৃত্রিম। এখনো কোনো প্রকাশ্য বাস্তব ডেটাসেট চালানো হয়নি।')}</li>
-            <li>{t('The hybrid generator rests on assumptions about online share, courier fees, payout lag, returns and festival lift, written in EVAL_PROTOCOL.md and not yet checked against real sellers.', 'মিশ্র দোকানের জেনারেটর অনলাইন অংশ, কুরিয়ার ফি, টাকা আসার দেরি, ফেরত ও উৎসবের চাপ নিয়ে অনুমানের ওপর দাঁড়ানো, যা EVAL_PROTOCOL.md-তে লেখা এবং আসল বিক্রেতার সাথে মেলানো হয়নি।')}</li>
-            <li>{t('Courier settlement and order log formats are our own; real courier and marketplace exports are unconfirmed.', 'কুরিয়ার সেটেলমেন্ট ও অর্ডার লগের ফরম্যাট আমাদের নিজের; আসল কুরিয়ার ও মার্কেটপ্লেস এক্সপোর্টের সাথে মেলানো হয়নি।')}</li>
-            <li>{t('Fail-safe means some healthy shops are held. We expected cash-led shops to be held more often, because less of their trade is visible; on the synthetic cohort the opposite was measured: healthy online shops were held more often, mostly because unmatched courier payouts wait for the owner’s answer. The gap is reported on /evaluation (T3) as a trade-off.', 'নিরাপদ নকশার মানে কিছু ভালো দোকানও আটকে যায়। আমরা ভেবেছিলাম নগদ-নির্ভর দোকান বেশি আটকাবে, কারণ তাদের লেনদেন কম দেখা যায়; কৃত্রিম কোহর্টে উল্টোটা মাপা গেছে: ভালো অনলাইন দোকান বেশি আটকেছে, মূলত না-মেলা কুরিয়ার টাকা মালিকের উত্তরের অপেক্ষায় থাকায়। ফারাকটি /evaluation-এ (T3) একটি বিনিময় হিসেবে দেখানো হয়েছে।')}</li>
-          </ul>
-        </Card>
       </div>
     </div>
   );

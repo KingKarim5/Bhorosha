@@ -14,7 +14,6 @@ const Watchlist = lazy(() => import('./pages/Watchlist'));
 const Shadow = lazy(() => import('./pages/Shadow'));
 const Owner = lazy(() => import('./pages/Owner'));
 const Fairness = lazy(() => import('./pages/Fairness'));
-const Evaluation = lazy(() => import('./pages/Evaluation'));
 const Settings = lazy(() => import('./pages/Settings'));
 const InvestVerify = lazy(() => import('./pages/InvestVerify'));
 const Invest = lazy(() => import('./pages/Invest'));
@@ -79,7 +78,6 @@ export function App() {
       <Route path="/shadow" element={inShell(<Shadow />, staff)} />
       <Route path="/fairness" element={inShell(<Fairness />, staff)} />
       <Route path="/settings" element={inShell(<Settings />, staff)} />
-      <Route path="/evaluation" element={inShell(<Evaluation />)} />
       <Route path="/structure" element={inShell(<Structure />)} />
       <Route path="/about" element={user ? inShell(<About />) : <PublicShell><Suspense fallback={<Loading />}><div className="px-4 md:px-10 py-6 max-w-5xl"><About /></div></Suspense></PublicShell>} />
       <Route path="/invest" element={inShell(<Invest />, ['investor'])} />

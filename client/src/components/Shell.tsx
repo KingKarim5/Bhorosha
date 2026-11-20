@@ -8,7 +8,7 @@ import { SyntheticRibbon } from './ui';
 import { DemoBadge, Footer } from './Chrome';
 import { api } from '../lib/api';
 import {
-  IconHome, IconFolder, IconPlus, IconPulse, IconShadow, IconGauge, IconScale, IconSliders, IconHand, IconLayers, IconFlow, IconInfo, IconSun, IconMoon, IconLogout,
+  IconHome, IconFolder, IconPlus, IconPulse, IconShadow, IconScale, IconSliders, IconHand, IconLayers, IconFlow, IconInfo, IconSun, IconMoon, IconLogout,
 } from './icons';
 import { BRAND } from '../brand';
 
@@ -54,7 +54,6 @@ const STAFF_NAV = [
   { to: '/apply', en: 'Owner application link', bn: 'মালিকের আবেদন লিংক', icon: IconPlus },
   { to: '/watchlist', en: 'Watchlist', bn: 'নজরতালিকা', icon: IconPulse },
   { to: '/shadow', en: 'Shadow mode', bn: 'শ্যাডো মোড', icon: IconShadow },
-  { to: '/evaluation', en: 'Evaluation', bn: 'মূল্যায়ন', icon: IconGauge },
   { to: '/fairness', en: 'Fairness & audit', bn: 'ন্যায্যতা ও অডিট', icon: IconScale },
   { to: '/settings', en: 'Policy', bn: 'নীতি', icon: IconSliders },
   { to: '/structure', en: 'Money structure', bn: 'টাকার কাঠামো', icon: IconFlow },
@@ -64,9 +63,6 @@ const INVESTOR_NAV = [
   { to: '/invest', en: 'Listings', bn: 'তালিকা', icon: IconLayers },
   { to: '/portfolio', en: 'Portfolio', bn: 'পোর্টফোলিও', icon: IconHand },
   { to: '/invest/verify', en: 'Verification', bn: 'যাচাই', icon: IconScale },
-  { to: '/structure', en: 'Money structure', bn: 'টাকার কাঠামো', icon: IconFlow },
-  { to: '/evaluation', en: 'Evaluation', bn: 'মূল্যায়ন', icon: IconGauge },
-  { to: '/about', en: 'About', bn: 'পরিচিতি', icon: IconInfo },
 ];
 
 class PageBoundary extends Component<{ children: ReactNode; resetKey: string }, { err: string | null }> {

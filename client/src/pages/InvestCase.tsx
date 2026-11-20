@@ -44,7 +44,7 @@ export default function InvestCase() {
         <div className="space-y-4">
           <Card>
             <VerdictTag verdict={data.verdict} low={data.band_low} high={data.band_high} showAdvice={false} />
-            <p className="text-[13.5px] text-muted mt-2">{t('This is the lender’s file in plain language. Bhorsha AI approved it with the conditions below, inside the lender’s policy. It is evidence, not a promise.', 'এটি ঋণদাতার ফাইল, সহজ ভাষায়। ঋণদাতার নীতির ভেতরে ভরসা এআই নিচের শর্তসহ অনুমোদন করেছে। এটি প্রমাণ, প্রতিশ্রুতি নয়।')}</p>
+            <p className="text-[13.5px] text-muted mt-2">{t('Approved with the conditions below, inside the lender’s policy.', 'ঋণদাতার নীতির ভেতরে, নিচের শর্তসহ অনুমোদিত।')}</p>
             <div className="mt-3">
               <RunwayChart points={months} height={150} />
             </div>
@@ -67,14 +67,6 @@ export default function InvestCase() {
               {(data.conditions || []).map((c: any) => (
                 <li key={c.key}>{pick(c)}</li>
               ))}
-            </ul>
-          </Card>
-          <Card title={t('What this cannot tell you', 'এই ফাইল যা বলতে পারে না')}>
-            <ul className="list-disc pl-5 space-y-1 text-[14px]">
-              {(data.cannot_tell || []).map((c: any, i: number) => (
-                <li key={i}>{pick(c)}</li>
-              ))}
-              <li>{t('Whether you will get your money back. Investors can lose money.', 'আপনার টাকা ফেরত আসবে কিনা। বিনিয়োগে লোকসান হতে পারে।')}</li>
             </ul>
           </Card>
         </div>
@@ -111,7 +103,7 @@ export default function InvestCase() {
           )}
           <ErrorNote msg={err} />
           {msg && <p className="text-[13.5px] mt-2" style={{ color: 'var(--checked)' }}>{msg}</p>}
-          <p className="text-[12px] text-muted mt-3">{t('Money would flow: investor → partner’s pooled facility → business, and repayments back the same way. No projected return is shown because none is promised.', 'টাকার পথ হতো: বিনিয়োগকারী → অংশীদারের যৌথ তহবিল → ব্যবসা, আর কিস্তি ফেরে একই পথে। কোনো মুনাফার প্রতিশ্রুতি নেই, তাই পূর্বাভাসও দেখানো হয় না।')}</p>
+          <p className="text-[12px] text-muted mt-3">{t('Funds are held by the licensed partner. Investors can lose money; no return is promised.', 'টাকা রাখে লাইসেন্সপ্রাপ্ত অংশীদার। বিনিয়োগে লোকসান হতে পারে; কোনো মুনাফার প্রতিশ্রুতি নেই।')}</p>
         </Card>
       </div>
     </div>

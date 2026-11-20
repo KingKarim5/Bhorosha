@@ -53,7 +53,7 @@ export default function InvestVerify() {
   ];
   return (
     <div className="max-w-2xl">
-      <PageTitle title={t('Investor verification', 'বিনিয়োগকারী যাচাই')} sub={t('A simulated wizard. No real identity document or number is collected.', 'একটি সিমুলেটেড ধাপ। কোনো আসল পরিচয়পত্র বা নম্বর নেওয়া হয় না।')} />
+      <PageTitle title={t('Investor verification', 'বিনিয়োগকারী যাচাই')} sub={t('Three quick steps before you can commit.', 'প্রতিশ্রুতি দেওয়ার আগে তিনটি ছোট ধাপ।')} />
       <SimulationBanner />
       <div className="chip mb-4">
         {t('Status', 'অবস্থা')}: <b>{data.investor.verification_status}</b>
