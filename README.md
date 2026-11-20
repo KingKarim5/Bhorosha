@@ -25,7 +25,7 @@ Every decision records `decided_by: "Bhorsha AI, policy vN"`, its gates and its 
 
 Shops come in three segments: **cash_led**, **hybrid** and **digital_first**.
 
-> **Demo data.** The demo runs on synthetic shops, investors and loans, labelled on every page; investor pages are marked SIMULATION. Bhorsha never holds money: a licensed partner is the lender of record, and no return is ever promised.
+> **Demo data.** The demo runs on synthetic shops, investors and loans, labelled on every page; investor pages are marked SIMULATION. Bhorsha never holds money: a licensed partner is the lender of record. Investor returns are shown as the contract rate if borrowers repay in full; they are never promised.
 
 ## Try it
 
@@ -52,11 +52,21 @@ Shop owners need no account. They apply through a lender's link, and each shop g
 7. **Hasan Hardware Store** asks for Tk 1,500,000 over 24 months. The Counter-offer agent offers a smaller loan over 12 months; open **Owner's link** and press **Accept this offer**.
 8. **Watchlist → Simulate next week / next month.** Karim Pharmacy's sales slip, and the Watchman raises a watch, then a call. Each funded loan's instalment arrives through the signed payment webhook: Karim's late payment is read as a real warning, Jahan's as a seasonal pattern, and Rafi's payment with no reference waits in the **Repayments** review queue. Jahan's seasonal dip stays calm, where a fixed 30% rule would have raised a false alarm.
 9. **Repayments**: apply or reject the queued payment, or **Send a test payment** (leave the reference empty for the AI to match it, or tick *wrong signature* to see it refused).
-10. Log in as **investor@demo.bd**. Listings show only approved files with the interest split, and the portfolio feed carries live Servicer updates.
+10. Log in as **investor@demo.bd**. Listings show every approved loan from every lender, with the rate the investor earns and what they get back; the portfolio shows money put in, interest earned, received so far and still to come, per lender.
 
 ## Test it from scratch
 
-`test-kit/` has everything to test Bhorsha the way a shop owner, lender and investor would, with a step-by-step guide (`test-kit/README.md`): statements (healthy, tampered, too short), an online seller's statement with courier and order files, two bill photos (one matches the wallet, one was paid in cash), a Bangla owner note and three loan contracts (unclear clause, fixed terms, wrong amount). New users sign up at **/signup** as a lender or an investor.
+`test-kit/` has everything to test Bhorsha the way a shop owner, lender and investor would, with a step-by-step guide (`test-kit/README.md`): statements (healthy, tampered, too short), an online seller's statement with courier and order files, two bill photos (one matches the wallet, one was paid in cash), a Bangla owner note, five loan contracts (unclear clause, fixed terms, wrong amount, rate too low, missing late clause) and five SPECIMEN NID cards for the investor identity scan (four that pass, one under 18 that is refused). New users sign up at **/signup** as a lender or an investor.
+
+## Investors
+
+- **Identity by NID scan.** A new investor scans the front of their NID. The AI reads the name (English and Bangla), parents, date of birth and number; the code then checks it is an NID card, read clearly, with a valid number (a 17-digit number must start with the birth year), an adult, the same name as the account, no signs of editing, and not used by another account. The investor confirms "this is me". Bhorsha keeps only the name, date of birth, parents, the last 4 digits and a one-way fingerprint of the number; the photo is never stored. If the reader is down, typed details get the same checks and are labelled as typed. These checks do not prove a card is genuine: that needs the Election Commission's NID verification through the licensed partner, the next step for a real launch. **On the demo, use the SPECIMEN cards in `test-kit/investor/`** (sign up with the name on the card, for example *Test Investor One*), never a real NID.
+- **Invest freely.** There is no personal limit. Investors together may fund up to 100% of a loan of Tk 5,00,000 or less and up to 75% of a larger loan (each lender can change these in its policy); the commit box starts at the most still open and explains the limit before committing.
+- **See the money.** Each listing shows the investor rate (bank rate + 0.25%, 10.25% by default) and what Tk 10,000 brings back; the loan page calculates any amount; the portfolio shows totals and the same per lender, and updates as borrowers repay.
+
+## Borrowers paying early
+
+Each lender can turn on an **early-payment discount** in its policy (default: an instalment paid at least 5 days early has 25% of its interest waived). The owner's page shows the pay-by date and the saving; the receipt confirms it. Repaying the whole loan early earns the separate early-settlement rebate.
 
 ## Payment webhook
 
