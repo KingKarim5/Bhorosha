@@ -35,6 +35,7 @@ export interface GenConfig {
   extra?: { date: string; amount: number; kind: CounterpartyKind; direction: 'in' | 'out'; counterparty: string; due?: string; note?: string }[];
   supplierNames?: string[];
   missingMonths?: number[];
+  extraRows?: GenTxn[]; // e.g. courier payouts and prepaid online orders, merged before balances are computed
 }
 
 const day = (month: string, d: number) => {
@@ -131,6 +132,8 @@ export function generate(cfg: GenConfig): GenTxn[] {
     const d = new Date(e.date + 'T00:00:00Z');
     out.push({ date: d, amount_bdt: e.amount, direction: e.direction, counterparty_kind: e.kind, counterparty: e.counterparty, due_date: e.due ? new Date(e.due + 'T00:00:00Z') : undefined, note: e.note || 'Payment', hidden: 0 });
   }
+
+  for (const x of cfg.extraRows || []) out.push({ ...x });
 
   // order within a day: inflows first, then outflows (stable, deterministic)
   out.sort((a, b) => a.date.getTime() - b.date.getTime() || (a.direction === b.direction ? 0 : a.direction === 'in' ? -1 : 1));

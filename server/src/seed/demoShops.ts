@@ -1,4 +1,5 @@
 import { GenConfig } from './generator';
+import type { OnlineConfig } from './onlineGen';
 import type { Stated } from '../lib/features';
 
 // The six fictional demo shops (brief section 8). History: Nov 2025 to Oct 2026. "Now" is Nov 2026.
@@ -22,6 +23,10 @@ export interface DemoShop {
   purpose: string;
   purpose_kind: 'working_capital' | 'capex';
   status: 'filed' | 'decided' | 'funded';
+  segment: 'cash_led' | 'hybrid' | 'digital_first';
+  offline_share: number;
+  online_share: number;
+  online?: OnlineConfig; // order log + courier settlements (hybrid / digital_first)
   stated: Stated;
   gen: GenConfig;
   docs: { kind: 'bill' | 'note'; sample_key: string; confirm?: boolean }[];
@@ -47,6 +52,9 @@ export const DEMO_SHOPS: DemoShop[] = [
     purpose: 'Stock up on fast-moving goods so the shelves do not empty mid-month',
     purpose_kind: 'working_capital',
     status: 'filed',
+    segment: 'cash_led',
+    offline_share: 1,
+    online_share: 0,
     stated: { cash_share: 0.6, margin: 0.2, seasonal: false, cib_status: 'clean', grace_months: 3 },
     gen: {
       seed: 101, startMonth: HISTORY_START, months: 12, base: 38000, growth: 0.02, noise: 0.03, businessType: 'tea_grocery',
@@ -73,6 +81,9 @@ export const DEMO_SHOPS: DemoShop[] = [
     purpose: 'Yarn and wages for the winter order season',
     purpose_kind: 'working_capital',
     status: 'funded',
+    segment: 'cash_led',
+    offline_share: 1,
+    online_share: 0,
     stated: { cash_share: 0.05, margin: 0.3, seasonal: false, receivable_bdt: 400000, receivable_days: 75, cib_status: 'clean', grace_months: 3 },
     gen: {
       seed: 202, startMonth: HISTORY_START, months: 12, postMonths: 6, base: 225000, growth: 0.015, noise: 0.06, businessType: 'knitwear',
@@ -108,6 +119,9 @@ export const DEMO_SHOPS: DemoShop[] = [
     purpose: 'Medicine stock and a second refrigerator',
     purpose_kind: 'working_capital',
     status: 'funded',
+    segment: 'cash_led',
+    offline_share: 1,
+    online_share: 0,
     stated: { cash_share: 0.4, margin: 0.2, seasonal: false, cib_status: 'clean', grace_months: 2 },
     gen: {
       seed: 303, startMonth: HISTORY_START, months: 12, postMonths: 6, base: 160000, growth: 0.003, noise: 0.025, businessType: 'pharmacy',
@@ -142,6 +156,9 @@ export const DEMO_SHOPS: DemoShop[] = [
     purpose: 'Bulk purchase of chargers and covers before Eid',
     purpose_kind: 'working_capital',
     status: 'filed',
+    segment: 'cash_led',
+    offline_share: 1,
+    online_share: 0,
     stated: { cash_share: 0.3, margin: 0.15, seasonal: false, cib_status: 'unknown' },
     gen: {
       seed: 404, startMonth: HISTORY_START, months: 12, base: 90000, growth: 0.002, noise: 0.04, businessType: 'mobile_accessories',
@@ -163,6 +180,9 @@ export const DEMO_SHOPS: DemoShop[] = [
     purpose: 'Ice boxes and advance payments to boat owners before the season',
     purpose_kind: 'working_capital',
     status: 'funded',
+    segment: 'cash_led',
+    offline_share: 1,
+    online_share: 0,
     stated: { cash_share: 0.5, margin: 0.18, seasonal: true, cib_status: 'clean', grace_months: 4 },
     gen: {
       seed: 505, startMonth: HISTORY_START, months: 12, postMonths: 6, base: 105000, growth: 0.012, noise: 0.05, businessType: 'fish_trader', seasonal: true, profileJitter: 0.05,
@@ -194,6 +214,9 @@ export const DEMO_SHOPS: DemoShop[] = [
     purpose: 'Inventory for the winter collection',
     purpose_kind: 'working_capital',
     status: 'filed',
+    segment: 'digital_first',
+    offline_share: 0.1,
+    online_share: 0.9,
     stated: { cash_share: 0.1, margin: 0.25, seasonal: false, cib_status: 'unknown' },
     gen: {
       seed: 606, startMonth: '2026-05', months: 6, base: 105000, growth: 0.01, noise: 0.04, businessType: 'online_clothing',
@@ -206,5 +229,43 @@ export const DEMO_SHOPS: DemoShop[] = [
       { kind: 'bill', sample_key: 'bill_tania_b', confirm: true },
       { kind: 'note', sample_key: 'note_tania', confirm: true },
     ],
+  },
+  {
+    slug: 'rafi',
+    label: 'Rafi Attar and Decants',
+    label_bn: 'রাফি আতর অ্যান্ড ডিক্যান্টস',
+    business_type: 'attar_online',
+    business_type_label: 'Attar and perfume decants, shop plus online',
+    business_type_bn: 'আতর ও পারফিউম ডিক্যান্ট, দোকান ও অনলাইন',
+    owner_label: 'Rafi (demo owner)',
+    months_trading: 40,
+    loan_ask_bdt: 350000,
+    tenor_months: 36,
+    purpose: 'Oud oil and bottle stock ahead of the Eid season',
+    purpose_kind: 'working_capital',
+    status: 'funded',
+    segment: 'hybrid',
+    offline_share: 0.4,
+    online_share: 0.6,
+    stated: { cash_share: 0.4, margin: 0.3, seasonal: false, cib_status: 'clean', grace_months: 2 },
+    online: {
+      seed: 707, startMonth: HISTORY_START, months: 12, postMonths: 6, ordersPerDay: 2.4, avgOrder: 1150, growth: 0.012,
+      codShare: 0.7, returnRate: 0.06, feeFlat: 60, feePct: 0.01, courier: 'Pathao', partialRows: 3, dropBatch: 'smallest',
+    },
+    gen: {
+      seed: 707, startMonth: HISTORY_START, months: 12, postMonths: 6, base: 11000, growth: 0.012, noise: 0.05, businessType: 'attar_online',
+      mode: 'retail', txPerDay: 0.6, supplierRatio: 4.2, supplierBills: 2, lateDays: (_: number, r: () => number) => (r() < 0.04 ? 4 : r() * 0.8), household: 0.06, utility: 1800, startBalance: 60000,
+      supplierNames: ['Supplier: Chawkbazar Attar House', 'Supplier: Gulistan Bottle Mart'],
+    },
+    docs: [{ kind: 'note', sample_key: 'note_rafi', confirm: true }],
+    checkins: [
+      { reported_sales_bdt: 150000, problem_note: 'শীতে আতরের চাহিদা ভালো।', source: 'owner_typed' },
+      { reported_sales_bdt: 155000, problem_note: 'বিয়ের মৌসুমে অর্ডার বেড়েছে।', source: 'owner_typed' },
+      { reported_sales_bdt: 150000, problem_note: 'স্বাভাবিক।', source: 'owner_typed' },
+      { reported_sales_bdt: 210000, problem_note: 'ঈদের আগে অনেক অর্ডার।', source: 'owner_typed' },
+      { reported_sales_bdt: 140000, problem_note: 'ঈদের পরে একটু কম, স্বাভাবিক।', source: 'owner_typed' },
+      { reported_sales_bdt: 160000, problem_note: 'পহেলা বৈশাখের অর্ডার।', source: 'owner_typed' },
+    ],
+    decision: { decision: 'approve', reason: 'Hybrid seller; courier settlements match the wallet.' },
   },
 ];

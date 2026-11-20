@@ -25,6 +25,7 @@ export interface CaseInput {
   tenor_months: number;
   stated: Stated;
   checks: CheckResult[];
+  return_rate?: number | null; // from the order log (hybrid / digital_first)
 }
 
 /** The model feature vector. Order matters: it is shared with ml/train.py through the cohort CSV header. */
@@ -64,6 +65,7 @@ export interface Features extends Record<FeatureName, number> {
   receivable_confirmed: number;
   seasonal_used: number;
   late_days_recent: number;
+  return_rate: number;
   monthly: { month: string; inflow: number; adjusted: number }[];
 }
 
@@ -183,6 +185,7 @@ export function computeFeatures(c: CaseInput): Features {
     receivable_confirmed: c.stated.receivable_confirmed ? 1 : 0,
     seasonal_used: seasonalUsed ? 1 : 0,
     late_days_recent: lr.length ? mean(lr) : 0,
+    return_rate: c.return_rate ?? 0,
     monthly,
   };
 }

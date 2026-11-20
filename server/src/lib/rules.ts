@@ -102,6 +102,11 @@ export function evaluateRules(f: Features, s: RuleSettings = DEFAULT_SETTINGS): 
     points: f.consistency_flags >= 2 ? -2 : 0, value_text: f.consistency_flags >= 2 ? 'failed' : 'passed', feature: 'consistency_flags', evidence_keys: ['consistency'],
   });
   add({
+    key: 'returns_high', group_en: 'Returns', group_bn: 'ফেরত',
+    condition_en: 'Over 15% of online orders returned', condition_bn: 'অনলাইন অর্ডারের ১৫%-এর বেশি ফেরত',
+    points: f.return_rate > 0.15 ? -1 : 0, value_text: pct(f.return_rate), feature: 'return_rate', evidence_keys: ['order_log'],
+  });
+  add({
     key: 'concentration', group_en: 'Customer concentration', group_bn: 'ক্রেতা-নির্ভরতা',
     condition_en: 'One customer brings over 40% of inflow (noted, no points)', condition_bn: 'একজন ক্রেতা থেকে ৪০%-এর বেশি জমা (উল্লেখ, পয়েন্ট নেই)',
     points: 0, value_text: pct(f.customer_concentration), feature: 'customer_concentration', evidence_keys: ['customer_concentration'],

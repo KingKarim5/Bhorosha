@@ -6,7 +6,8 @@ import path from 'path';
 import { config } from '../config';
 import { z } from 'zod';
 import { requireRole } from '../auth';
-import { Application, Shop, Verdict, EvidenceItem, Finding, Doc, Decision, AuditLog, Transaction, Outcome } from '../models';
+import { Application, Shop, Verdict, EvidenceItem, Finding, Doc, Decision, AuditLog, Transaction, Outcome, CourierSettlement, OrderRecord } from '../models';
+import { parseCourierCsv, parseOrderLogCsv } from '../lib/online';
 import { recompute, loadTxns } from '../services/casefile';
 import { readBill, readNote, confirmField } from '../services/documents';
 import { parseStatementCsv, summarise } from '../lib/statement';
@@ -24,6 +25,14 @@ const staff = requireRole('lender');
 r.get('/samples/statement/:slug', (req, res) => {
   const slug = req.params.slug.replace(/[^a-z]/g, '');
   const file = path.join(config.seedDataDir, 'statements', `${slug}.csv`);
+  if (!fs.existsSync(file)) return res.status(404).json({ error: 'no such sample' });
+  res.json({ csv: fs.readFileSync(file, 'utf8') });
+});
+
+r.get('/samples/online/:slug/:kind', (req, res) => {
+  const slug = req.params.slug.replace(/[^a-z]/g, '');
+  const kind = req.params.kind === 'orders' ? 'orders' : 'courier';
+  const file = path.join(config.seedDataDir, 'online', `${slug}_${kind}.csv`);
   if (!fs.existsSync(file)) return res.status(404).json({ error: 'no such sample' });
   res.json({ csv: fs.readFileSync(file, 'utf8') });
 });
@@ -94,6 +103,10 @@ const CreateSchema = z.object({
   seasonal: z.boolean().nullable().optional(),
   cib_status: z.enum(['clean', 'classified', 'unknown']).default('unknown'),
   statement_csv: z.string().max(3_000_000).optional(),
+  courier_csv: z.string().max(3_000_000).optional(),
+  orders_csv: z.string().max(3_000_000).optional(),
+  segment: z.enum(['cash_led', 'hybrid', 'digital_first']).default('cash_led'),
+  online_share_pct: z.coerce.number().min(0).max(100).nullable().optional(),
   note_text: z.string().max(4000).optional(),
 });
 
@@ -101,7 +114,12 @@ const CreateSchema = z.object({
 r.post('/apply', async (req, res) => {
   const b = CreateSchema.parse(req.body);
   const parsed = b.statement_csv ? parseStatementCsv(b.statement_csv) : { txns: [], errors: [] as string[] };
-  const shop = await Shop.create({ label: b.label, business_type: b.business_type, months_trading: b.months_trading, owner_label: `${b.label} (owner)`, token: crypto.randomBytes(10).toString('hex'), cohort_flag: 'demo', slug: 'new-' + Date.now() });
+  const onlineShare = b.online_share_pct != null ? b.online_share_pct / 100 : b.segment === 'cash_led' ? 0 : b.segment === 'hybrid' ? 0.5 : 0.9;
+  const shop = await Shop.create({ label: b.label, business_type: b.business_type, months_trading: b.months_trading, owner_label: `${b.label} (owner)`, token: crypto.randomBytes(10).toString('hex'), cohort_flag: 'demo', slug: 'new-' + Date.now(), segment: b.segment, online_share: onlineShare, offline_share: 1 - onlineShare });
+  const courier = b.courier_csv ? parseCourierCsv(b.courier_csv) : { rows: [], errors: [] as string[] };
+  const ordersParsed = b.orders_csv ? parseOrderLogCsv(b.orders_csv) : { rows: [], errors: [] as string[] };
+  if (courier.rows.length) await CourierSettlement.insertMany(courier.rows.map((r) => ({ ...r, shop: shop._id })));
+  if (ordersParsed.rows.length) await OrderRecord.insertMany(ordersParsed.rows.map((r) => ({ ...r, shop: shop._id })));
   const app = await Application.create({
     shop: shop._id, loan_ask_bdt: b.loan_ask_bdt, tenor_months: b.tenor_months, purpose: b.purpose, purpose_kind: b.purpose_kind, status: 'filed', consent: true,
     stated: { cash_share: b.cash_share_pct != null ? b.cash_share_pct / 100 : null, margin: b.margin_pct != null ? b.margin_pct / 100 : null, seasonal: b.seasonal ?? null, cib_status: b.cib_status },
@@ -113,7 +131,7 @@ r.post('/apply', async (req, res) => {
   }
   await AuditLog.create({ actor: 'owner', action: 'intake:create', application: app._id, redacted_payload_json: { label: b.label, rows: parsed.txns.length, parse_errors: parsed.errors.slice(0, 5) }, output_json: {}, mode: 'human' });
   await recompute(app._id, { actor: 'owner', reason: 'intake' });
-  res.json({ id: app._id, token: shop.token, rows: parsed.txns.length, parse_errors: parsed.errors.slice(0, 10) });
+  res.json({ id: app._id, token: shop.token, rows: parsed.txns.length, courier_rows: courier.rows.length, order_rows: ordersParsed.rows.length, parse_errors: [...parsed.errors, ...courier.errors, ...ordersParsed.errors].slice(0, 10) });
 });
 
 // ---- documents

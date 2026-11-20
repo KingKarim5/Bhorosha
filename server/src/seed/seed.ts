@@ -3,11 +3,13 @@ import path from 'path';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import {
-  ALL_MODELS, User, Shop, Application, Transaction, Doc, CheckIn, Decision, Investor, Commitment, InvestorVerification,
+  ALL_MODELS, User, Shop, Application, Transaction, Doc, CheckIn, CourierSettlement, OrderRecord, Decision, Investor, Commitment, InvestorVerification,
   LenderSettings, SimState, ShadowCase, AuditLog, Verdict,
 } from '../models';
 import { DEMO_SHOPS, SIM_BASE_MONTH } from './demoShops';
 import { generate } from './generator';
+import { generateOnline } from './onlineGen';
+import { courierToCsv, ordersToCsv } from '../lib/online';
 import { CANNED } from './sampleDocs';
 import { toCsv, parseStatementCsv } from '../lib/statement';
 import { recompute } from '../services/casefile';
@@ -46,13 +48,23 @@ export async function seedAll(log = console.log) {
     const shop = await Shop.create({
       label: s.label, business_type: s.business_type, months_trading: s.months_trading, owner_label: s.owner_label,
       token: token(s.slug), cohort_flag: 'demo', slug: s.slug, funded: s.status === 'funded',
+      segment: s.segment, offline_share: s.offline_share, online_share: s.online_share,
     });
     const app = await Application.create({
       shop: shop._id, loan_ask_bdt: s.loan_ask_bdt, tenor_months: s.tenor_months, purpose: s.purpose, purpose_kind: s.purpose_kind,
       status: s.status, stated: s.stated, consent: true,
     });
     apps[s.slug] = app;
-    const rows = generate(s.gen);
+    const online = s.online ? generateOnline(s.online) : null;
+    const rows = generate(online ? { ...s.gen, extraRows: online.walletCredits } : s.gen);
+    if (online) {
+      const onlineDir = path.join(config.seedDataDir, 'online');
+      fs.mkdirSync(onlineDir, { recursive: true });
+      fs.writeFileSync(path.join(onlineDir, `${s.slug}_courier.csv`), courierToCsv(online.settlements));
+      fs.writeFileSync(path.join(onlineDir, `${s.slug}_orders.csv`), ordersToCsv(online.orders));
+      await CourierSettlement.insertMany(online.settlements.map((r) => ({ ...r, shop: shop._id })));
+      await OrderRecord.insertMany(online.orders.map((r) => ({ ...r, shop: shop._id })));
+    }
     // Visible history goes through the CSV parser (the same path an uploaded statement takes).
     const visible = rows.filter((r) => !r.hidden);
     const csv = toCsv(visible);

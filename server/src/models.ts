@@ -24,6 +24,9 @@ const ShopSchema = new Schema(
     cohort_flag: { type: String, enum: ['demo', 'synthetic_cohort'], default: 'demo', index: true },
     slug: { type: String, index: true },
     funded: { type: Boolean, default: false },
+    segment: { type: String, enum: ['cash_led', 'hybrid', 'digital_first'], default: 'cash_led', index: true },
+    offline_share: { type: Number, default: 1 }, // share of sales in the shop (mostly cash)
+    online_share: { type: Number, default: 0 }, // share of sales online (courier COD + prepaid)
   },
   opts,
 );
@@ -160,6 +163,37 @@ const DecisionSchema = new Schema(
     gates: { type: M, default: [] }, // each fail-safe gate with pass/fail
     run_id: String,
     legacy_note: String,
+  },
+  opts,
+);
+
+// Courier settlement rows (one per delivered COD order) and the owner's order log (v2, hybrid/digital sellers)
+const CourierSettlementSchema = new Schema(
+  {
+    shop: { ...ref('Shop'), index: true },
+    order_id: String,
+    date: Date, // delivery date
+    amount_collected: Number,
+    fee: Number,
+    net_remitted: Number,
+    settlement_date: Date,
+    courier: String,
+    match_status: { type: String, enum: ['unmatched', 'checked', 'weak'], default: 'unmatched' },
+    matched_txn: { type: Schema.Types.ObjectId, default: null },
+    match_note: String,
+  },
+  opts,
+);
+const OrderRecordSchema = new Schema(
+  {
+    shop: { ...ref('Shop'), index: true },
+    order_id: String,
+    date: Date,
+    channel: String,
+    amount: Number,
+    status: { type: String, enum: ['delivered', 'returned', 'cancelled'] },
+    matched: { type: Boolean, default: false },
+    matched_via: String,
   },
   opts,
 );
@@ -340,6 +374,8 @@ export const Finding = mongoose.model('Finding', FindingSchema);
 export const Verdict = mongoose.model('Verdict', VerdictSchema);
 export const Decision = mongoose.model('Decision', DecisionSchema);
 export const CheckIn = mongoose.model('CheckIn', CheckInSchema);
+export const CourierSettlement = mongoose.model('CourierSettlement', CourierSettlementSchema);
+export const OrderRecord = mongoose.model('OrderRecord', OrderRecordSchema);
 export const Forecast = mongoose.model('Forecast', ForecastSchema);
 export const Flag = mongoose.model('Flag', FlagSchema);
 export const Intervention = mongoose.model('Intervention', InterventionSchema);
@@ -355,7 +391,7 @@ export const SimState = mongoose.model('SimState', SimStateSchema);
 export const ShadowCase = mongoose.model('ShadowCase', ShadowCaseSchema);
 
 export const ALL_MODELS = [
-  User, Shop, Application, Transaction, Doc, EvidenceItem, Finding, Verdict, Decision, CheckIn, Forecast, Flag,
+  User, Shop, Application, Transaction, Doc, CourierSettlement, OrderRecord, EvidenceItem, Finding, Verdict, Decision, CheckIn, Forecast, Flag,
   Intervention, Outcome, Investor, InvestorVerification, Commitment, InvestorUpdate, AuditLog, LenderSettings,
   EvalRun, SimState, ShadowCase,
 ];

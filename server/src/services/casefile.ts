@@ -1,4 +1,5 @@
-import { Application, Shop, Transaction, Doc, EvidenceItem, Finding, Verdict, AuditLog } from '../models';
+import { Application, Shop, Transaction, Doc, EvidenceItem, Finding, Verdict, AuditLog, CourierSettlement, OrderRecord } from '../models';
+import { orderSummary } from '../lib/online';
 import type { Txn } from '../lib/statement';
 import { runChecks, CheckResult } from '../lib/checks';
 import { computeFeatures, likelyCause, CAUSES, Features, Stated, Cause, RATE } from '../lib/features';
@@ -27,6 +28,12 @@ export async function loadTxns(shopId: unknown, includeHiddenUpTo = 0): Promise<
     due_date: r.due_date ? new Date(r.due_date as Date) : null,
     note: r.note as string,
   }));
+}
+
+export interface OnlineEv {
+  settlements: Lean[];
+  orders: Lean[];
+  netTotal: number;
 }
 
 interface Ev {
@@ -72,7 +79,7 @@ function mergeStated(app: Lean, docs: Lean[]): { stated: Stated; noteClaims: str
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 
-function buildEvidence(f: Features, stated: Stated, app: Lean, docs: Lean[], checks: CheckResult[], noteClaims: string[], receivableDoc: Lean | null): Ev[] {
+function buildEvidence(f: Features, stated: Stated, app: Lean, docs: Lean[], checks: CheckResult[], noteClaims: string[], receivableDoc: Lean | null, online: OnlineEv | null): Ev[] {
   const ev: Ev[] = [];
   const add = (e: Omit<Ev, 'eid'>) => ev.push({ ...e, eid: `E${ev.length + 1}` });
   const S = 'statement';
@@ -94,6 +101,17 @@ function buildEvidence(f: Features, stated: Stated, app: Lean, docs: Lean[], che
   if (stated.cib_status)
     add({ claim_key: 'cib_status', claim_text: `Credit bureau (CIB) status declared: ${stated.cib_status}.`, claim_text_bn: `সিআইবি অবস্থা (ঘোষিত): ${stated.cib_status}।`, value: stated.cib_status, label: 'owner_says', source_kind: 'owner', source_ref: 'intake' });
   for (const c of noteClaims.slice(0, 4)) add({ claim_key: 'note_claim', claim_text: `Owner's note: "${c}".`, claim_text_bn: `মালিকের নোট: "${c}"।`, value: c, label: 'owner_says', source_kind: 'owner', source_ref: 'note' });
+  if (online && online.settlements.length) {
+    const m = online.settlements.filter((x) => x.match_status === 'checked').length;
+    const share = m / online.settlements.length;
+    add({ claim_key: 'courier_settlements', claim_text: `Courier settlements: ${online.settlements.length} cash-on-delivery orders, ${fmtBdt(online.netTotal)} BDT remitted after fees; ${m} of ${online.settlements.length} matched to wallet credits.`, claim_text_bn: `কুরিয়ারের হিসাব: ${online.settlements.length}টি ক্যাশ-অন-ডেলিভারি অর্ডার, খরচ বাদে ${fmtBdt(online.netTotal)} টাকা পাঠানো; ${online.settlements.length}টির মধ্যে ${m}টি ওয়ালেটের জমার সাথে মিলেছে।`, value: Math.round(share * 100) / 100, label: share >= 0.9 ? 'checked' : 'owner_says', source_kind: share >= 0.9 ? 'courier+wallet match' : 'courier csv', source_ref: 'courier settlements' });
+  }
+  if (online && online.orders.length) {
+    const sum = orderSummary(online.orders as never);
+    const matched = online.orders.filter((o) => o.status === 'delivered' && o.matched).length;
+    const share = sum.delivered ? matched / sum.delivered : 0;
+    add({ claim_key: 'order_log', claim_text: `Order log: ${sum.n} online orders, ${sum.delivered} delivered, returns ${pct(sum.return_rate)}; ${matched} delivered orders matched to money received.`, claim_text_bn: `অর্ডারের খাতা: ${sum.n}টি অনলাইন অর্ডার, ${sum.delivered}টি পৌঁছেছে, ফেরত ${pct(sum.return_rate)}; ${matched}টি পৌঁছানো অর্ডারের টাকা মিলেছে।`, value: Math.round(sum.return_rate * 1000) / 1000, label: share >= 0.8 ? 'checked' : 'owner_says', source_kind: share >= 0.8 ? 'orders matched to courier/wallet' : 'owner order log', source_ref: 'order log' });
+  }
   for (const d of docs.filter((x) => x.kind === 'bill')) {
     const cf = d.confirmed_fields || {};
     const keys = Object.keys(cf);
@@ -244,9 +262,13 @@ export async function recompute(appId: unknown, opts: RecomputeOpts = {}) {
   const docs = (await Doc.find({ shop: app.shop }).sort({ createdAt: 1 }).lean()) as Lean[];
   const txns = await loadTxns(app.shop, 0);
   const settings: RuleSettings = await getRuleSettings();
+  const settlements = (await CourierSettlement.find({ shop: app.shop }).sort({ settlement_date: 1 }).lean()) as Lean[];
+  const orders = (await OrderRecord.find({ shop: app.shop }).lean()) as Lean[];
+  const online: OnlineEv | null = settlements.length || orders.length ? { settlements, orders, netTotal: settlements.reduce((a, x) => a + (x.net_remitted || 0), 0) } : null;
+  const returnRate = orders.length ? orderSummary(orders as never).return_rate : null;
   const { stated, noteClaims, receivableDoc } = mergeStated(app, docs);
   const checks = runChecks(txns);
-  const f = computeFeatures({ txns, business_type: shop.business_type, loan_ask_bdt: app.loan_ask_bdt, tenor_months: app.tenor_months, stated, checks });
+  const f = computeFeatures({ txns, business_type: shop.business_type, loan_ask_bdt: app.loan_ask_bdt, tenor_months: app.tenor_months, stated, checks, return_rate: returnRate });
   const model = loadModel();
   const j = judge(f, settings, model);
   const cause = likelyCause(f);
@@ -256,7 +278,7 @@ export async function recompute(appId: unknown, opts: RecomputeOpts = {}) {
   if (cfs[0]) cfs[0].actions.forEach((a, i) => conds.push({ key: a, kind: 'counterfactual', ...cfs[0].texts[i] }));
   for (const p of prudentialConditions(f, cause, settings, app.loan_ask_bdt)) if (!conds.some((c) => c.key === p.key)) conds.push(p);
   const tranches = tranchePlan(app.loan_ask_bdt, conds, f, settings);
-  const ev = buildEvidence(f, stated, app, docs, checks, noteClaims, receivableDoc);
+  const ev = buildEvidence(f, stated, app, docs, checks, noteClaims, receivableDoc, online);
   const checkedShare = ev.length ? Math.round((ev.filter((e) => e.label === 'checked').length / ev.length) * 100) : 0;
   let findings = crossCheckRules(f, ev, docs, txns, checks, stated);
 

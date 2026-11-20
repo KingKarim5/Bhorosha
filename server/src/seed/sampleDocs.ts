@@ -78,6 +78,11 @@ export const NOTES: Record<string, NoteTemplate> = {
     kind: 'note',
     text: 'মাছের ব্যবসা মৌসুমি। বর্ষায় বিক্রি অনেক বেশি, শীতে অনেক কম, প্রায় চার ভাগের এক ভাগ। প্রায় ৫০% বিক্রি নগদে। লাভ প্রায় ১৮%। গত বছরের হিসাব খাতায় আছে, বিকাশে নেই।',
   },
+  note_rafi: {
+    key: 'note_rafi',
+    kind: 'note',
+    text: 'দোকানে আতর ও ডিক্যান্ট বিক্রি করি, আর ফেসবুক ও ওয়েবসাইটে অনলাইনে। প্রায় ৪০% বিক্রি দোকানে নগদে, ৬০% অনলাইনে, বেশিরভাগ ক্যাশ অন ডেলিভারি পাঠাও কুরিয়ারে। ঈদের আগে বিক্রি দ্বিগুণ হয়। ফেরত প্রায় ৬%। লাভ প্রায় ৩০%। মাল কিনি চকবাজার থেকে।',
+  },
   note_tania: {
     key: 'note_tania',
     kind: 'note',
@@ -128,6 +133,7 @@ export const CANNED: Record<string, Record<string, unknown>> = {
   note_karim: { cash_share: 0.4, margin: 0.2, seasonal: false, receivables: [], concerns: ['sometimes pays the dealer a few days late'], language: 'bn', confidence: 0.88, claims: ['sales are steady, same as before'] },
   note_nasir: { cash_share: 0.3, margin: 0.15, seasonal: false, receivables: [], concerns: [], language: 'bn', confidence: 0.86, claims: ['transfers to personal numbers are mostly stock payments to a cousin’s wholesale shop'] },
   note_jahan: { cash_share: 0.5, margin: 0.18, seasonal: true, receivables: [], concerns: ['lean winter months'], language: 'bn', confidence: 0.9, claims: ['last year’s figures are in a paper ledger, not in the wallet'] },
+  note_rafi: { cash_share: 0.4, margin: 0.3, seasonal: false, receivables: [], concerns: [], language: 'bn', confidence: 0.88, claims: ['about 60% of sales are online, mostly cash on delivery through Pathao', 'returns are about 6%', 'sales double before Eid'] },
   note_tania: { cash_share: 0.1, margin: 0.25, seasonal: false, receivables: [], concerns: [], language: 'bn', confidence: 0.85, claims: ['trading for 12 months', 'festival sales spike'] },
 };
 CANNED.bill_tania_b = CANNED.bill_tania_a;

@@ -17,6 +17,22 @@ export default function CaseNew() {
   const [f, setF] = useState({ label: '', business_type: 'tea_grocery', months_trading: 24, loan_ask_bdt: 150000, tenor_months: 24, purpose: '', purpose_kind: 'working_capital', cib_status: 'unknown' });
   const [csv, setCsv] = useState('');
   const [csvName, setCsvName] = useState('');
+  const [segment, setSegment] = useState<'cash_led' | 'hybrid' | 'digital_first'>('cash_led');
+  const [onlinePct, setOnlinePct] = useState<string>('');
+  const [courierCsv, setCourierCsv] = useState('');
+  const [courierName, setCourierName] = useState('');
+  const [ordersCsv, setOrdersCsv] = useState('');
+  const [ordersName, setOrdersName] = useState('');
+  const loadOnlineSample = async (kind: 'courier' | 'orders') => {
+    const r = await api(`/samples/online/rafi/${kind}`);
+    if (kind === 'courier') {
+      setCourierCsv(r.csv);
+      setCourierName('rafi_courier.csv (' + t('synthetic sample', 'কৃত্রিম নমুনা') + ')');
+    } else {
+      setOrdersCsv(r.csv);
+      setOrdersName('rafi_orders.csv (' + t('synthetic sample', 'কৃত্রিম নমুনা') + ')');
+    }
+  };
   const [bills, setBills] = useState<File[]>([]);
   const [note, setNote] = useState('');
   const [cash, setCash] = useState<string>('');
@@ -38,6 +54,7 @@ export default function CaseNew() {
       const r = await api('/apply', {
         body: {
           consent: true, ...f, statement_csv: csv || undefined, note_text: note || undefined,
+          segment, online_share_pct: onlinePct === '' ? null : Number(onlinePct), courier_csv: courierCsv || undefined, orders_csv: ordersCsv || undefined,
           cash_share_pct: cash === '' ? null : Number(cash), margin_pct: margin === '' ? null : Number(margin), seasonal: seasonal === 'unknown' ? null : seasonal === 'yes',
         },
       });
@@ -84,6 +101,27 @@ export default function CaseNew() {
               <div>
                 <label className="label">{t('Shop label (no real names)', 'দোকানের নাম (আসল নাম নয়)')}</label>
                 <input className="input mt-1" value={f.label} onChange={(e) => set('label', e.target.value)} placeholder={t('e.g. Demo Tailoring', 'যেমন: ডেমো টেইলার্স')} />
+              </div>
+              <div>
+                <label className="label">{t('How do you sell?', 'কীভাবে বিক্রি করেন?')}</label>
+                <div className="grid grid-cols-3 gap-2 mt-1" role="radiogroup">
+                  {([
+                    ['cash_led', t('Mostly in the shop', 'বেশিরভাগ দোকানে'), t('cash, some wallet', 'নগদ, কিছু ওয়ালেট')],
+                    ['hybrid', t('Shop and online', 'দোকান ও অনলাইন'), t('cash + courier', 'নগদ + কুরিয়ার')],
+                    ['digital_first', t('Mostly online', 'বেশিরভাগ অনলাইনে'), t('courier, wallet', 'কুরিয়ার, ওয়ালেট')],
+                  ] as const).map(([k, title, sub]) => (
+                    <button key={k} type="button" role="radio" aria-checked={segment === k} onClick={() => setSegment(k)} className={`card p-2.5 text-left ${segment === k ? 'ring-2 ring-[var(--accent)]' : ''}`}>
+                      <div className="font-semibold text-[14px]">{title}</div>
+                      <div className="text-[12px] text-muted">{sub}</div>
+                    </button>
+                  ))}
+                </div>
+                {segment !== 'cash_led' && (
+                  <div className="mt-2 max-w-[200px]">
+                    <label className="label">{t('Online share of sales %', 'অনলাইন বিক্রির অংশ %')}</label>
+                    <input type="number" className="input mt-1" value={onlinePct} onChange={(e) => setOnlinePct(e.target.value)} placeholder={segment === 'hybrid' ? '50' : '90'} />
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -160,6 +198,25 @@ export default function CaseNew() {
                   </button>
                 ))}
               </div>
+              {segment !== 'cash_led' && (
+                <div className="pt-3 mt-1 border-t border-line space-y-2">
+                  <p className="text-[14.5px] font-semibold">{t('Online sales', 'অনলাইন বিক্রি')}</p>
+                  <p className="text-[13px] text-muted">{t('Courier settlement CSV (order_id, date, amount_collected, fee, net_remitted, settlement_date) and your order log CSV (order_id, date, channel, amount, status). Settlements are checked against your wallet credits; order-log claims stay owner says unless they match.', 'কুরিয়ারের হিসাব CSV (order_id, date, amount_collected, fee, net_remitted, settlement_date) এবং অর্ডারের খাতা CSV (order_id, date, channel, amount, status)। কুরিয়ারের হিসাব ওয়ালেটের জমার সাথে মেলানো হয়; অর্ডারের খাতার দাবি না মেলা পর্যন্ত "মালিক বলছেন"।')}</p>
+                  <label className="btn w-full justify-center cursor-pointer">
+                    <IconDoc /> {courierName || t('Courier settlements CSV', 'কুরিয়ারের হিসাব CSV')}
+                    <input type="file" accept=".csv,text/csv" className="sr-only" onChange={async (e) => { const fl = e.target.files?.[0]; if (fl) { setCourierCsv(await fl.text()); setCourierName(fl.name); } }} />
+                  </label>
+                  <label className="btn w-full justify-center cursor-pointer">
+                    <IconDoc /> {ordersName || t('Order log CSV', 'অর্ডারের খাতা CSV')}
+                    <input type="file" accept=".csv,text/csv" className="sr-only" onChange={async (e) => { const fl = e.target.files?.[0]; if (fl) { setOrdersCsv(await fl.text()); setOrdersName(fl.name); } }} />
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    <button className="btn !min-h-0 !py-1.5 text-[13px]" onClick={() => loadOnlineSample('courier')}>rafi_courier.csv</button>
+                    <button className="btn !min-h-0 !py-1.5 text-[13px]" onClick={() => loadOnlineSample('orders')}>rafi_orders.csv</button>
+                    <button className="btn !min-h-0 !py-1.5 text-[13px]" onClick={() => loadSample('rafi')}>rafi.csv</button>
+                  </div>
+                </div>
+              )}
               {!csv && <p className="text-[13px]" style={{ color: 'var(--unsure)' }}>{t('Without a statement the verdict will be not sure, with a list of what to upload.', 'স্টেটমেন্ট ছাড়া রায় "নিশ্চিত নয়" হবে, সাথে কী জমা দিতে হবে তার তালিকা।')}</p>}
             </>
           )}
