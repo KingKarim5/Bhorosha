@@ -5,6 +5,7 @@ import { Shell, PublicShell } from './components/Shell';
 import { Skeleton } from './components/ui';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
+import Signup from './pages/Signup';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Cases = lazy(() => import('./pages/Cases'));
@@ -58,6 +59,7 @@ export function App() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
       <Route
         path="/owner/:token"
         element={

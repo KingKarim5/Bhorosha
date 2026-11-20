@@ -83,14 +83,14 @@ export default function Landing() {
           </Suspense>
         )}
         <div className="absolute inset-0 pointer-events-none hero-vignette" />
-        <header className="relative z-10 flex items-center justify-between px-5 md:px-10 py-5">
+        <header className="relative z-10 flex flex-wrap items-center justify-between gap-3 px-5 md:px-10 py-5">
           <Link to="/" className="flex items-baseline gap-2">
             <span className="font-display text-[24px] font-semibold tracking-tight">{BRAND.name}</span>
             <span className="text-[19px] text-accent" style={{ fontFamily: 'Noto Serif Bengali, serif' }}>
               {BRAND.nameBn}
             </span>
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <DemoBadge />
             <TopControls />
           </div>
@@ -106,13 +106,19 @@ export default function Landing() {
               {BRAND.taglineEn}
             </motion.p>
             <motion.div {...fade(0.55)} className="flex flex-wrap gap-3 mt-9">
-              <Link to="/login" className="btn btn-primary text-[17px] !px-7 !py-3.5 glow-btn">
-                {t('Open the demo', 'ডেমো খুলুন')} →
+              <Link to="/signup?role=lender" className="btn btn-primary text-[17px] !px-7 !py-3.5 glow-btn">
+                {t('I’m a lender', 'আমি ঋণদাতা')} →
+              </Link>
+              <Link to="/signup?role=investor" className="btn btn-primary text-[17px] !px-7 !py-3.5 glow-btn">
+                {t('I’m an investor', 'আমি বিনিয়োগকারী')} →
               </Link>
               <a href="#how" className="btn text-[16px] !px-6 !py-3.5 backdrop-blur" style={{ background: 'color-mix(in oklab, var(--surface) 55%, transparent)' }}>
                 {t('How it works', 'কীভাবে কাজ করে')}
               </a>
             </motion.div>
+            <motion.p {...fade(0.7)} className="text-[14px] text-muted mt-4">
+              {t('Already have an account, or just looking?', 'অ্যাকাউন্ট আছে, নাকি শুধু দেখতে চান?')} <Link to="/login" className="text-accent underline">{t('Log in or use a demo account', 'লগ ইন বা ডেমো অ্যাকাউন্ট')}</Link>
+            </motion.p>
           </div>
         </div>
         <motion.a href="#how" initial={{ opacity: 0 }} animate={{ opacity: 1, y: [0, 8, 0] }} transition={{ delay: 1.6, duration: 2.2, repeat: Infinity }} className="relative z-10 mx-auto mb-6 text-muted text-[13px] tracking-[0.2em] uppercase" aria-label="Scroll">

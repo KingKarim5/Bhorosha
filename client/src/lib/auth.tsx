@@ -11,6 +11,7 @@ interface Ctx {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<User>;
+  signup: (b: { role: 'lender' | 'investor'; display_name: string; email: string; password: string }) => Promise<User>;
   logout: () => Promise<void>;
 }
 const AuthCtx = createContext<Ctx>(null as unknown as Ctx);
@@ -30,11 +31,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(r.user);
     return r.user;
   };
+  const signup = async (b: { role: 'lender' | 'investor'; display_name: string; email: string; password: string }) => {
+    const r = await api<{ user: User; token: string }>('/auth/signup', { body: b });
+    setToken(r.token);
+    setUser(r.user);
+    return r.user;
+  };
   const logout = async () => {
     await api('/auth/logout', { method: 'POST' }).catch(() => undefined);
     setToken(null);
     setUser(null);
   };
-  return <AuthCtx.Provider value={{ user, loading, login, logout }}>{children}</AuthCtx.Provider>;
+  return <AuthCtx.Provider value={{ user, loading, login, signup, logout }}>{children}</AuthCtx.Provider>;
 }
 export const useAuth = () => useContext(AuthCtx);

@@ -29,7 +29,7 @@ Shops come in three segments: **cash_led**, **hybrid** and **digital_first**.
 
 ## Try it
 
-Open **https://bhorosha.vercel.app** and log in with any demo account (password `bhorsha-demo`):
+Open **https://bhorosha.vercel.app** and choose **I'm a lender** or **I'm an investor** to create an account, or log in with a demo account (password `bhorsha-demo`):
 
 | Account | Email |
 | --- | --- |
@@ -52,9 +52,9 @@ Shop owners need no account. Each shop has a private link (`/owner/<token>`), op
 9. **Repayments**: apply or reject the queued payment, or **Send a test payment** (leave the reference empty for the AI to match it, or tick *wrong signature* to see it refused).
 10. Log in as **investor@demo.bd**. Listings show only approved files with the interest split, and the portfolio feed carries live Servicer updates.
 
-## Try your own statement
+## Test it from scratch
 
-`demo-csv/` holds three statements to upload at **/apply** (see `demo-csv/README.md`): a healthy shop (approved), a tampered statement (held: does not reconcile) and a 2-month history (held: too short). Ask for more than Tk 1,000,000 or 12 months with the healthy file to get a counter-offer.
+`test-kit/` has everything to test Bhorsha the way a shop owner, lender and investor would, with a step-by-step guide (`test-kit/README.md`): statements (healthy, tampered, too short), an online seller's statement with courier and order files, two bill photos (one matches the wallet, one was paid in cash), a Bangla owner note and three loan contracts (unclear clause, fixed terms, wrong amount). New users sign up at **/signup** as a lender or an investor.
 
 ## Payment webhook
 
@@ -137,7 +137,7 @@ server/              Express + Mongoose API
   src/services/      agent pipeline (casefile), verifier, loan agents, policy, watchman + servicer, AI
   src/scripts/       cohortV2, evalV2, checkSeed, aicheck
 api/                 Vercel serverless entry
-demo-csv/            statements to upload at /apply for a manual test
+test-kit/            files and a step-by-step guide for a full manual test
 ml/                  train_v2.py (scikit-learn), model/ (model.json, eval.json, earlier runs)
 brand.config.json    name and tagline, used everywhere
 EVAL_PROTOCOL.md     tests and pass marks, committed before any evaluation run

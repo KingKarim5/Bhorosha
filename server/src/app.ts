@@ -1,3 +1,4 @@
+import './asyncErrors';
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -51,7 +52,9 @@ export function createApp() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     console.error('[api error]', err.message);
-    res.status(400).json({ error: err.message || 'Something went wrong' });
+    const issues = (err as Error & { issues?: { path: (string | number)[]; message: string }[] }).issues;
+    const msg = issues?.length ? `${issues[0].path.join('.') ? issues[0].path.join('.') + ': ' : ''}${issues[0].message}` : err.message;
+    res.status(400).json({ error: msg || 'Something went wrong' });
   });
   return app;
 }

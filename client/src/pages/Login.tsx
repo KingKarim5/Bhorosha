@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PublicShell } from '../components/Shell';
 import { useI18n } from '../lib/i18n';
 import { useAuth } from '../lib/auth';
@@ -88,6 +88,9 @@ export default function Login() {
           <button className="btn btn-primary w-full justify-center mt-3" disabled={busy}>
             {busy ? t('Logging in…', 'লগ ইন হচ্ছে…') : t('Log in', 'লগ ইন')}
           </button>
+          <p className="text-[13px] text-muted mt-3">
+            {t('New here?', 'নতুন?')} <Link to="/signup" className="text-accent underline">{t('Create a lender or investor account', 'ঋণদাতা বা বিনিয়োগকারী অ্যাকাউন্ট খুলুন')}</Link>
+          </p>
         </form>
       </div>
     </PublicShell>
