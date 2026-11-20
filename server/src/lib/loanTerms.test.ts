@@ -158,3 +158,17 @@ describe('annex ranges', () => {
     expect(isAnnexRange('a late fee may apply, as agreed verbally')).toBe(false);
   });
 });
+
+import { investorSharePct, investorCapBdt } from './loanTerms';
+
+describe('investor share by loan size', () => {
+  it('lets investors fund all of a loan up to Tk 5,00,000 and 75% above it', () => {
+    expect(investorSharePct(500000, T)).toBe(100);
+    expect(investorCapBdt(70000, T)).toBe(70000);
+    expect(investorSharePct(500001, T)).toBe(75);
+    expect(investorCapBdt(600000, T)).toBe(450000);
+  });
+  it('follows the lender policy', () => {
+    expect(investorCapBdt(100000, { ...T, investor_share_small_pct: 90 })).toBe(90000);
+  });
+});

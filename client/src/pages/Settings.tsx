@@ -35,6 +35,9 @@ const FIELDS: { k: string; en: string; bn: string; step: number; group: 'autonom
   { k: 'grace_days', en: 'Grace days: a payment this late still counts as on time', bn: 'গ্রেস দিন: এত দিন দেরিও সময়মতো ধরা হয়', step: 1, group: 'pricing' },
   { k: 'early_pay_discount_pct', en: 'Early-payment discount: share of an instalment’s interest waived when paid early (%, 0 = off)', bn: 'আগে দিলে ছাড়: কিস্তির সুদের কত অংশ মাফ (%, ০ = বন্ধ)', step: 5, group: 'pricing' },
   { k: 'early_pay_min_days', en: 'Early-payment discount: paid at least this many days before the due date', bn: 'আগে দিলে ছাড়: নির্ধারিত তারিখের অন্তত এত দিন আগে', step: 1, group: 'pricing' },
+  { k: 'investor_large_loan_bdt', en: 'Investors: the line between a small and a large loan (BDT)', bn: 'বিনিয়োগকারী: ছোট ও বড় ঋণের সীমারেখা (টাকা)', step: 50000, group: 'terms' },
+  { k: 'investor_share_small_pct', en: 'Investors may fund up to this share of a loan at or below the line (%)', bn: 'সীমারেখা পর্যন্ত ঋণের এত অংশ বিনিয়োগকারীরা দিতে পারেন (%)', step: 5, group: 'terms' },
+  { k: 'investor_share_large_pct', en: 'Investors may fund up to this share of a loan above the line (%)', bn: 'সীমারেখার বেশি ঋণের এত অংশ বিনিয়োগকারীরা দিতে পারেন (%)', step: 5, group: 'terms' },
   { k: 'match_confidence_min', en: 'Payment matching: confidence needed to apply without review (0.5–1)', bn: 'পরিশোধ মেলানো: পর্যালোচনা ছাড়া যোগ করতে দরকারি আস্থা (০.৫–১)', step: 0.05, group: 'pricing' },
 ];
 const DOCS = [

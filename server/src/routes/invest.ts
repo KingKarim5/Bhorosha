@@ -4,13 +4,12 @@ import { requireRole } from '../auth';
 import { Application, Shop, Verdict, Decision, Investor, InvestorVerification, Commitment, InvestorUpdate, EvidenceItem, AuditLog } from '../models';
 import { User, LoanAccount } from '../models';
 import { getTerms } from '../services/loan';
-import { investorReturn, investorReceived, investorRatePct, nextOpen, Installment, TermsPolicy } from '../lib/loanTerms';
+import { investorReturn, investorReceived, investorRatePct, nextOpen, Installment, TermsPolicy, investorCapBdt, investorSharePct } from '../lib/loanTerms';
 import { allocate } from '../services/allocator';
 
 type Lean = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 const r = Router();
 const inv = requireRole('investor');
-export const INVESTOR_SHARE = 0.25; // investors may fund up to 25% of a loan through the partner's pool (simulation)
 
 export const TYPE_LABEL: Record<string, { en: string; bn: string }> = {
   tea_grocery: { en: 'Tea stall and grocery', bn: 'চায়ের দোকান ও মুদি' },
@@ -54,11 +53,12 @@ async function listable() {
 }
 
 function listingView(x: Lean) {
-  const share = Math.round(x.a.loan_ask_bdt * INVESTOR_SHARE);
+  // investors together may fund the lender's share for this loan size (by default 100% up to Tk 5,00,000, 75% above)
+  const share = investorCapBdt(x.a.loan_ask_bdt, x.shop.terms);
   const rate = investorRatePct(x.shop.terms);
   const example = investorReturn(10000, x.a.tenor_months, rate);
   return {
-    investor_rate_pct: rate, bank_rate_pct: x.shop.terms.bank_rate_pct, borrower_rate_pct: x.shop.terms.borrower_rate_pct,
+    investor_share_pct: investorSharePct(x.a.loan_ask_bdt, x.shop.terms), investor_rate_pct: rate, bank_rate_pct: x.shop.terms.bank_rate_pct, borrower_rate_pct: x.shop.terms.borrower_rate_pct,
     example_10k: example, released: !!x.shop.funded, listed_at: x.a.updatedAt,
     id: x.a._id, code: code(x.a._id), lender_name: x.shop.lender_name, type: typeLabel(x.shop.business_type), size: sizeRange(x.a.loan_ask_bdt), loan_bdt: x.a.loan_ask_bdt,
     investor_share_bdt: share, committed_bdt: x.a.funded_bdt || 0, open_bdt: Math.max(0, share - (x.a.funded_bdt || 0)),
@@ -103,50 +103,38 @@ r.get('/invest/cases/:id', inv, async (req, res) => {
     ...listingView(x),
     evidence: ev.filter((e) => !String(e.claim_key).startsWith('doc_') && e.claim_key !== 'note_claim').map((e) => ({ eid: e.eid, label: e.label, en: strip(e.claim_text as string), bn: strip(e.claim_text_bn as string) })),
     reasons: x.v?.reasons_json, conditions: x.v?.conditions_json, cause: x.v?.cause, watch_list: x.v?.watch_list_json, cannot_tell: x.v?.cannot_tell_json,
-    my_commitment_bdt: mine?.amount_bdt || 0, cap_per_loan_bdt: i.cap_per_loan_bdt, cap_total_bdt: i.cap_total_bdt, committed_total_bdt: i.committed_total_bdt,
+    my_commitment_bdt: mine?.amount_bdt || 0, committed_total_bdt: i.committed_total_bdt,
     verification_status: i.verification_status,
     fee_split: x.d?.fee_split ? { figures: x.d.fee_split.figures, text_en: x.d.fee_split.text_en, text_bn: x.d.fee_split.text_bn, by: x.d.fee_split.by } : null,
   });
 });
 
 r.post('/invest/commit', inv, async (req, res) => {
-  const b = z.object({ application: z.string().length(24), amount_bdt: z.coerce.number().int().min(1000).max(1000000) }).parse(req.body);
+  const b = z.object({ application: z.string().length(24), amount_bdt: z.coerce.number({ invalid_type_error: 'Enter an amount in taka.' }).int('Enter a whole number of taka.').min(1, 'Enter an amount above zero.').max(10000000, 'Enter Tk 1,00,00,000 or less.') }).parse(req.body);
   const i = await me(req.user!.id);
   if (i.verification_status !== 'verified') return res.status(403).json({ error: 'Finish the simulated verification before committing.' });
   const all = await listable();
   const x = all.find((y) => String(y.a._id) === b.application);
   if (!x || !x.listed) return res.status(400).json({ error: 'This case is not listed (only cases the AI approved with conditions are listed).' });
-  if (b.amount_bdt > i.cap_per_loan_bdt) return res.status(400).json({ error: `Over your per-loan cap of ${i.cap_per_loan_bdt} BDT.` });
   const amt = b.amount_bdt;
-  // Atomic cap checks: each step is a conditional update; any failure rolls back the earlier steps.
-  const invOk = await Investor.findOneAndUpdate(
-    { _id: i._id, verification_status: 'verified', $expr: { $lte: [{ $add: ['$committed_total_bdt', amt] }, '$cap_total_bdt'] } },
-    { $inc: { committed_total_bdt: amt } },
-    { new: true },
-  );
-  if (!invOk) return res.status(400).json({ error: `Over your total cap of ${i.cap_total_bdt} BDT.` });
+  // Investors choose freely how much to put in; the only limit is what is still open on the loan.
+  // The open check is one atomic conditional update, so two investors cannot overfill a loan.
+  const cap = investorCapBdt(x.a.loan_ask_bdt, x.shop.terms);
+  const openNow = Math.max(0, cap - (x.a.funded_bdt || 0));
+  if (amt < Math.min(1000, openNow)) return res.status(400).json({ error: 'The smallest amount is Tk 1,000 (or exactly what is left, if less).' });
   const appOk = await Application.findOneAndUpdate(
-    { _id: x.a._id, $expr: { $lte: [{ $add: ['$funded_bdt', amt] }, { $multiply: ['$loan_ask_bdt', INVESTOR_SHARE] }] } },
+    { _id: x.a._id, $expr: { $lte: [{ $add: [{ $ifNull: ['$funded_bdt', 0] }, amt] }, cap] } },
     { $inc: { funded_bdt: amt } },
     { new: true },
   );
   if (!appOk) {
-    await Investor.updateOne({ _id: i._id }, { $inc: { committed_total_bdt: -amt } });
-    return res.status(400).json({ error: 'More than the amount still open on this case.' });
+    const open = Math.max(0, cap - (x.a.funded_bdt || 0));
+    return res.status(400).json({ error: open > 0 ? `Only Tk ${open.toLocaleString('en-IN')} is still open on this loan.` : 'This loan is fully funded by investors.' });
   }
-  try {
-    await Commitment.findOneAndUpdate(
-      { investor: i._id, application: x.a._id, amount_bdt: { $lte: i.cap_per_loan_bdt - amt } },
-      { $inc: { amount_bdt: amt }, $setOnInsert: { status: 'active' } },
-      { upsert: true, new: true },
-    );
-  } catch {
-    await Investor.updateOne({ _id: i._id }, { $inc: { committed_total_bdt: -amt } });
-    await Application.updateOne({ _id: x.a._id }, { $inc: { funded_bdt: -amt } });
-    return res.status(400).json({ error: `Over your per-loan cap of ${i.cap_per_loan_bdt} BDT for this case.` });
-  }
-  await AuditLog.create({ actor: req.user!.email, action: 'invest:commit (simulation)', application: x.a._id, redacted_payload_json: { amount_bdt: amt }, output_json: { open_after: Math.round(x.a.loan_ask_bdt * INVESTOR_SHARE) - appOk.funded_bdt }, mode: 'human' });
-  res.json({ ok: true, committed_total_bdt: invOk.committed_total_bdt, case_open_bdt: Math.round(x.a.loan_ask_bdt * INVESTOR_SHARE) - appOk.funded_bdt });
+  const invOk = await Investor.findOneAndUpdate({ _id: i._id }, { $inc: { committed_total_bdt: amt } }, { new: true });
+  await Commitment.findOneAndUpdate({ investor: i._id, application: x.a._id }, { $inc: { amount_bdt: amt }, $setOnInsert: { status: 'active' } }, { upsert: true, new: true });
+  await AuditLog.create({ actor: req.user!.email, action: 'invest:commit (simulation)', application: x.a._id, redacted_payload_json: { amount_bdt: amt }, output_json: { open_after: cap - (appOk.funded_bdt || 0) }, mode: 'human' });
+  res.json({ ok: true, committed_total_bdt: invOk?.committed_total_bdt ?? 0, case_open_bdt: cap - (appOk.funded_bdt || 0) });
 });
 
 r.get('/invest/allocate', inv, async (req, res) => {
@@ -155,8 +143,8 @@ r.get('/invest/allocate', inv, async (req, res) => {
   const listings = (await listable()).filter((x) => x.listed).map(listingView);
   const mine = await Commitment.find({ investor: i._id }).lean();
   const already = Object.fromEntries(mine.map((c) => [String(c.application), c.amount_bdt as number]));
-  const room = Math.max(0, i.cap_total_bdt - i.committed_total_bdt);
-  const out = allocate(Math.min(budget, room), listings.map((l) => ({ id: String(l.id), band_low: l.band_low, open_bdt: l.open_bdt })), i.cap_per_loan_bdt, already);
+  const room = budget; // no personal cap: the whole amount can be spread, limited only by what each loan has open
+  const out = allocate(budget, listings.map((l) => ({ id: String(l.id), band_low: l.band_low, open_bdt: l.open_bdt })), Number.MAX_SAFE_INTEGER, already);
   res.json({ budget, room_under_total_cap: room, ...out, listings: listings.map((l) => ({ id: l.id, code: l.code, type: l.type, band_low: l.band_low, open_bdt: l.open_bdt })) });
 });
 

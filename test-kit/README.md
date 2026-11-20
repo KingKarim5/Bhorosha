@@ -135,6 +135,7 @@ In your own institution, go to **Policy**. Changes apply only to your institutio
 | Try | Expect |
 | --- | --- |
 | Borrower rate `11`, save | **Refused**: below the investor rate plus Bhorsha's fee (at least about 11.13% is needed) |
+| Investor share above the line `60`, save | A new loan above Tk 5,00,000 opens only 60% to investors. Set it back to `75` afterwards |
 | Early-payment discount `50`, days `3`, save | Back on **Repayments**, the note above the review queue shows the new terms and **Pay early** offers a bigger saving. Set it back to `25` and `5` afterwards |
 | Largest loan `50000`, save | Saved as a new version. Re-run a case (Cross-check button): an ask above Tk 50,000 now gets a counter-offer. Set it back to `1000000` afterwards |
 | On the **Lender console**, press **Pause AI decisions** | New decisions are holds while paused ("AI decisions are paused"). Press **Resume AI decisions** afterwards |
@@ -155,9 +156,10 @@ In your own institution, go to **Policy**. Changes apply only to your institutio
 4. Open a listing.
 - [ ] **Expect:** the evidence with checked / owner says labels, the lender's conditions, and **How the interest is shared** (investor rate 10.25% = bank rate 10% + 0.25%), marked as not a promise.
 5. Type different amounts in the commit box: the box under it shows the interest you earn, the total you get back and the monthly amount. Commit `10000`.
-- [ ] **Expect:** "Simulated commitment recorded". Try `60000` on one loan: **refused**, over your Tk 50,000 per-loan cap.
+- [ ] **Expect:** "Simulated commitment recorded". There is no personal limit: you can put in as much as the loan still has open.
+- [ ] **Expect:** the box starts at the largest amount still open. Type more than that and it explains, before you commit, that only that much is open. Investors together can fund up to 100% of a loan of Tk 5,00,000 or less, and up to 75% of a larger loan (the lender keeps the rest).
 6. In **Suggested spread**, enter `100000`.
-- [ ] **Expect:** a split across the listed loans within your caps.
+- [ ] **Expect:** a suggested split across the open loans, so not everything rides on one shop.
 7. Go to **Portfolio**.
 - [ ] **Expect:** totals (put in, interest you earn, total coming back, received so far), then the same **by lender**, then each loan. A loan whose funds are not released yet says *Waiting for the lender to release*.
 - [ ] **Expect:** after the lender releases the loan and an instalment is paid (Part 7), **Received so far** goes up by your share. The page refreshes on its own every 20 seconds.

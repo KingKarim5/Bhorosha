@@ -10,7 +10,7 @@ import { lenderOfApp, lenderShopIds } from '../tenancy';
 import {
   TermsPolicy, termsFrom, contractText, readContractRules, validateContract, ContractFields, checkLimits, checkRateSetup, feeSplit, FeeSplit,
   clampPricing, schedule, settlementQuote, SettlementQuote, classifyPayment, applyToSchedule, nextOpen, matchScore, verifySignature, signPayload, lateFee1, Installment,
-  earlyDiscount, isAnnexRange,
+  earlyDiscount, isAnnexRange, investorSharePct,
 } from '../lib/loanTerms';
 
 // Loan agents (v3). Each agent: the AI reads, proposes or writes; the code validates, clamps and computes.
@@ -18,7 +18,6 @@ import {
 //   Contract reader · Counter-offer · Pricing · Fee explainer · Payment matcher · Servicer · Watchman (repayments)
 
 type Lean = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-export const INVESTOR_SHARE = 0.25; // investors may fund up to 25% of a loan through the partner's pool (simulation)
 const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
 
 export async function getTerms(lenderId: unknown): Promise<TermsPolicy> {
@@ -196,7 +195,7 @@ export async function priceLoan(app: Lean, contract: Lean, history: { supplier_o
 
 // =============================================================== 4. Fee and rate explainer
 export function feeFigures(principal: number, tenor: number, t: TermsPolicy): FeeSplit {
-  return feeSplit(principal, tenor, t.borrower_rate_pct, INVESTOR_SHARE, t);
+  return feeSplit(principal, tenor, t.borrower_rate_pct, investorSharePct(principal, t) / 100, t);
 }
 
 export async function explainFees(app: Lean, principal: number, tenor: number, t: TermsPolicy, o: { useAi: boolean; actor: string; runId?: string }) {

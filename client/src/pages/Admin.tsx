@@ -79,7 +79,6 @@ export default function Admin() {
                 <th className="pr-3">{t('Verification', 'যাচাই')}</th>
                 <th className="pr-3 text-right">{t('Loans backed', 'সমর্থিত ঋণ')}</th>
                 <th className="pr-3 text-right">{t('Committed', 'প্রতিশ্রুতি')}</th>
-                <th className="pr-3 text-right">{t('Caps (per loan / total)', 'সীমা (প্রতি ঋণ / মোট)')}</th>
                 <th>{t('Joined', 'যোগ দিয়েছে')}</th>
               </tr>
             </thead>
@@ -90,7 +89,6 @@ export default function Admin() {
                   <td className="pr-3" style={{ color: VER[i.verification_status]?.color }}>{pick(VER[i.verification_status] || { en: i.verification_status, bn: i.verification_status })}</td>
                   <td className="pr-3 num text-right">{n(i.commitments)}</td>
                   <td className="pr-3 num text-right">{bdt(i.committed_bdt)}</td>
-                  <td className="pr-3 num text-right text-muted">{n(i.cap_per_loan_bdt)} / {n(i.cap_total_bdt)}</td>
                   <td className="num text-muted">{when(i.joined)}</td>
                 </tr>
               ))}

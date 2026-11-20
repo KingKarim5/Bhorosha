@@ -62,6 +62,9 @@ const PolicyBody = z.object({
   match_confidence_min: z.number().min(0.5).max(1).optional(),
   early_pay_discount_pct: z.number().min(0, 'The early-payment discount cannot be negative.').max(100, 'The early-payment discount is a share of the interest: at most 100%.').optional(),
   early_pay_min_days: z.number().int().min(1, 'Early means at least 1 day before the due date.').max(28, 'Use 28 days or fewer.').optional(),
+  investor_share_small_pct: z.number().min(0, 'Investor share cannot be negative.').max(100, 'Investors cannot fund more than the whole loan.').optional(),
+  investor_share_large_pct: z.number().min(0, 'Investor share cannot be negative.').max(100, 'Investors cannot fund more than the whole loan.').optional(),
+  investor_large_loan_bdt: z.number().min(10000, 'Set the large-loan line at Tk 10,000 or more.').max(10000000).optional(),
   note: z.string().trim().max(300).default(''),
 });
 

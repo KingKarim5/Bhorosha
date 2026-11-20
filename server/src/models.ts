@@ -420,6 +420,9 @@ const PolicySchema = new Schema(
     match_confidence_min: { type: Number, default: 0.8 }, // below this a payment waits in the lender's review queue
     early_pay_discount_pct: { type: Number, default: 25 }, // share of an instalment's interest waived when paid early enough (0 = off)
     early_pay_min_days: { type: Number, default: 5 }, // days before the due date that count as early enough
+    investor_share_small_pct: { type: Number, default: 100 }, // investors may fund up to this share of a loan at or below the threshold
+    investor_share_large_pct: { type: Number, default: 75 }, // ... and up to this share above it
+    investor_large_loan_bdt: { type: Number, default: 500000 },
     created_by: String,
     note: String,
   },

@@ -63,7 +63,7 @@ export default function Invest() {
                 </div>
                 <div className="grid grid-cols-2 gap-2 mt-2 text-[13px]">
                   <div>
-                    <div className="text-muted">{t('Still open for investors', 'বিনিয়োগের জন্য বাকি')}</div>
+                    <div className="text-muted">{t(`Open (investors fund up to ${l.investor_share_pct}%)`, `বাকি (বিনিয়োগকারী সর্বোচ্চ ${n(l.investor_share_pct)}%)`)}</div>
                     <div className="num font-semibold" style={{ color: full ? 'var(--muted)' : undefined }}>{full ? t('Fully funded', 'পুরো অর্থায়ন হয়েছে') : bdt(l.open_bdt)}</div>
                   </div>
                   <div>
@@ -81,7 +81,7 @@ export default function Invest() {
         </div>
       )}
       <Card title={t('Spread an amount across loans', 'একটি অঙ্ক কয়েকটি ঋণে ভাগ করুন')} className="mt-6">
-        <p className="text-[13.5px] text-muted mb-3">{t('Enter an amount and Bhorsha spreads it across the open loans, within your caps.', 'একটি অঙ্ক দিন, ভরসা আপনার সীমার মধ্যে খোলা ঋণগুলোতে ভাগ করে দেবে।')}</p>
+        <p className="text-[13.5px] text-muted mb-3">{t('Enter any amount and Bhorsha suggests how to spread it across the open loans, so not everything rides on one shop.', 'যেকোনো অঙ্ক দিন, ভরসা খোলা ঋণগুলোতে ভাগ করার প্রস্তাব দেবে, যাতে সব টাকা এক দোকানে না যায়।')}</p>
         <div className="flex items-center gap-3 mb-3">
           <label className="label" htmlFor="b">{t('Amount', 'অঙ্ক')}</label>
           <input id="b" type="number" step={10000} className="input max-w-[180px]" value={budget} onChange={(e) => setBudget(Math.max(1000, Number(e.target.value)))} />

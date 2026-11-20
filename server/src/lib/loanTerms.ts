@@ -24,6 +24,9 @@ export interface TermsPolicy {
   match_confidence_min: number;
   early_pay_discount_pct: number; // share of an instalment's interest waived when it is paid early enough (0 = off)
   early_pay_min_days: number; // how many days before the due date counts as "early enough"
+  investor_share_small_pct: number; // investors together may fund up to this share of a loan at or below the threshold
+  investor_share_large_pct: number; // ... and up to this share of a loan above it (the lender keeps the rest)
+  investor_large_loan_bdt: number; // the threshold between the two
 }
 
 export const DEFAULT_TERMS: TermsPolicy = {
@@ -45,7 +48,20 @@ export const DEFAULT_TERMS: TermsPolicy = {
   match_confidence_min: 0.8,
   early_pay_discount_pct: 25,
   early_pay_min_days: 5,
+  investor_share_small_pct: 100,
+  investor_share_large_pct: 75,
+  investor_large_loan_bdt: 500000,
 };
+
+/** Share of a loan investors together may fund: the small-loan share up to the threshold, the large-loan share above it. */
+export function investorSharePct(loanBdt: number, p: TermsPolicy) {
+  return loanBdt > p.investor_large_loan_bdt ? p.investor_share_large_pct : p.investor_share_small_pct;
+}
+
+/** The most investors together may put into this loan. */
+export function investorCapBdt(loanBdt: number, p: TermsPolicy) {
+  return Math.floor((loanBdt * investorSharePct(loanBdt, p)) / 100);
+}
 
 export function termsFrom(p: Partial<TermsPolicy> | null | undefined): TermsPolicy {
   const out = { ...DEFAULT_TERMS };

@@ -36,15 +36,15 @@ export default function InvestCase() {
   const [busy, setBusy] = useState(false);
   if (error) return <><SimulationBanner /><ErrorNote msg={error} /></>;
   if (!data) return <Skeleton h={300} />;
-  // the most this investor can put in here: what is still open on the loan, their per-loan cap left, and their total cap left
+  // investors choose freely; the only limit is what is still open on the loan
   const MIN = 1000;
-  const maxAllowed = Math.max(0, Math.min(data.open_bdt, data.cap_per_loan_bdt - data.my_commitment_bdt, data.cap_total_bdt - data.committed_total_bdt));
+  const maxAllowed = Math.max(0, data.open_bdt);
   const amount = amt ?? Math.min(10000, maxAllowed);
   const amountProblem =
-    maxAllowed < MIN ? (data.open_bdt <= 0 ? t('This loan is fully funded by investors.', 'বিনিয়োগকারীরা এই ঋণ পুরো অর্থায়ন করেছেন।') : t('You have reached your cap for this loan or in total.', 'এই ঋণে বা মোট সীমায় আপনি সর্বোচ্চ দিয়ে ফেলেছেন।'))
-      : !(amount >= MIN) ? t(`The smallest amount is ${n(MIN)}.`, `সর্বনিম্ন ${n(MIN)} টাকা।`)
-        : amount > data.open_bdt ? t(`Only ${n(data.open_bdt)} is still open on this loan. Investors together can fund up to a quarter of it.`, `এই ঋণে মাত্র ${n(data.open_bdt)} টাকা বাকি। বিনিয়োগকারীরা মিলে ঋণের সর্বোচ্চ চার ভাগের এক ভাগ দিতে পারেন।`)
-          : amount > maxAllowed ? t(`That is over your cap. You can put in up to ${n(maxAllowed)}.`, `এটি আপনার সীমার বেশি। সর্বোচ্চ ${n(maxAllowed)} টাকা দিতে পারেন।`) : null;
+    maxAllowed <= 0 ? t('This loan is fully funded by investors.', 'বিনিয়োগকারীরা এই ঋণ পুরো অর্থায়ন করেছেন।')
+      : maxAllowed < MIN && amount !== maxAllowed ? t(`Only ${n(maxAllowed)} is left: put in exactly that amount.`, `মাত্র ${n(maxAllowed)} টাকা বাকি: ঠিক এই অঙ্কই দিন।`)
+      : !(amount >= Math.min(MIN, maxAllowed)) ? t(`The smallest amount is ${n(Math.min(MIN, maxAllowed))}.`, `সর্বনিম্ন ${n(Math.min(MIN, maxAllowed))} টাকা।`)
+        : amount > data.open_bdt ? t(`Only ${n(data.open_bdt)} is still open on this loan (investors together can fund up to ${data.investor_share_pct}% of it).`, `এই ঋণে মাত্র ${n(data.open_bdt)} টাকা বাকি (বিনিয়োগকারীরা মিলে ঋণের সর্বোচ্চ ${n(data.investor_share_pct)}% দিতে পারেন)।`) : null;
   const commit = async () => {
     setBusy(true);
     setErr(null);
@@ -112,12 +112,10 @@ export default function InvestCase() {
             <dd className="num font-semibold text-right">{bdt(data.open_bdt)}</dd>
             <dt className="text-muted">{t('Your commitment here', 'এখানে আপনার')}</dt>
             <dd className="num text-right">{bdt(data.my_commitment_bdt)}</dd>
-            <dt className="text-muted">{t('Your per-loan cap', 'প্রতি ঋণে আপনার সীমা')}</dt>
-            <dd className="num text-right">{bdt(data.cap_per_loan_bdt)}</dd>
-            <dt className="text-muted">{t('Total committed / cap', 'মোট প্রতিশ্রুতি / সীমা')}</dt>
-            <dd className="num text-right">
-              {n(data.committed_total_bdt)} / {n(data.cap_total_bdt)}
-            </dd>
+            <dt className="text-muted">{t('Investors may fund', 'বিনিয়োগকারীরা দিতে পারেন')}</dt>
+            <dd className="num text-right">{t(`up to ${data.investor_share_pct}% (${n(data.investor_share_bdt)})`, `সর্বোচ্চ ${n(data.investor_share_pct)}% (${n(data.investor_share_bdt)})`)}</dd>
+            <dt className="text-muted">{t('Your total invested', 'আপনার মোট বিনিয়োগ')}</dt>
+            <dd className="num text-right">{bdt(data.committed_total_bdt)}</dd>
           </dl>
           {data.verification_status !== 'verified' ? (
             <p className="text-[14px]" style={{ color: 'var(--unsure)' }}>
@@ -134,7 +132,7 @@ export default function InvestCase() {
               <input id="amt" type="number" step={500} min={MIN} max={maxAllowed} className="input mt-1" value={amount} onChange={(e) => setAmt(Number(e.target.value))} />
               <div className="flex flex-wrap items-center justify-between gap-2 mt-1 text-[12.5px]">
                 <span className="text-muted">{t(`You can put in up to ${n(maxAllowed)} here.`, `এখানে সর্বোচ্চ ${n(maxAllowed)} টাকা দিতে পারেন।`)}</span>
-                {amount !== maxAllowed && maxAllowed >= MIN && <button type="button" className="text-accent underline" onClick={() => setAmt(maxAllowed)}>{t('Use the maximum', 'সর্বোচ্চ নিন')}</button>}
+                {amount !== maxAllowed && maxAllowed > 0 && <button type="button" className="text-accent underline" onClick={() => setAmt(maxAllowed)}>{t('Use the maximum', 'সর্বোচ্চ নিন')}</button>}
               </div>
               {amountProblem && <p className="text-[13px] mt-1" style={{ color: 'var(--notviable)' }}>{amountProblem}</p>}
               <ReturnBox amount={amountProblem ? 0 : amount} tenor={data.tenor_months} rate={data.investor_rate_pct} />
