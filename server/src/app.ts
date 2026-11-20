@@ -13,13 +13,15 @@ import investRoutes from './routes/invest';
 import miscRoutes from './routes/misc';
 import ownerRoutes from './routes/owner';
 import consoleRoutes from './routes/console';
+import loanRoutes from './routes/loans';
 import { BRAND } from './brand';
 
 export function createApp() {
   const app = express();
   app.set('trust proxy', 1);
   app.use(cors({ origin: config.corsOrigin, credentials: true }));
-  app.use(express.json({ limit: '6mb' }));
+  // keep the raw body: the payment webhook's signature is computed over the exact bytes received
+  app.use(express.json({ limit: '6mb', verify: (req, _res, buf) => { (req as unknown as { rawBody?: string }).rawBody = buf.toString('utf8'); } }));
   app.use(cookieParser());
   app.use(attachUser);
 
@@ -43,6 +45,7 @@ export function createApp() {
   app.use('/api', miscRoutes);
   app.use('/api', ownerRoutes);
   app.use('/api', consoleRoutes);
+  app.use('/api', loanRoutes);
 
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found' }));
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

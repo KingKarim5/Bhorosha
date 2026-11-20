@@ -2,7 +2,8 @@ import { GenConfig } from './generator';
 import type { OnlineConfig } from './onlineGen';
 import type { Stated } from '../lib/features';
 
-// The six fictional demo shops (brief section 8). History: Nov 2025 to Oct 2026. "Now" is Nov 2026.
+// The nine fictional demo shops. Every loan sits inside the v3 limits (Tk 1,000,000, 12 months) except
+// Hasan, whose request is deliberately outside them to show the Counter-offer agent. History: Nov 2025 to Oct 2026. "Now" is Nov 2026.
 // Funded shops also get 6 hidden post-funding months that Simulate next month reveals one at a time.
 
 export const HISTORY_START = '2025-11';
@@ -31,6 +32,8 @@ export interface DemoShop {
   gen: GenConfig;
   docs: { kind: 'bill' | 'note'; sample_key: string; confirm?: boolean }[];
   checkins?: { reported_sales_bdt: number | null; problem_note: string; source: string }[];
+  contract?: { earlyClause?: string; lateClause?: string }; // wording overrides for the generated loan contract
+  repayments?: { lateDays: number[]; partial?: number[]; noRef?: number[]; payer?: string }; // simulated repayment behaviour per instalment (index 0 = first)
   decision?: { decision: 'approve'; reason: string }; // seeds the funded loans; text is rewritten by the Underwriter
 }
 
@@ -47,8 +50,8 @@ export const DEMO_SHOPS: DemoShop[] = [
     business_type_bn: 'চায়ের দোকান ও মুদি',
     owner_label: 'Rahima (demo owner)',
     months_trading: 48,
-    loan_ask_bdt: 200000,
-    tenor_months: 36,
+    loan_ask_bdt: 70000,
+    tenor_months: 12,
     purpose: 'Stock up on fast-moving goods so the shelves do not empty mid-month',
     purpose_kind: 'working_capital',
     status: 'filed',
@@ -77,8 +80,8 @@ export const DEMO_SHOPS: DemoShop[] = [
     business_type_bn: 'সোয়েটার কারখানা, ৪টি মেশিন, ১৮ জন কর্মী',
     owner_label: 'Sultana (demo owner)',
     months_trading: 60,
-    loan_ask_bdt: 1200000,
-    tenor_months: 60,
+    loan_ask_bdt: 600000,
+    tenor_months: 12,
     purpose: 'Yarn and wages for the winter order season',
     purpose_kind: 'working_capital',
     status: 'funded',
@@ -87,7 +90,7 @@ export const DEMO_SHOPS: DemoShop[] = [
     online_share: 0,
     stated: { cash_share: 0.05, margin: 0.3, seasonal: false, receivable_bdt: 400000, receivable_days: 75, cib_status: 'clean', grace_months: 3 },
     gen: {
-      seed: 202, startMonth: HISTORY_START, months: 12, postMonths: 6, base: 225000, growth: 0.015, noise: 0.06, businessType: 'knitwear',
+      seed: 202, startMonth: HISTORY_START, months: 12, postMonths: 6, base: 490000, growth: 0.015, noise: 0.06, businessType: 'knitwear',
       mode: 'buyers', buyers: [{ name: 'Northern Knit Exports', share: 0.45 }, { name: 'Lalbagh Apparel', share: 0.3 }, { name: 'Kumilla Fashion House', share: 0.25 }],
       supplierRatio: 0.55, supplierBills: 3, lateDays: mildLate, household: 0.04, utility: 9000,
       supplierNames: ['Supplier: Narayanganj Yarn', 'Supplier: Ashulia Dyeing', 'Supplier: Tongi Accessories'],
@@ -105,6 +108,7 @@ export const DEMO_SHOPS: DemoShop[] = [
       { reported_sales_bdt: 260000, problem_note: 'গ্রীষ্মে অর্ডার একটু কম।', source: 'owner_typed' },
     ],
     decision: { decision: 'approve', reason: 'Viable with conditions; second tranche tied to collecting the Northern Knit receivable.' },
+    repayments: { lateDays: [0, -1, 1, -6, 0, 0] },
   },
   {
     slug: 'karim',
@@ -115,8 +119,8 @@ export const DEMO_SHOPS: DemoShop[] = [
     business_type_bn: 'ফার্মেসি',
     owner_label: 'Karim (demo owner)',
     months_trading: 84,
-    loan_ask_bdt: 500000,
-    tenor_months: 48,
+    loan_ask_bdt: 140000,
+    tenor_months: 12,
     purpose: 'Medicine stock and a second refrigerator',
     purpose_kind: 'working_capital',
     status: 'funded',
@@ -142,6 +146,7 @@ export const DEMO_SHOPS: DemoShop[] = [
       { reported_sales_bdt: 135000, problem_note: 'আগের মতো না।', source: 'owner_typed' },
     ],
     decision: { decision: 'approve', reason: 'Not sure at filing; approved with conditions (smaller first tranche, monthly check-ins) because of 7 years of trading. Watch closely.' },
+    repayments: { lateDays: [0, 9, 14, 12, 8, 6], partial: [2] },
   },
   {
     slug: 'nasir',
@@ -152,8 +157,8 @@ export const DEMO_SHOPS: DemoShop[] = [
     business_type_bn: 'মোবাইল এক্সেসরিজের দোকান',
     owner_label: 'Nasir (demo owner)',
     months_trading: 36,
-    loan_ask_bdt: 300000,
-    tenor_months: 36,
+    loan_ask_bdt: 105000,
+    tenor_months: 12,
     purpose: 'Bulk purchase of chargers and covers before Eid',
     purpose_kind: 'working_capital',
     status: 'filed',
@@ -176,8 +181,8 @@ export const DEMO_SHOPS: DemoShop[] = [
     business_type_bn: 'মৌসুমি মাছ ব্যবসায়ী',
     owner_label: 'Jahan (demo owner)',
     months_trading: 120,
-    loan_ask_bdt: 400000,
-    tenor_months: 36,
+    loan_ask_bdt: 140000,
+    tenor_months: 12,
     purpose: 'Ice boxes and advance payments to boat owners before the season',
     purpose_kind: 'working_capital',
     status: 'funded',
@@ -200,6 +205,7 @@ export const DEMO_SHOPS: DemoShop[] = [
       { reported_sales_bdt: 100000, problem_note: 'ভালো।', source: 'owner_typed' },
     ],
     decision: { decision: 'approve', reason: 'Viable with a wide band; seasonal pattern matches the owner note. Grace period covers the lean months.' },
+    repayments: { lateDays: [0, 6, 7, 2, 0, -1] },
   },
   {
     slug: 'tania',
@@ -210,8 +216,8 @@ export const DEMO_SHOPS: DemoShop[] = [
     business_type_bn: 'অনলাইন পোশাক বিক্রেতা',
     owner_label: 'Tania (demo owner)',
     months_trading: 12,
-    loan_ask_bdt: 600000,
-    tenor_months: 36,
+    loan_ask_bdt: 210000,
+    tenor_months: 12,
     purpose: 'Inventory for the winter collection',
     purpose_kind: 'working_capital',
     status: 'filed',
@@ -240,8 +246,8 @@ export const DEMO_SHOPS: DemoShop[] = [
     business_type_bn: 'আতর ও পারফিউম ডিক্যান্ট, দোকান ও অনলাইন',
     owner_label: 'Rafi (demo owner)',
     months_trading: 40,
-    loan_ask_bdt: 350000,
-    tenor_months: 36,
+    loan_ask_bdt: 120000,
+    tenor_months: 12,
     purpose: 'Oud oil and bottle stock ahead of the Eid season',
     purpose_kind: 'working_capital',
     status: 'funded',
@@ -268,5 +274,57 @@ export const DEMO_SHOPS: DemoShop[] = [
       { reported_sales_bdt: 160000, problem_note: 'পহেলা বৈশাখের অর্ডার।', source: 'owner_typed' },
     ],
     decision: { decision: 'approve', reason: 'Hybrid seller; courier settlements match the wallet.' },
+    repayments: { lateDays: [0, 0, 1, 0, -2, 0], noRef: [1, 3], payer: 'Rafi personal bKash' },
+  },
+  {
+    slug: 'mitu',
+    label: 'Mitu Beauty Corner',
+    label_bn: 'মিতু বিউটি কর্নার',
+    business_type: 'cosmetics',
+    business_type_label: 'Cosmetics and toiletries shop',
+    business_type_bn: 'প্রসাধনী ও টয়লেট্রিজের দোকান',
+    owner_label: 'Mitu (demo owner)',
+    months_trading: 30,
+    loan_ask_bdt: 90000,
+    tenor_months: 12,
+    purpose: 'Stock of fast-selling cosmetics before the wedding season',
+    purpose_kind: 'working_capital',
+    status: 'filed',
+    segment: 'cash_led',
+    offline_share: 1,
+    online_share: 0,
+    stated: { cash_share: 0.5, margin: 0.22, seasonal: false, cib_status: 'clean', grace_months: 1 },
+    gen: {
+      seed: 808, startMonth: HISTORY_START, months: 12, base: 52000, growth: 0.015, noise: 0.03, businessType: 'cosmetics',
+      mode: 'retail', txPerDay: 1.8, supplierRatio: 0.55, supplierBills: 2, lateDays: onTime, household: 0.05, utility: 1300,
+      supplierNames: ['Supplier: Chawkbazar Cosmetics', 'Supplier: Mouchak Wholesale'],
+    },
+    docs: [],
+    contract: { lateClause: 'Late repayment: a late fee may apply, as agreed verbally with the branch officer.' },
+  },
+  {
+    slug: 'hasan',
+    label: 'Hasan Hardware Store',
+    label_bn: 'হাসান হার্ডওয়্যার স্টোর',
+    business_type: 'hardware',
+    business_type_label: 'Hardware and building supplies',
+    business_type_bn: 'হার্ডওয়্যার ও নির্মাণসামগ্রী',
+    owner_label: 'Hasan (demo owner)',
+    months_trading: 96,
+    loan_ask_bdt: 1500000,
+    tenor_months: 24,
+    purpose: 'Cement, rods and paint stock for the building season',
+    purpose_kind: 'working_capital',
+    status: 'filed',
+    segment: 'cash_led',
+    offline_share: 1,
+    online_share: 0,
+    stated: { cash_share: 0.5, margin: 0.18, seasonal: false, cib_status: 'clean', grace_months: 2 },
+    gen: {
+      seed: 909, startMonth: HISTORY_START, months: 12, base: 300000, growth: 0.01, noise: 0.03, businessType: 'hardware',
+      mode: 'retail', txPerDay: 3, supplierRatio: 0.6, supplierBills: 3, lateDays: onTime, household: 0.04, utility: 3500,
+      supplierNames: ['Supplier: Shah Cement dealer', 'Supplier: BSRM rod dealer', 'Supplier: Berger paint dealer'],
+    },
+    docs: [],
   },
 ];

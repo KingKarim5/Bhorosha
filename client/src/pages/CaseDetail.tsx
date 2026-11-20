@@ -12,6 +12,7 @@ import { STATUS_WORDS } from './Dashboard';
 import { CAUSE_WORDS } from './Cases';
 import { BRAND } from '../brand';
 import { AgentTrace } from '../components/AgentTrace';
+import { LoanTerms } from '../components/LoanTerms';
 
 function Section({ title, children, open = true, right }: { title: string; children: ReactNode; open?: boolean; right?: ReactNode }) {
   return (
@@ -215,6 +216,9 @@ export default function CaseDetail() {
           </Section>
           <Section title={t('AI decision', 'এআই-এর সিদ্ধান্ত')}>
             <DecisionHistory decisions={data.decisions} />
+          </Section>
+          <Section title={t('Loan terms and repayments', 'ঋণের শর্ত ও কিস্তি')}>
+            <LoanTerms caseId={data.app._id} onChange={reload} />
           </Section>
           {(data.questions || []).length > 0 && (
             <Section title={t('Questions sent to the owner', 'মালিককে পাঠানো প্রশ্ন')}>

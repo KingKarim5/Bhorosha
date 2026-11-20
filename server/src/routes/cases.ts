@@ -95,7 +95,7 @@ r.get('/cases/:id/trace', staff, async (req, res) => {
   const last = await AuditLog.findOne({ application: req.params.id, run_id: { $ne: null } }).sort({ createdAt: -1 }).lean();
   if (!last) return res.json({ run_id: null, agents: [] });
   const rows = await AuditLog.find({ run_id: last.run_id }).sort({ createdAt: 1 }).lean();
-  const order = ['Intake', 'Verifier', 'Underwriter', 'Watchman', 'Servicer'];
+  const order = ['Intake', 'Verifier', 'Contract reader', 'Underwriter', 'Counter-offer', 'Pricing', 'Fee explainer', 'Payment matcher', 'Servicer', 'Watchman'];
   const agents = order
     .map((a) => ({ agent: a, steps: rows.filter((x) => x.agent === a).map((x) => ({ step: x.step || x.action, mode: x.mode, ms: x.latency_ms, summary: (x.output_json as Record<string, unknown>)?.summary ?? null, ai: String(x.action).startsWith('ai:'), at: x.createdAt })) }))
     .filter((a) => a.steps.length);

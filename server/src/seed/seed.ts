@@ -17,6 +17,7 @@ import { recompute } from '../services/casefile';
 import { addMonths, mulberry32 } from '../lib/util';
 import { config } from '../config';
 import { loadModel } from '../lib/model';
+import { ensureContract, openLoanAccount, getTerms } from '../services/loan';
 
 export const DEMO_PASSWORD = 'bhorsha-demo';
 export const DEMO_ACCOUNTS = [
@@ -108,6 +109,8 @@ async function seedUnlocked(log: (m: string) => void) {
     }
     for (const [i, c] of (s.checkins || []).entries())
       await CheckIn.create({ shop: shop._id, month: addMonths(SIM_BASE_MONTH, i), sim_index: i + 1, ...c, revealed: false });
+    const terms = await getTerms();
+    await ensureContract(app.toObject(), shop.toObject(), terms, s.contract || {});
     await recompute(app._id, { actor: 'seed', reason: 'initial seed' });
     if (s.status === 'funded') {
       // a funded loan whose AI decision was not an approval is an existing loan in the partner's book (Karim)
@@ -116,6 +119,12 @@ async function seedUnlocked(log: (m: string) => void) {
         last.legacy_note = "Existing loan in the partner's book before Bhorsha (not approved by Bhorsha); monitored by the watchman.";
         await last.save();
       }
+      // repayment account: the released amount (first tranche when the loan is released in parts), monthly from 10 November
+      const principal = last?.decision === 'approved_with_conditions' && last.first_tranche_bdt ? last.first_tranche_bdt : s.loan_ask_bdt;
+      const pr = (last?.pricing || {}) as { rebate_pct?: number; penalty_pts?: number };
+      await openLoanAccount(app.toObject(), shop.toObject(), {
+        principal, tenor: s.tenor_months, ratePct: terms.borrower_rate_pct, rebatePct: pr.rebate_pct ?? terms.rebate_default_pct, penaltyPts: pr.penalty_pts ?? terms.penalty_default_pts, firstDue: `${SIM_BASE_MONTH}-10`,
+      });
     }
     log(`  seeded ${s.label}`);
   }
@@ -132,8 +141,8 @@ async function seedUnlocked(log: (m: string) => void) {
     for (const step of ['identity', 'source_of_funds', 'risk_acknowledgement'])
       await InvestorVerification.create({ investor: inv._id, step, status: 'done', simulated_at: new Date(), dummy_value: 'DUMMY-0000' });
   const commits: [number, string, number][] = [
-    [0, 'karim', 30000], [1, 'karim', 25000], [2, 'karim', 20000],
-    [0, 'jahan', 20000], [2, 'jahan', 40000],
+    [0, 'karim', 15000], [1, 'karim', 12000], [2, 'karim', 8000],
+    [0, 'jahan', 10000], [2, 'jahan', 20000],
     [1, 'sultana', 50000], [3, 'sultana', 50000], [4, 'sultana', 30000],
   ];
   for (const [i, slug, amt] of commits) {

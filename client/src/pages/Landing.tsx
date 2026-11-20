@@ -156,7 +156,7 @@ export default function Landing() {
           {[
             { big: '1', en: 'page per business, in Bangla and English', bn: 'প্রতি ব্যবসায় এক পাতা, বাংলা ও ইংরেজিতে' },
             { big: '2', en: 'labels on every claim: checked or owner says', bn: 'প্রতিটি দাবিতে দুই চিহ্ন: যাচাই করা বা মালিকের কথা' },
-            { big: '5', en: 'AI agents, one policy the lender owns', bn: 'এআই এজেন্ট, একটি নীতি যা ঋণদাতার' },
+            { big: '10', en: 'AI agents, one policy the lender owns', bn: 'এআই এজেন্ট, একটি নীতি যা ঋণদাতার' },
           ].map((x, i) => (
             <motion.div key={i} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.1 }} className="card p-6 text-center">
               <div className="font-display text-[64px] leading-none font-semibold shimmer-text">{x.big}</div>

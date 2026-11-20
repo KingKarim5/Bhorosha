@@ -87,6 +87,7 @@ export async function callJson<T>(opts: {
   agent?: string;
   run_id?: string;
   timeoutMs?: number; // per-call limit; on timeout the labelled fallback runs
+  maxAttempts?: number; // default 2 (one retry); 1 for time-boxed paths such as the simulation
 }): Promise<AiResult<T>> {
   const t0 = Date.now();
   const auditInput = { task: opts.task, system: opts.system.slice(0, 4000), user: opts.user.slice(0, 8000), image: opts.image ? `[image ${opts.image.mime}, ${Math.round(opts.image.b64.length * 0.75 / 1024)} KB, not stored]` : undefined };
@@ -94,7 +95,7 @@ export async function callJson<T>(opts: {
   let lastErr = 'no AI key set';
   if (aiKeyPresent()) {
     let userMsg = opts.user;
-    for (attempts = 1; attempts <= 2; attempts++) {
+    for (attempts = 1; attempts <= (opts.maxAttempts ?? 2); attempts++) {
       try {
         const text = config.aiProvider === 'gemini' ? await callGemini(opts.system, userMsg, opts.image, opts.timeoutMs) : await callAnthropic(opts.system, userMsg, opts.image, opts.timeoutMs);
         const parsed = opts.schema.safeParse(extractJson(text));
@@ -109,7 +110,7 @@ export async function callJson<T>(opts: {
         userMsg = `${opts.user}\n\nYour previous answer was rejected (${lastErr}). Return only valid JSON that follows every rule.`;
       }
     }
-    attempts = 2;
+    attempts = opts.maxAttempts ?? 2;
   }
   const data = opts.fallback();
   const res: AiResult<T> = { data, mode: 'demo_fallback', attempts, error: lastErr, latency_ms: Date.now() - t0 };
@@ -176,6 +177,39 @@ export const CheckinSchema = z.object({
   cause_hint: z.enum(['stock_problem', 'fewer_customers', 'higher_costs', 'buyers_paying_late', 'household_mixing', 'seasonal_normal', 'none']).default('none'),
 });
 
+// ---------- v3 loan agents ----------
+const clauseNum = nullableNum.optional().transform((v) => v ?? null);
+export const ContractSchema = z.object({
+  principal_bdt: nullableNum,
+  annual_rate_pct: nullableNum,
+  tenor_months: nullableNum,
+  early_clause: z.string().nullable(),
+  late_clause: z.string().nullable(),
+  early_rebate_pct: clauseNum,
+  late_penalty_pts: clauseNum,
+  unclear: z.array(z.object({ clause: z.string(), why_en: z.string(), why_bn: z.string().optional().default('') })).default([]),
+  confidence: z.number().min(0).max(1),
+});
+export type ContractRead = z.infer<typeof ContractSchema>;
+
+export const TextPairSchema = z.object({ text_en: z.string().min(10).max(900), text_bn: z.string().min(10).max(1200) });
+export type TextPair = z.infer<typeof TextPairSchema>;
+
+export const PricingSchema = z.object({ rebate_pct: z.number(), penalty_pts: z.number(), reason_en: z.string().max(400), reason_bn: z.string().max(600) });
+export type PricingRead = z.infer<typeof PricingSchema>;
+
+export const PaymentMatchSchema = z.object({ loan_ref: z.string().nullable(), confidence: z.number().min(0).max(1), reason: z.string().max(300) });
+export type PaymentMatch = z.infer<typeof PaymentMatchSchema>;
+
+export const RepaymentWatchSchema = z.object({
+  assessment: z.enum(['real_warning', 'seasonal_pattern', 'no_concern']),
+  reason_en: z.string().max(400),
+  reason_bn: z.string().max(600),
+});
+export type RepaymentWatch = z.infer<typeof RepaymentWatchSchema>;
+
+const NO_WORDS = 'Never use the words certificate, guarantee, guaranteed, ensured, secured, or "approved by AI".';
+
 // ---------- Prompts ----------
 export const PROMPTS = {
   bill: `You read photos of shop bills, cash memos and invoices from Bangladesh, written in Bangla, English or both.
@@ -193,6 +227,27 @@ Rules: use only numbers that appear in the facts object, written the same way. E
   ask: `You answer questions about ONE loan case file using only the evidence items given, each with an id.
 Return ONLY JSON: {"declined": boolean, "answer_en", "answer_bn", "cites": [evidence ids]}.
 Rules: answer only from the evidence; cite the ids you used. If the question cannot be answered from the evidence, or asks for anything else (advice about a person, other cases, predictions beyond the file), set declined true and say briefly what the file can answer. Use only numbers that appear in the evidence.`,
+  contract: `You read a small-business loan contract from Bangladesh (English or Bangla).
+Return ONLY JSON: {"principal_bdt","annual_rate_pct","tenor_months","early_clause","late_clause","early_rebate_pct","late_penalty_pts","unclear":[{"clause","why_en","why_bn"}],"confidence"}.
+Rules: extract only what the contract states; use null when a term is missing. early_clause and late_clause are the clause texts, copied as written. early_rebate_pct is the share of remaining interest waived on early repayment; late_penalty_pts is the extra percentage points a year on overdue amounts. Set early_rebate_pct or late_penalty_pts only when the clause itself fixes the figure; a clause that points to Annex A with a stated range is clear, and the figure stays null (the Pricing agent sets it inside the range). List in "unclear" every early or late repayment clause that has neither a fixed figure nor a stated range, refers to a verbal or later agreement, or leaves the amount to someone's discretion. Lower the confidence when anything is ambiguous. Never guess.`,
+  counteroffer: `You write a counter-offer to a small-business owner in Bangladesh whose loan request is outside the lender's limits, in plain English and plain Bangla.
+You are given the request, the limits and the counter-offer figures. Return ONLY JSON: {"text_en","text_bn"}.
+Rules: use only the numbers given, written the same way. Say which limit the request crossed, what the lender can offer instead, and that the owner can accept it on their page. Warm and respectful, under 70 words each. Judge the request, never the person. ${NO_WORDS}`,
+  pricing: `You set two terms for a small-business loan inside the lender's bands: the early-repayment rebate (share of remaining scheduled interest waived) and the late penalty (extra percentage points a year on overdue amounts).
+You are given the contract clauses, the lender's default, minimum and maximum for each, and the borrower's payment history. Return ONLY JSON: {"rebate_pct","penalty_pts","reason_en","reason_bn"}.
+Rules: if the contract states a figure, use it. Otherwise start from the default: a borrower who pays suppliers on time may get a slightly higher rebate; a worsening payment record may justify a slightly higher penalty. Stay inside the bands. Explain in one sentence each, using only numbers given. ${NO_WORDS}`,
+  feeexplain: `You explain, in plain English and plain Bangla for a shop owner and a small investor, how the interest on one loan is shared between the investors, Bhorsha and the lender.
+You are given the figures. Return ONLY JSON: {"text_en","text_bn"}.
+Rules: use only the numbers given, written the same way. Mention the borrower rate, the investor rate (bank rate plus 0.25%), Bhorsha's share of the interest for this tenor, and what the lender keeps. Under 90 words each. No promises about returns. ${NO_WORDS}`,
+  paymatch: `You match one incoming bKash or bank payment to the right loan when the reference is missing or unclear.
+You are given the payment (amount, date, payer token, reference text) and the candidate loans (reference, payer token, next due date and amount, amount overdue). Return ONLY JSON: {"loan_ref": a candidate reference or null, "confidence": 0..1, "reason"}.
+Rules: pick only from the candidates. Payer token match is the strongest signal; amount and timing support it. A partial amount or odd timing lowers the confidence. If two loans fit equally, or nothing fits, return null with low confidence. Never guess.`,
+  servicer: `You are the Servicer agent. You write one short message to a small-business borrower in Bangladesh, in plain English and plain Bangla: a payment receipt, an early-settlement quote, or a late-payment notice.
+You are given the kind of message and the exact amounts. Return ONLY JSON: {"text_en","text_bn"}.
+Rules: use only the numbers given, written the same way, with "Tk" or "টাকা". Receipts thank the owner and state what is still due. Quotes state the total and that it is valid on the date given. Late notices are supportive first: state the amount and days overdue, the late fee so far, and invite the owner to talk to the lender. Under 70 words each. ${NO_WORDS}`,
+  repaywatch: `You are the Watchman agent. A repayment arrived late or early on a small-business loan in Bangladesh. Decide whether it is a real warning, an expected seasonal pattern, or no concern.
+You are given the payment timing, the shop's type, whether its sales are seasonal, the latest sales check against its forecast, any festival nearby, and earlier repayments. Return ONLY JSON: {"assessment":"real_warning|seasonal_pattern|no_concern","reason_en","reason_bn"}.
+Rules: a late payment in a known lean season of a seasonal shop, with sales inside the forecast band, is a seasonal pattern. Late payments together with sales below forecast, or repeated late payments, are a real warning. Early or on-time payments are no concern. One sentence each, using only facts given.`,
   checkin: `You read a monthly update from a small-business owner in Bangladesh (Bangla or English, may be speech-to-text).
 Return ONLY JSON: {"sales_bdt": number or null, "problems": [short English phrases], "cause_hint": one of stock_problem, fewer_customers, higher_costs, buyers_paying_late, household_mixing, seasonal_normal, none}.
 Only extract what is said. Convert Bangla numerals.`,

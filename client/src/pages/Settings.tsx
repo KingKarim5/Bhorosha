@@ -5,7 +5,7 @@ import { useAuth } from '../lib/auth';
 import { api } from '../lib/api';
 import { PageTitle, Skeleton, Card, ErrorNote } from '../components/ui';
 
-const FIELDS: { k: string; en: string; bn: string; step: number; group: 'autonomy' | 'rules' | 'breaker' }[] = [
+const FIELDS: { k: string; en: string; bn: string; step: number; group: 'autonomy' | 'rules' | 'breaker' | 'terms' | 'pricing' }[] = [
   { k: 'autonomy_cap_bdt', en: 'Autonomy cap: largest first tranche the AI may release (BDT)', bn: 'স্বয়ংক্রিয় সীমা: এআই সর্বোচ্চ যত টাকার প্রথম কিস্তি ছাড়তে পারে', step: 10000, group: 'autonomy' },
   { k: 'min_coverage_pct', en: 'Coverage below which the band widens (%)', bn: 'যে কভারেজের নিচে সীমা চওড়া হয় (%)', step: 5, group: 'rules' },
   { k: 'household_mixing_pct', en: 'Household mixing threshold (% of outflows)', bn: 'সংসারের টাকা মেশানোর সীমা (খরচের %)', step: 1, group: 'rules' },
@@ -18,6 +18,22 @@ const FIELDS: { k: string; en: string; bn: string; step: number; group: 'autonom
   { k: 'breaker_max_default_rate', en: 'Pause when the simulated default rate exceeds (0–1)', bn: 'সিমুলেটেড খেলাপি হার এর বেশি হলে থামান (০–১)', step: 0.01, group: 'breaker' },
   { k: 'breaker_window', en: 'Recent decisions counted for the hold rate', bn: 'স্থগিতের হার গোনার জন্য সাম্প্রতিক সিদ্ধান্ত', step: 1, group: 'breaker' },
   { k: 'breaker_min_decisions', en: 'Minimum decisions before the hold-rate limit applies', bn: 'স্থগিত-হারের সীমা প্রযোজ্য হওয়ার আগে ন্যূনতম সিদ্ধান্ত', step: 1, group: 'breaker' },
+  { k: 'max_principal_bdt', en: 'Largest loan (BDT)', bn: 'সর্বোচ্চ ঋণ (টাকা)', step: 50000, group: 'terms' },
+  { k: 'max_tenor_months', en: 'Longest tenor (months)', bn: 'সর্বোচ্চ মেয়াদ (মাস)', step: 1, group: 'terms' },
+  { k: 'borrower_rate_pct', en: 'Borrower rate (% a year)', bn: 'ঋণগ্রহীতার সুদ (বার্ষিক %)', step: 0.25, group: 'terms' },
+  { k: 'bank_rate_pct', en: 'Bank rate (% a year)', bn: 'ব্যাংক রেট (বার্ষিক %)', step: 0.25, group: 'terms' },
+  { k: 'investor_spread_pct', en: 'Investor rate above the bank rate (points)', bn: 'ব্যাংক রেটের উপরে বিনিয়োগকারীর হার (পয়েন্ট)', step: 0.05, group: 'terms' },
+  { k: 'fee_pct_short', en: 'Bhorsha fee, up to 3 months (% of interest)', bn: 'ভরসার ফি, ৩ মাস পর্যন্ত (সুদের %)', step: 0.5, group: 'terms' },
+  { k: 'fee_pct_mid', en: 'Bhorsha fee, 4 to 6 months (% of interest)', bn: 'ভরসার ফি, ৪ থেকে ৬ মাস (সুদের %)', step: 0.5, group: 'terms' },
+  { k: 'fee_pct_long', en: 'Bhorsha fee, 7 months and longer (% of interest)', bn: 'ভরসার ফি, ৭ মাস বা বেশি (সুদের %)', step: 0.5, group: 'terms' },
+  { k: 'rebate_default_pct', en: 'Early-repayment rebate: default (% of remaining interest)', bn: 'আগাম পরিশোধে ছাড়: ডিফল্ট (বাকি সুদের %)', step: 1, group: 'pricing' },
+  { k: 'rebate_min_pct', en: 'Rebate: minimum (%)', bn: 'ছাড়: সর্বনিম্ন (%)', step: 1, group: 'pricing' },
+  { k: 'rebate_max_pct', en: 'Rebate: maximum (%)', bn: 'ছাড়: সর্বোচ্চ (%)', step: 1, group: 'pricing' },
+  { k: 'penalty_default_pts', en: 'Late penalty: default (points a year)', bn: 'দেরির জরিমানা: ডিফল্ট (বার্ষিক পয়েন্ট)', step: 0.5, group: 'pricing' },
+  { k: 'penalty_min_pts', en: 'Late penalty: minimum (points)', bn: 'জরিমানা: সর্বনিম্ন (পয়েন্ট)', step: 0.5, group: 'pricing' },
+  { k: 'penalty_max_pts', en: 'Late penalty: maximum (points)', bn: 'জরিমানা: সর্বোচ্চ (পয়েন্ট)', step: 0.5, group: 'pricing' },
+  { k: 'grace_days', en: 'Grace days: a payment this late still counts as on time', bn: 'গ্রেস দিন: এত দিন দেরিও সময়মতো ধরা হয়', step: 1, group: 'pricing' },
+  { k: 'match_confidence_min', en: 'Payment matching: confidence needed to apply without review (0.5–1)', bn: 'পরিশোধ মেলানো: পর্যালোচনা ছাড়া যোগ করতে দরকারি আস্থা (০.৫–১)', step: 0.05, group: 'pricing' },
 ];
 const DOCS = [
   { k: 'statement', en: 'Wallet or bank statement', bn: 'ওয়ালেট বা ব্যাংক স্টেটমেন্ট' },
@@ -57,6 +73,8 @@ export default function Settings() {
     ['autonomy', t('Autonomy', 'স্বয়ংক্রিয়তা'), t('Over the cap, the AI can only release a first tranche up to the cap and ties the rest to conditions.', 'সীমার বেশি হলে এআই শুধু সীমা পর্যন্ত প্রথম কিস্তি ছাড়ে, বাকিটা শর্তের সাথে বাঁধা।')],
     ['rules', t('Rule thresholds', 'নিয়মের সীমা'), t('The transparent rules the Underwriter uses. Approval also needs every fail-safe gate to pass.', 'আন্ডাররাইটারের স্বচ্ছ নিয়ম। অনুমোদনের জন্য সব নিরাপত্তা-গেট পার হতে হয়।')],
     ['breaker', t('Circuit breaker', 'সার্কিট ব্রেকার'), t('Limits that pause AI decisions automatically.', 'যে সীমা পার হলে এআই-এর সিদ্ধান্ত নিজে থেকেই থামে।')],
+    ['terms', t('Loan limits and rates', 'ঋণের সীমা ও সুদ'), t('A request above these limits gets a counter-offer. The investor rate is the bank rate plus the spread; a save is refused if the borrower rate is below the investor rate plus Bhorsha’s fee.', 'এই সীমার বেশি আবেদনে পাল্টা প্রস্তাব যায়। বিনিয়োগকারীর হার = ব্যাংক রেট যোগ স্প্রেড; ঋণগ্রহীতার সুদ বিনিয়োগকারীর হার ও ভরসার ফির চেয়ে কম হলে সংরক্ষণ বাতিল হয়।')],
+    ['pricing', t('Pricing and repayments', 'মূল্য ও কিস্তি'), t('The Pricing agent sets each loan’s rebate and penalty inside these bands; the Payment matcher sends anything below the confidence threshold to your review queue.', 'প্রাইসিং এজেন্ট প্রতিটি ঋণের ছাড় ও জরিমানা এই সীমার ভেতরে ঠিক করে; আস্থা সীমার নিচে হলে পেমেন্ট ম্যাচার আপনার পর্যালোচনায় পাঠায়।')],
   ];
   const editable = user?.role === 'lender';
   return (

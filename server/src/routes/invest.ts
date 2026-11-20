@@ -17,6 +17,9 @@ export const TYPE_LABEL: Record<string, { en: string; bn: string }> = {
   mobile_accessories: { en: 'Mobile accessories shop', bn: 'মোবাইল এক্সেসরিজের দোকান' },
   fish_trader: { en: 'Seasonal fish trader', bn: 'মৌসুমি মাছ ব্যবসায়ী' },
   online_clothing: { en: 'Online clothing seller', bn: 'অনলাইন পোশাক বিক্রেতা' },
+  attar_online: { en: 'Attar seller, shop and online', bn: 'আতর বিক্রেতা, দোকান ও অনলাইন' },
+  cosmetics: { en: 'Cosmetics shop', bn: 'প্রসাধনীর দোকান' },
+  hardware: { en: 'Hardware store', bn: 'হার্ডওয়্যারের দোকান' },
 };
 const typeLabel = (t: string) => TYPE_LABEL[t] || { en: 'Small business', bn: 'ক্ষুদ্র ব্যবসা' };
 const code = (id: unknown) => 'BH-' + String(id).slice(-4).toUpperCase();
@@ -90,6 +93,7 @@ r.get('/invest/cases/:id', inv, async (req, res) => {
     reasons: x.v?.reasons_json, conditions: x.v?.conditions_json, cause: x.v?.cause, watch_list: x.v?.watch_list_json, cannot_tell: x.v?.cannot_tell_json,
     my_commitment_bdt: mine?.amount_bdt || 0, cap_per_loan_bdt: i.cap_per_loan_bdt, cap_total_bdt: i.cap_total_bdt, committed_total_bdt: i.committed_total_bdt,
     verification_status: i.verification_status,
+    fee_split: x.d?.fee_split ? { figures: x.d.fee_split.figures, text_en: x.d.fee_split.text_en, text_bn: x.d.fee_split.text_bn, by: x.d.fee_split.by } : null,
   });
 });
 

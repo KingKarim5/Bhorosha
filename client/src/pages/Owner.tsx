@@ -15,6 +15,14 @@ const DECISION_WORDS: Record<string, { en: string; bn: string }> = {
 };
 
 // The owner's private page: plain Bangla, no login, no internal scoring detail.
+const MSG_KIND: Record<string, { en: string; bn: string; color: string }> = {
+  receipt: { en: 'Receipt', bn: 'রসিদ', color: '#2f8f6b' },
+  late_notice: { en: 'Late payment', bn: 'দেরিতে পরিশোধ', color: '#b7791f' },
+  settlement_quote: { en: 'Early-settlement quote', bn: 'আগাম শোধের হিসাব', color: '#2b6cb0' },
+  watchman: { en: 'Check-in', bn: 'খোঁজখবর', color: '#b7791f' },
+  offer: { en: 'Offer', bn: 'প্রস্তাব', color: '#2f8f6b' },
+};
+
 export default function Owner() {
   const { token } = useParams();
   const { t, lang, pick, digits } = useI18n();
@@ -155,6 +163,65 @@ export default function Owner() {
             </ul>
           </>
         )}
+        {data.counter_offer && (
+          <div className="rounded-lg p-4 mt-6" style={{ background: 'rgba(224,178,79,0.12)', border: '1px solid #e2c27a' }}>
+            <h2 className="text-[21px] font-semibold" style={{ fontFamily: 'Noto Serif Bengali, serif' }}>{t('What the lender can offer', 'ঋণদাতা যা দিতে পারেন')}</h2>
+            <div className="grid grid-cols-3 gap-2 my-3 text-center">
+              {[[t('Amount', 'অঙ্ক'), `৳ ${digits(data.counter_offer.amount_bdt.toLocaleString('en-IN'))}`], [t('Months', 'মাস'), digits(String(data.counter_offer.tenor_months))], [t('Monthly', 'মাসিক কিস্তি'), `৳ ${digits(data.counter_offer.installment_bdt.toLocaleString('en-IN'))}`]].map(([k, v]) => (
+                <div key={k}><div className="text-[13px]" style={{ color: '#5b6f6b' }}>{k}</div><div className="num text-[19px] font-semibold">{v}</div></div>
+              ))}
+            </div>
+            <p className="text-[16px] leading-[1.7]">{digits(lang === 'bn' ? data.counter_offer.text_bn : data.counter_offer.text_en)}</p>
+            <button
+              className="btn btn-primary mt-3 text-[16px]"
+              disabled={busy === 'counter'}
+              onClick={async () => {
+                setBusy('counter');
+                setErr(null);
+                try {
+                  setData(await api(`/owner/${token}/counter-offer/accept`, { method: 'POST' }));
+                  setDone(t('Accepted. Your file was read again with the new amount.', 'গ্রহণ করা হয়েছে। নতুন অঙ্কে আপনার ফাইল আবার পড়া হয়েছে।'));
+                } catch (e) {
+                  setErr((e as Error).message);
+                } finally {
+                  setBusy(null);
+                }
+              }}
+            >
+              {busy === 'counter' ? '…' : t('Accept this offer', 'এই প্রস্তাব গ্রহণ করুন')}
+            </button>
+          </div>
+        )}
+        {data.loan && (
+          <>
+            <H>{t('Your repayments', 'আপনার কিস্তি')}</H>
+            <p className="text-[15px]" style={{ color: '#5b6f6b' }}>{t(`Loan ${data.loan.ref}: quote this reference when you pay by bKash or bank.`, `ঋণ ${data.loan.ref}: বিকাশ বা ব্যাংকে টাকা পাঠানোর সময় এই রেফারেন্স লিখুন।`)}</p>
+            <div className="h-2 rounded mt-2" style={{ background: '#e2daca' }}><div className="h-2 rounded" style={{ width: `${(data.loan.paid_bdt / data.loan.total_bdt) * 100}%`, background: 'var(--accent)' }} /></div>
+            <p className="text-[16px] mt-2">
+              {t('Paid', 'পরিশোধ')} <b className="num">৳ {digits(data.loan.paid_bdt.toLocaleString('en-IN'))}</b> {t('of', 'মোট')} <span className="num">৳ {digits(data.loan.total_bdt.toLocaleString('en-IN'))}</span>.
+              {data.loan.next_due && <> {t('Next', 'পরের কিস্তি')}: <b className="num">৳ {digits((data.loan.next_due.amount_bdt - data.loan.next_due.paid_bdt).toLocaleString('en-IN'))}</b> {t('by', 'তারিখ')} <span className="num">{digits(data.loan.next_due.due_date)}</span>.</>}
+            </p>
+            <p className="text-[14px] mt-1" style={{ color: '#5b6f6b' }}>{t(`Pay early and ${data.loan.rebate_pct}% of the interest still to come is waived. A late instalment costs ${data.loan.penalty_pts} extra points a year, only for the days it is late.`, `আগে শোধ করলে বাকি সুদের ${digits(String(data.loan.rebate_pct))}% মাফ। কিস্তি দেরি হলে শুধু দেরির দিনগুলোর জন্য বছরে ${digits(String(data.loan.penalty_pts))} পয়েন্ট বেশি।`)}</p>
+            <button
+              className="btn mt-3 text-[16px]"
+              disabled={busy === 'quote'}
+              onClick={async () => {
+                setBusy('quote');
+                setErr(null);
+                try {
+                  const r = await api(`/owner/${token}/settlement-quote`, { method: 'POST' });
+                  setData(r.view);
+                } catch (e) {
+                  setErr((e as Error).message);
+                } finally {
+                  setBusy(null);
+                }
+              }}
+            >
+              {busy === 'quote' ? '…' : t('How much to repay everything today?', 'আজ পুরো ঋণ শোধ করতে কত লাগবে?')}
+            </button>
+          </>
+        )}
         {d?.decision === 'approved_with_conditions' && d.tranche_plan?.length > 0 && (
           <>
             <H>{t('Money released in parts', 'ধাপে ধাপে টাকা ছাড়')}</H>
@@ -201,6 +268,7 @@ export default function Owner() {
             <ul className="space-y-3">
               {data.messages.map((m: any) => (
                 <li key={m._id} className="rounded-lg p-3 text-[16px] leading-[1.7]" style={{ background: 'rgba(0,0,0,0.04)' }}>
+                  {MSG_KIND[m.kind] && <div className="text-[12.5px] font-semibold mb-0.5" style={{ color: MSG_KIND[m.kind].color }}>{pick(MSG_KIND[m.kind])} <span className="font-normal" style={{ color: '#5b6f6b' }}>· {digits(new Date(m.createdAt).toLocaleDateString())}</span></div>}
                   {digits(lang === 'bn' ? m.text_bn : m.text_en)}
                   {m.offer && m.offer.status === 'offered' && (
                     <button

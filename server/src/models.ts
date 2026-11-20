@@ -165,6 +165,9 @@ const DecisionSchema = new Schema(
     tranche_plan: { type: M, default: [] },
     first_tranche_bdt: Number,
     gates: { type: M, default: [] }, // each fail-safe gate with pass/fail
+    counter_offer: { type: M, default: null }, // Counter-offer agent: { amount_bdt, tenor_months, text_en, text_bn, by }
+    pricing: { type: M, default: null }, // Pricing agent: { rebate_pct, penalty_pts, reason_en, reason_bn, by }
+    fee_split: { type: M, default: null }, // Fee and rate explainer: { figures, text_en, text_bn, by }
     run_id: String,
     legacy_note: String,
   },
@@ -393,6 +396,23 @@ const PolicySchema = new Schema(
     breaker_max_hold_rate: { type: Number, default: 0.8 }, // share of holds among recent decisions
     breaker_window: { type: Number, default: 10 }, // recent decisions considered for the hold rate
     breaker_min_decisions: { type: Number, default: 6 },
+    // loan limits and pricing (contract, counter-offer, pricing and fee agents work inside these)
+    max_principal_bdt: { type: Number, default: 1000000 },
+    max_tenor_months: { type: Number, default: 12 },
+    bank_rate_pct: { type: Number, default: 10 }, // investor rate = bank rate + investor_spread_pct
+    investor_spread_pct: { type: Number, default: 0.25 },
+    borrower_rate_pct: { type: Number, default: 14 },
+    fee_pct_short: { type: Number, default: 8 }, // Bhorsha's share of interest, tenor up to 3 months
+    fee_pct_mid: { type: Number, default: 8.5 }, // 4 to 6 months
+    fee_pct_long: { type: Number, default: 9 }, // 7 to 12 months
+    rebate_default_pct: { type: Number, default: 20 }, // early repayment: share of remaining interest waived
+    rebate_min_pct: { type: Number, default: 10 },
+    rebate_max_pct: { type: Number, default: 30 },
+    penalty_default_pts: { type: Number, default: 2 }, // late repayment: extra points a year on the overdue amount
+    penalty_min_pts: { type: Number, default: 1 },
+    penalty_max_pts: { type: Number, default: 4 },
+    grace_days: { type: Number, default: 3 }, // a payment up to this many days after the due date is on time
+    match_confidence_min: { type: Number, default: 0.8 }, // below this a payment waits in the lender's review queue
     created_by: String,
     note: String,
   },
@@ -431,6 +451,69 @@ const ShadowCaseSchema = new Schema(
   opts,
 );
 
+// Loan contract as the Contract-reading agent read it (v3).
+const LoanContractSchema = new Schema(
+  {
+    application: { ...ref('Application'), index: true },
+    text: String,
+    source: { type: String, default: 'generated' }, // generated from the application | uploaded by the lender
+    read_by: String, // ai | demo_fallback
+    extracted: { type: M, default: {} }, // principal_bdt, annual_rate_pct, tenor_months, early_clause, late_clause, early_rebate_pct, late_penalty_pts
+    unclear: { type: M, default: [] }, // [{ clause, why_en, why_bn }] flagged by the agent
+    problems: { type: M, default: [] }, // [{ en, bn }] found by the code checks
+    confidence: Number,
+    status: { type: String, enum: ['clear', 'unsure', 'invalid', 'confirmed'], default: 'unsure' },
+    confirmed_by: String,
+    confirmed_at: Date,
+  },
+  opts,
+);
+
+// A funded loan's repayment account and schedule (v3).
+const LoanAccountSchema = new Schema(
+  {
+    application: { ...ref('Application'), index: true },
+    shop: { ...ref('Shop'), index: true },
+    ref: { type: String, index: true }, // payment reference the borrower should quote, e.g. LN-F374
+    payer_label: String, // the wallet the borrower usually pays from (synthetic)
+    principal_bdt: Number,
+    annual_rate_pct: Number,
+    tenor_months: Number,
+    start_date: Date,
+    schedule: { type: M, default: [] }, // [{ n, due_date, amount_bdt, principal_bdt, interest_bdt, paid_bdt, status }]
+    rebate_pct: Number,
+    penalty_pts: Number,
+    status: { type: String, default: 'active' }, // active | settled
+  },
+  opts,
+);
+
+// Incoming repayments from the bKash or bank webhook (v3).
+const PaymentSchema = new Schema(
+  {
+    event_id: { type: String, unique: true },
+    channel: String, // bkash | bank
+    reference: String,
+    payer_label: String,
+    amount_bdt: Number,
+    received_at: Date,
+    signature_ok: Boolean,
+    loan: { ...ref('LoanAccount'), index: true },
+    application: ref('Application'),
+    shop: ref('Shop'),
+    installment_n: Number,
+    status: { type: String, enum: ['applied', 'review', 'rejected'], default: 'review', index: true },
+    classification: String, // early | on_time | late
+    days_from_due: Number,
+    partial: Boolean,
+    confidence: Number,
+    matched_by: String, // reference | ai | demo_fallback | lender
+    match_reason: String,
+    watch: { type: M, default: null }, // Watchman update: { assessment, reason_en, reason_bn, by, routed_to }
+  },
+  opts,
+);
+
 export const User = mongoose.model('User', UserSchema);
 export const Shop = mongoose.model('Shop', ShopSchema);
 export const Application = mongoose.model('Application', ApplicationSchema);
@@ -460,11 +543,14 @@ export const Policy = mongoose.model('Policy', PolicySchema);
 export const Control = mongoose.model('Control', ControlSchema);
 export const SimState = mongoose.model('SimState', SimStateSchema);
 export const ShadowCase = mongoose.model('ShadowCase', ShadowCaseSchema);
+export const LoanContract = mongoose.model('LoanContract', LoanContractSchema);
+export const LoanAccount = mongoose.model('LoanAccount', LoanAccountSchema);
+export const Payment = mongoose.model('Payment', PaymentSchema);
 
 export const ALL_MODELS = [
   User, Shop, Application, Transaction, Doc, CourierSettlement, OrderRecord, OwnerQuestion, OwnerMessage, EvidenceItem, Finding, Verdict, Decision, CheckIn, Forecast, Flag,
   Intervention, Outcome, Investor, InvestorVerification, Commitment, InvestorUpdate, AuditLog, LenderSettings,
-  EvalRun, SimState, ShadowCase, Policy, Control,
+  EvalRun, SimState, ShadowCase, Policy, Control, LoanContract, LoanAccount, Payment,
 ];
 
 export type Id = Types.ObjectId | string;

@@ -53,6 +53,7 @@ const STAFF_NAV = [
   { to: '/cases', en: 'AI decisions', bn: 'এআই-এর সিদ্ধান্ত', icon: IconFolder },
   { to: '/apply', en: 'Owner application link', bn: 'মালিকের আবেদন লিংক', icon: IconPlus },
   { to: '/watchlist', en: 'Watchlist', bn: 'নজরতালিকা', icon: IconPulse },
+  { to: '/repayments', en: 'Repayments', bn: 'কিস্তি', icon: IconHand },
   { to: '/shadow', en: 'Shadow mode', bn: 'শ্যাডো মোড', icon: IconShadow },
   { to: '/fairness', en: 'Fairness & audit', bn: 'ন্যায্যতা ও অডিট', icon: IconScale },
   { to: '/settings', en: 'Policy', bn: 'নীতি', icon: IconSliders },

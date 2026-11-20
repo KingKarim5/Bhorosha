@@ -7,6 +7,7 @@ import { api } from '../lib/api';
 import { PageTitle, Skeleton, Sparkline, ErrorNote } from '../components/ui';
 import { RunwayChart } from '../components/RunwayChart';
 import { IconPulse, IconAlert, IconCheck } from '../components/icons';
+import { PAY_WORDS, WATCH_WORDS } from '../components/LoanTerms';
 
 const SEV: Record<string, { en: string; bn: string; color: string }> = {
   call: { en: 'Call (urgent)', bn: 'জরুরি', color: 'var(--notviable)' },
@@ -107,6 +108,25 @@ export default function Watchlist() {
                 {!e.flagged && e.baseline_flag && <span className="text-muted"> ({t('a fixed 30% rule would have alarmed', 'নির্দিষ্ট ৩০% নিয়মে ভুল সতর্কতা হতো')})</span>}
               </span>
             ))}
+            {last.payments?.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-line">
+                <b>{t('Repayments through the webhook', 'ওয়েবহুকে আসা কিস্তি')}:</b>
+                <ul className="mt-1 space-y-0.5">
+                  {last.payments.map((p: any, i: number) => (
+                    <li key={i} className="flex flex-wrap items-center gap-1.5">
+                      <span className="num text-muted">{p.received_at}</span> {p.shop} <span className="num">{n(p.amount_bdt)}</span>
+                      {p.status === 'review' ? (
+                        <span className="chip !py-0" style={{ color: 'var(--unsure)' }}>{t('sent to review', 'পর্যালোচনায়')} ({Math.round((p.confidence || 0) * 100)}%)</span>
+                      ) : (
+                        p.classification && <span className="chip !py-0" style={{ color: PAY_WORDS[p.classification]?.color }}>{pick(PAY_WORDS[p.classification])}</span>
+                      )}
+                      {p.watch && <span className="chip !py-0" style={{ color: WATCH_WORDS[p.watch]?.color }}>{t('Watchman', 'ওয়াচম্যান')}: {pick(WATCH_WORDS[p.watch])}</span>}
+                    </li>
+                  ))}
+                </ul>
+                <Link to="/repayments" className="text-accent text-[12.5px] underline">{t('Open Repayments', 'কিস্তি পাতা খুলুন')}</Link>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

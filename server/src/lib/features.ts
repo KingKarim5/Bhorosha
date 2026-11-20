@@ -31,6 +31,7 @@ export interface CaseInput {
   business_type: string;
   loan_ask_bdt: number;
   tenor_months: number;
+  annual_rate?: number; // contract borrower rate (default: RATE, which the evaluation cohort uses)
   stated: Stated;
   checks: CheckResult[];
   return_rate?: number | null; // from the order log (hybrid / digital_first)
@@ -108,7 +109,7 @@ export function computeFeatures(c: CaseInput): Features {
   const cash = clamp(c.stated.cash_share ?? 0.5, 0, 0.95);
   const turnover = avg3 / (1 - cash);
   const margin = (c.stated.margin ?? 0.15) * turnover;
-  const inst = installment(c.loan_ask_bdt, RATE, c.tenor_months);
+  const inst = installment(c.loan_ask_bdt, c.annual_rate ?? RATE, c.tenor_months);
 
   // supplier punctuality
   const sup = c.txns.filter((t) => t.direction === 'out' && t.counterparty_kind === 'supplier' && t.due_date);

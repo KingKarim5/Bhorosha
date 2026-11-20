@@ -6,7 +6,7 @@ import { getActivePolicy, getControl, checkBreaker } from './policy';
 import { Decision, OwnerQuestion } from '../models';
 import type { Txn } from '../lib/statement';
 import { runChecks, CheckResult } from '../lib/checks';
-import { computeFeatures, likelyCause, CAUSES, Features, Stated, Cause, RATE } from '../lib/features';
+import { computeFeatures, likelyCause, CAUSES, Features, Stated, Cause } from '../lib/features';
 import { judge, Judgement } from '../lib/judge';
 import { RuleSettings, VERDICT_TEXT, Verdict as V } from '../lib/rules';
 import { loadModel, contributions } from '../lib/model';
@@ -17,6 +17,8 @@ import { getRuleSettings } from './settings';
 import { callJson, PROMPTS, PhraseSchema, FindingsSchema, Phrase } from './ai';
 import { validateText, validateCitations, extractNumbers } from '../lib/validate';
 import { redact } from '../lib/redact';
+import { termsFrom, checkLimits, checkRateSetup, counterOffer } from '../lib/loanTerms';
+import { readContract, writeCounterOffer, priceLoan, explainFees } from './loan';
 
 type Lean = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -83,7 +85,7 @@ function mergeStated(app: Lean, docs: Lean[], receivableVerified = false): { sta
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 
-function buildEvidence(f: Features, stated: Stated, app: Lean, docs: Lean[], checks: CheckResult[], noteClaims: string[], receivableDoc: Lean | null, online: OnlineEv | null, answers: Lean[] = []): Ev[] {
+function buildEvidence(f: Features, stated: Stated, app: Lean, docs: Lean[], checks: CheckResult[], noteClaims: string[], receivableDoc: Lean | null, online: OnlineEv | null, answers: Lean[] = [], ratePct = 9): Ev[] {
   const ev: Ev[] = [];
   const add = (e: Omit<Ev, 'eid'>) => ev.push({ ...e, eid: `E${ev.length + 1}` });
   const S = 'statement';
@@ -95,7 +97,7 @@ function buildEvidence(f: Features, stated: Stated, app: Lean, docs: Lean[], che
   add({ claim_key: 'consistency', claim_text: failed.length ? `Consistency: ${failed.map((c) => c.detail_en).join(' ')}` : 'The statement passed the consistency checks (internally consistent; this does not prove it is authentic).', claim_text_bn: failed.length ? `সামঞ্জস্য: ${failed.map((c) => c.detail_bn).join(' ')}` : 'স্টেটমেন্ট সামঞ্জস্য পরীক্ষায় উত্তীর্ণ (ভেতরে সামঞ্জস্যপূর্ণ; এটি আসল কিনা প্রমাণ করে না)।', value: failed.length ? 'failed' : 'passed', label: 'checked', source_kind: S, source_ref: 'checks' });
   if (f.customer_concentration > 0)
     add({ claim_key: 'customer_concentration', claim_text: `The largest named buyer brings ${pct(f.customer_concentration)} of visible inflow.`, claim_text_bn: `সবচেয়ে বড় ক্রেতা থেকে দৃশ্যমান জমার ${pct(f.customer_concentration)} আসে।`, value: round(f.customer_concentration, 2), label: 'checked', source_kind: S, source_ref: 'statement' });
-  add({ claim_key: 'installment', claim_text: `Monthly instalment on ${fmtBdt(app.loan_ask_bdt)} BDT over ${app.tenor_months} months at 9%: ${fmtBdt(f.installment)} BDT.`, claim_text_bn: `${fmtBdt(app.loan_ask_bdt)} টাকা, ${app.tenor_months} মাস, ৯% হারে মাসিক কিস্তি: ${fmtBdt(f.installment)} টাকা।`, value: round(f.installment), label: 'checked', source_kind: 'calculation', source_ref: 'loan terms' });
+  add({ claim_key: 'installment', claim_text: `Monthly instalment on ${fmtBdt(app.loan_ask_bdt)} BDT over ${app.tenor_months} months at ${ratePct}%: ${fmtBdt(f.installment)} BDT.`, claim_text_bn: `${fmtBdt(app.loan_ask_bdt)} টাকা, ${app.tenor_months} মাস, ${ratePct}% হারে মাসিক কিস্তি: ${fmtBdt(f.installment)} টাকা।`, value: round(f.installment), label: 'checked', source_kind: 'calculation', source_ref: 'loan terms' });
   add({ claim_key: 'cash_share', claim_text: stated.cash_share != null ? `About ${pct(stated.cash_share)} of sales are taken in cash, so the statement sees about ${f.coverage}% of turnover.` : 'The cash share of sales was not stated; 50% assumed.', claim_text_bn: stated.cash_share != null ? `বিক্রির প্রায় ${pct(stated.cash_share)} নগদে হয়, তাই স্টেটমেন্টে মোট বিক্রির প্রায় ${f.coverage}% দেখা যায়।` : 'নগদ বিক্রির অংশ জানানো হয়নি; ৫০% ধরা হয়েছে।', value: stated.cash_share ?? null, label: 'owner_says', source_kind: 'owner', source_ref: 'note / intake' });
   add({ claim_key: 'margin', claim_text: `Profit margin about ${pct(stated.margin ?? 0.15)}${stated.margin == null ? ' (default, not stated)' : ''}, about ${fmtBdt(f.margin_month)} BDT a month on estimated turnover of ${fmtBdt(f.estimated_turnover)} BDT.`, claim_text_bn: `লাভ প্রায় ${pct(stated.margin ?? 0.15)}${stated.margin == null ? ' (ধরা হয়েছে)' : ''}, আনুমানিক মাসিক বিক্রি ${fmtBdt(f.estimated_turnover)} টাকায় মাসে প্রায় ${fmtBdt(f.margin_month)} টাকা।`, value: stated.margin ?? 0.15, label: 'owner_says', source_kind: 'owner', source_ref: 'note / intake' });
   if (stated.seasonal != null)
@@ -217,7 +219,6 @@ function refinanceFit(app: Lean, stated: Stated) {
   return [
     r('cib', 'CIB status declared clean', 'সিআইবি অবস্থা পরিষ্কার (ঘোষিত)', stated.cib_status === 'clean' ? 'pass' : stated.cib_status === 'classified' ? 'fail' : 'unknown'),
     r('grace', 'Grace period fits the fund (up to 6 months)', 'গ্রেস পিরিয়ড তহবিলের নিয়মে মেলে (৬ মাস পর্যন্ত)', stated.grace_months == null ? 'unknown' : stated.grace_months <= 6 ? 'pass' : 'fail'),
-    r('rate', 'Rate at or below the 9% cap', 'সুদের হার ৯% সীমার মধ্যে', RATE <= 0.09 ? 'pass' : 'fail'),
     r('purpose', 'Working-capital purpose', 'চলতি মূলধনের উদ্দেশ্য', app.purpose_kind === 'working_capital' ? 'pass' : app.purpose_kind ? 'fail' : 'unknown'),
   ];
 }
@@ -307,9 +308,13 @@ export async function recompute(appId: unknown, opts: RecomputeOpts = {}) {
   const returnRate = orders.length ? orderSummary(orders as never).return_rate : null;
   const { stated, noteClaims, receivableDoc } = mergeStated(app, docs, vr.receivableVerified);
   const checks = runChecks(txns);
+  const policyNow = await getActivePolicy();
+  const terms = termsFrom(policyNow);
+  const useAi = actor !== 'seed'; // the seed runs the rules readers (labelled fallback); real requests use the AI agents
   await trace('Verifier', 'consistency and tamper checks', t0, { summary: `${checks.filter((c) => !c.passed && c.severity !== 'low').length} of ${checks.length} checks raised a concern${checks.some((c) => !c.passed && c.severity === 'high') ? '; the statement does not reconcile' : ''}. Checks show internal consistency only, never authenticity.` });
   t0 = Date.now();
-  const f = computeFeatures({ txns: salesTxns, business_type: shop.business_type, loan_ask_bdt: app.loan_ask_bdt, tenor_months: app.tenor_months, stated, checks, return_rate: returnRate, festival_share: shop.segment && shop.segment !== 'cash_led' ? shop.online_share ?? 0.5 : 0 });
+  const featureInput = { txns: salesTxns, business_type: shop.business_type, loan_ask_bdt: app.loan_ask_bdt, tenor_months: app.tenor_months, annual_rate: terms.borrower_rate_pct / 100, stated, checks, return_rate: returnRate, festival_share: shop.segment && shop.segment !== 'cash_led' ? shop.online_share ?? 0.5 : 0 };
+  const f = computeFeatures(featureInput);
   const model = loadModel();
   const seg = shop.segment || 'cash_led';
   const j = judge(f, settings, model, seg);
@@ -324,7 +329,7 @@ export async function recompute(appId: unknown, opts: RecomputeOpts = {}) {
     conds.push({ key: 'supplier_invoices', kind: 'prudential', en: 'Provide supplier invoices for stock bought with the loan (photos in the app, within 30 days).', bn: 'ঋণের টাকায় কেনা মালের সরবরাহকারীর চালান দিন (অ্যাপে ছবি, ৩০ দিনের মধ্যে)।' });
   const tranches = tranchePlan(app.loan_ask_bdt, conds, f, settings);
   const answers = (await OwnerQuestion.find({ application: app._id, status: 'answered' }).lean()) as Lean[];
-  const ev = buildEvidence(f, stated, app, docs, checks, noteClaims, receivableDoc, online, answers);
+  const ev = buildEvidence(f, stated, app, docs, checks, noteClaims, receivableDoc, online, answers, terms.borrower_rate_pct);
   const checkedShare = ev.length ? Math.round((ev.filter((e) => e.label === 'checked').length / ev.length) * 100) : 0;
   let findings = crossCheckRules(f, ev, docs, txns, checks, stated);
 
@@ -447,7 +452,13 @@ export async function recompute(appId: unknown, opts: RecomputeOpts = {}) {
   t0 = Date.now();
 
   if (opts.decide !== false) {
-    const policy = await getActivePolicy();
+    const policy = policyNow;
+    // Contract reader, then the code checks on limits and rates
+    const contract = await readContract(app, shop, terms, { useAi, actor, runId });
+    t0 = Date.now();
+    const limits = checkLimits(app.loan_ask_bdt, app.tenor_months, terms);
+    const contractRate = Number(contract.doc.extracted?.annual_rate_pct);
+    const rate = checkRateSetup(Number.isFinite(contractRate) && contractRate > 0 ? contractRate : terms.borrower_rate_pct, Math.min(app.tenor_months, terms.max_tenor_months), terms);
     const control = await getControl();
     const required: string[] = policy.min_documents || ['statement'];
     const missingDocs: string[] = [];
@@ -463,11 +474,29 @@ export async function recompute(appId: unknown, opts: RecomputeOpts = {}) {
       materialOpen: vr.materialOpen, loanAsk: app.loan_ask_bdt, autonomyCap: policy.autonomy_cap_bdt,
       conditions: conds, tranches,
       evidenceIds: { statement: [eid('monthly_inflow'), eid('months_history')].filter(Boolean) as string[], consistency: [eid('consistency')].filter(Boolean) as string[], rules: ruleEids },
+      limits: { ok: limits.ok, problems: limits.problems, maxPrincipal: terms.max_principal_bdt, maxTenor: terms.max_tenor_months },
+      rate: { ok: rate.ok, en: rate.en, bn: rate.bn },
+      contract: { ok: contract.ok, en: contract.en, bn: contract.bn },
     });
+    // Counter-offer when the request breaks a limit; Pricing and the Fee explainer on an approval
+    let counter: Lean | null = null;
+    let pricing: Lean | null = null;
+    let fees: Lean | null = null;
+    if (d.decision === 'declined_with_plan' && !limits.ok) {
+      const acceptable = (amount: number, tenor: number) => judge(computeFeatures({ ...featureInput, loan_ask_bdt: amount, tenor_months: tenor }), settings, model, seg).final_verdict === 'viable';
+      const offer = counterOffer(app.loan_ask_bdt, app.tenor_months, terms, acceptable);
+      counter = await writeCounterOffer(app, terms, offer, limits.problems, { useAi, actor, runId });
+    } else if (d.decision === 'approved_with_conditions') {
+      [pricing, fees] = await Promise.all([
+        priceLoan(app, contract.doc, { supplier_on_time: f.supplier_on_time, lateness_trend: f.lateness_trend, months_history: f.months_history }, terms, { useAi, actor, runId }),
+        explainFees(app, app.loan_ask_bdt, app.tenor_months, terms, { useAi, actor, runId }),
+      ]);
+    }
     const decisionDoc = await Decision.create({
       application: app._id, verdict: verdict._id, decision: d.decision, decided_by: `Bhorsha AI, policy v${policy.version}`, policy_version: policy.version,
       reasons: d.reasons, evidence_ids: [...new Set(d.reasons.flatMap((r) => r.evidence_ids))], conditions: d.decision === 'approved_with_conditions' ? conds : [],
       tranche_plan: d.tranche_plan, first_tranche_bdt: d.first_tranche_bdt, gates: d.gates, run_id: runId,
+      counter_offer: counter, pricing, fee_split: fees,
     });
     if (d.decision === 'approved_with_conditions' && d.tranche_plan.length) await Verdict.updateOne({ _id: verdict._id }, { tranche_plan_json: d.tranche_plan });
     if (app.status !== 'funded') await Application.updateOne({ _id: app._id }, { status: d.decision === 'hold_need_evidence' ? 'filed' : 'decided' });

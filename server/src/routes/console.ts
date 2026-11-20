@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { requireRole } from '../auth';
 import { Policy, Decision, Application, Shop, AuditLog } from '../models';
 import { getActivePolicy, getControl, setPause, breakerMetrics, checkBreaker } from '../services/policy';
+import { termsFrom, checkRateSetup } from '../lib/loanTerms';
 
 // Policy and Audit Console (v2): the lender owns the policy, reads every AI decision and the audit log,
 // and can pause the AI. The console never approves or declines an individual case.
@@ -24,7 +25,7 @@ r.get('/console', lender, async (_req, res) => {
     return { ...d, shop: s?.label, segment: s?.segment, loan_ask_bdt: a?.loan_ask_bdt, case_id: a?._id };
   });
   const counts = ['approved_with_conditions', 'declined_with_plan', 'hold_need_evidence'].map((k) => ({ decision: k, n: rows.filter((x) => x.decision === k).length }));
-  res.json({ policy, versions, control, metrics, decisions: rows, counts });
+  res.json({ policy: { ...termsFrom(policy), ...policy }, versions, control, metrics, decisions: rows, counts });
 });
 
 const PolicyBody = z.object({
@@ -41,12 +42,36 @@ const PolicyBody = z.object({
   breaker_max_hold_rate: z.number().min(0.05).max(1),
   breaker_window: z.number().int().min(3).max(100),
   breaker_min_decisions: z.number().int().min(1).max(100),
+  max_principal_bdt: z.number().min(10000).max(10000000).optional(),
+  max_tenor_months: z.number().int().min(1).max(60).optional(),
+  bank_rate_pct: z.number().min(0).max(30).optional(),
+  investor_spread_pct: z.number().min(0).max(5).optional(),
+  borrower_rate_pct: z.number().min(1).max(40).optional(),
+  fee_pct_short: z.number().min(0).max(30).optional(),
+  fee_pct_mid: z.number().min(0).max(30).optional(),
+  fee_pct_long: z.number().min(0).max(30).optional(),
+  rebate_default_pct: z.number().min(0).max(100).optional(),
+  rebate_min_pct: z.number().min(0).max(100).optional(),
+  rebate_max_pct: z.number().min(0).max(100).optional(),
+  penalty_default_pts: z.number().min(0).max(20).optional(),
+  penalty_min_pts: z.number().min(0).max(20).optional(),
+  penalty_max_pts: z.number().min(0).max(20).optional(),
+  grace_days: z.number().int().min(0).max(15).optional(),
+  match_confidence_min: z.number().min(0.5).max(1).optional(),
   note: z.string().trim().max(300).default(''),
 });
 
 r.post('/policy', lender, async (req, res) => {
   const b = PolicyBody.parse(req.body);
   const cur = await getActivePolicy();
+  // the code refuses a setup where the borrower rate is below investor rate plus Bhorsha's fee (checked at every fee tier)
+  const t = termsFrom({ ...cur, ...b });
+  for (const tenor of [3, 6, t.max_tenor_months]) {
+    const rc = checkRateSetup(t.borrower_rate_pct, tenor, t);
+    if (!rc.ok) return res.status(400).json({ error: `Policy refused: ${rc.en}` });
+  }
+  if (!(t.rebate_min_pct <= t.rebate_default_pct && t.rebate_default_pct <= t.rebate_max_pct)) return res.status(400).json({ error: 'Policy refused: the default rebate must sit between its minimum and maximum.' });
+  if (!(t.penalty_min_pts <= t.penalty_default_pts && t.penalty_default_pts <= t.penalty_max_pts)) return res.status(400).json({ error: 'Policy refused: the default late penalty must sit between its minimum and maximum.' });
   const p = await Policy.create({ ...b, version: cur.version + 1, created_by: req.user!.email });
   await AuditLog.create({ actor: req.user!.email, action: 'policy:new_version', agent: 'Policy', redacted_payload_json: b, output_json: { version: p.version, applies_to: 'new decisions only' }, mode: 'human' });
   const breaker = await checkBreaker(req.user!.email);

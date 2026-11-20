@@ -23,6 +23,10 @@ export interface DecideInput {
   conditions: Condition[];
   tranches: Tranche[];
   evidenceIds: { statement: string[]; consistency: string[]; rules: string[] };
+  // v3: loan limits, rate setup and the contract (all optional so older callers keep working)
+  limits?: { ok: boolean; problems: { en: string; bn: string }[]; maxPrincipal: number; maxTenor: number };
+  rate?: { ok: boolean; en: string; bn: string };
+  contract?: { ok: boolean; en: string; bn: string };
 }
 
 export interface Gate {
@@ -53,6 +57,14 @@ export function decide(x: DecideInput): DecideOutput {
     { key: 'model_no_contradiction', pass: !modelContradicts && modelAgreesViable && x.finalVerdict === x.rulesVerdict, en: !x.modelSet ? 'No model loaded; rules only.' : modelContradicts ? 'The model contradicts the rules.' : 'The model does not contradict the rules.', bn: !x.modelSet ? 'মডেল নেই; শুধু নিয়ম।' : modelContradicts ? 'মডেল নিয়মের বিপরীত বলছে।' : 'মডেল নিয়মের বিপরীত বলছে না।' },
     { key: 'material_evidence', pass: x.materialOpen === 0, en: x.materialOpen ? `${x.materialOpen} material item(s) not matched and not yet answered by the owner.` : 'All material evidence is matched or answered by the owner.', bn: x.materialOpen ? `${x.materialOpen}টি গুরুত্বপূর্ণ বিষয় মেলেনি এবং মালিক এখনো উত্তর দেননি।` : 'সব গুরুত্বপূর্ণ প্রমাণ মিলেছে বা মালিক উত্তর দিয়েছেন।' },
   ];
+  if (x.limits)
+    gates.push({
+      key: 'within_limits', pass: x.limits.ok,
+      en: x.limits.ok ? `Within the limits: up to Tk ${fmtBdt(x.limits.maxPrincipal)} and ${x.limits.maxTenor} months.` : `Outside the limits: ${x.limits.problems.map((p) => p.en).join(' ')}`,
+      bn: x.limits.ok ? `সীমার মধ্যে: ${fmtBdt(x.limits.maxPrincipal)} টাকা ও ${x.limits.maxTenor} মাস পর্যন্ত।` : `সীমার বাইরে: ${x.limits.problems.map((p) => p.bn).join(' ')}`,
+    });
+  if (x.rate) gates.push({ key: 'rate_setup', pass: x.rate.ok, en: x.rate.en, bn: x.rate.bn });
+  if (x.contract) gates.push({ key: 'contract_terms', pass: x.contract.ok, en: x.contract.en, bn: x.contract.bn });
   const overCap = x.loanAsk > x.autonomyCap;
   gates.push({ key: 'autonomy_cap', pass: true, en: overCap ? `Loan of ${fmtBdt(x.loanAsk)} BDT is over the policy's autonomy cap of ${fmtBdt(x.autonomyCap)} BDT: only a first tranche up to the cap can be released.` : `Loan within the autonomy cap of ${fmtBdt(x.autonomyCap)} BDT.`, bn: overCap ? `${fmtBdt(x.loanAsk)} টাকার ঋণ নীতির স্বয়ংক্রিয় সীমা ${fmtBdt(x.autonomyCap)} টাকার বেশি: সীমা পর্যন্ত প্রথম কিস্তিই ছাড় হবে।` : `ঋণ ${fmtBdt(x.autonomyCap)} টাকার স্বয়ংক্রিয় সীমার মধ্যে।` });
 
@@ -62,7 +74,7 @@ export function decide(x: DecideInput): DecideOutput {
 
   let decision: DecisionKind = 'hold_need_evidence'; // the default is a hold, never an approval
   if (failed.length === 0) decision = 'approved_with_conditions';
-  else if (!x.paused && x.rulesVerdict === 'not_viable' && !x.tamper && x.missingDocs.length === 0) decision = 'declined_with_plan';
+  else if (!x.paused && !x.tamper && x.missingDocs.length === 0 && (x.rulesVerdict === 'not_viable' || (x.limits && !x.limits.ok))) decision = 'declined_with_plan';
 
   const reasons: DecideOutput['reasons'] = [];
   if (decision === 'approved_with_conditions') {

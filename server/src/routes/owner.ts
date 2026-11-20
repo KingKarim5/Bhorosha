@@ -8,6 +8,10 @@ import { parseCourierCsv, parseOrderLogCsv } from '../lib/online';
 import { CAUSES } from '../lib/features';
 import { VERDICT_TEXT } from '../lib/rules';
 import { fmtBdt } from '../lib/util';
+import { LoanAccount, Payment } from '../models';
+import { getTerms, replaceContract, earlySettlementQuote, loanRef } from '../services/loan';
+import { getSim } from '../services/watchman';
+import { contractText, nextOpen, Installment } from '../lib/loanTerms';
 
 // Owner experience (v2): private token link, no login, plain Bangla, no internal scoring detail.
 type Lean = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -20,6 +24,8 @@ const FIX: Record<string, { en: string; bn: string }> = {
   no_tamper: { en: 'Download a fresh statement from your wallet app covering 12 months and upload it again. The current one does not add up from row to row.', bn: 'ওয়ালেট অ্যাপ থেকে ১২ মাসের নতুন স্টেটমেন্ট নামিয়ে আবার দিন। বর্তমানটির সারি থেকে সারিতে হিসাব মেলে না।' },
   model_no_contradiction: { en: 'Add a few more months of statement so the picture is clearer.', bn: 'আরও কয়েক মাসের স্টেটমেন্ট দিন, যাতে ছবিটা পরিষ্কার হয়।' },
   material_evidence: { en: 'Answer the questions below about payments we could not match.', bn: 'যে পরিশোধগুলো মেলানো যায়নি, সেগুলো নিয়ে নিচের প্রশ্নের উত্তর দিন।' },
+  contract_terms: { en: 'Nothing for you to do: the lender is confirming one clause of your loan contract.', bn: 'আপনার কিছু করার নেই: ঋণদাতা আপনার চুক্তির একটি ধারা নিশ্চিত করছেন।' },
+  rate_setup: { en: 'Nothing for you to do: the lender is updating its rates.', bn: 'আপনার কিছু করার নেই: ঋণদাতা সুদের হার ঠিক করছেন।' },
 };
 
 async function ownerView(token: string) {
@@ -34,12 +40,15 @@ async function ownerView(token: string) {
   const failed = (d?.gates || []).filter((g: Lean) => !g.pass);
   let headline = { en: 'Your file is being read.', bn: 'আপনার ফাইল পড়া হচ্ছে।' };
   let fix: { en: string; bn: string }[] = [];
+  const counter = d?.decision === 'declined_with_plan' && d.counter_offer?.amount_bdt ? d.counter_offer : null;
   if (d?.decision === 'approved_with_conditions') {
     headline = {
       en: `Approved with conditions. ${d.first_tranche_bdt ? `The first part, ${fmtBdt(d.first_tranche_bdt)} BDT, can be released by the lender.` : ''}`,
       bn: `শর্তসহ অনুমোদিত। ${d.first_tranche_bdt ? `প্রথম ধাপে ${fmtBdt(d.first_tranche_bdt)} টাকা ঋণদাতা ছাড় করতে পারেন।` : ''}`,
     };
     fix = (d.conditions || []).map((c: Lean) => ({ en: c.en, bn: c.bn }));
+  } else if (counter) {
+    headline = { en: "Your request is outside the lender's limits, but here is what the lender can offer.", bn: 'আপনার আবেদন ঋণদাতার সীমার বাইরে, তবে ঋণদাতা যা দিতে পারেন তা নিচে দেওয়া হলো।' };
   } else if (d?.decision === 'declined_with_plan') {
     headline = { en: 'Not this time, but here is what would change it.', bn: 'এবার হলো না, তবে কী বদলালে হবে তা নিচে দেওয়া হলো।' };
     fix = [...(v?.conditions_json || []), ...(v?.recovery_plan_json || [])].map((c: Lean) => ({ en: c.en, bn: c.bn }));
@@ -66,8 +75,47 @@ async function ownerView(token: string) {
     messages,
     history: decisions.map((x) => ({ decision: x.decision, at: x.createdAt, decided_by: x.decided_by })),
     missing: app?.missing || [],
+    counter_offer: counter ? { amount_bdt: counter.amount_bdt, tenor_months: counter.tenor_months, installment_bdt: counter.installment_bdt, text_en: counter.text_en, text_bn: counter.text_bn } : null,
+    loan: await loanView(app?._id),
   };
 }
+
+async function loanView(appId: unknown) {
+  const l = (await LoanAccount.findOne({ application: appId }).lean()) as Lean;
+  if (!l) return null;
+  const s = l.schedule as Installment[];
+  const payments = (await Payment.find({ loan: l._id, status: 'applied' }).sort({ received_at: -1 }).limit(12).lean()) as Lean[];
+  return {
+    ref: l.ref, principal_bdt: l.principal_bdt, annual_rate_pct: l.annual_rate_pct, tenor_months: l.tenor_months, rebate_pct: l.rebate_pct, penalty_pts: l.penalty_pts, status: l.status,
+    paid_bdt: s.reduce((a, x) => a + x.paid_bdt, 0), total_bdt: s.reduce((a, x) => a + x.amount_bdt, 0), next_due: nextOpen(s), schedule: s,
+    payments: payments.map((p) => ({ amount_bdt: p.amount_bdt, received_at: p.received_at, classification: p.classification, installment_n: p.installment_n })),
+  };
+}
+
+// The owner accepts the counter-offer: the application takes the offered terms, a new contract is generated, and the agents run again.
+r.post('/owner/:token/counter-offer/accept', async (req, res) => {
+  const shop = (await Shop.findOne({ token: req.params.token }).lean()) as Lean;
+  if (!shop) return res.status(404).json({ error: 'not found' });
+  const app = (await Application.findOne({ shop: shop._id }).lean()) as Lean;
+  const d = (await Decision.findOne({ application: app._id }).sort({ createdAt: -1 }).lean()) as Lean;
+  const c = d?.counter_offer;
+  if (!c?.amount_bdt) return res.status(400).json({ error: 'There is no counter-offer to accept.' });
+  await Application.updateOne({ _id: app._id }, { loan_ask_bdt: c.amount_bdt, tenor_months: c.tenor_months });
+  const t = await getTerms();
+  await replaceContract(app._id, contractText({ contractNo: loanRef(app._id), borrower: shop.owner_label || shop.label, principal: c.amount_bdt, ratePct: t.borrower_rate_pct, tenor: c.tenor_months, rebateBand: [t.rebate_min_pct, t.rebate_max_pct], penaltyBand: [t.penalty_min_pts, t.penalty_max_pts] }), 'generated', 'owner');
+  await AuditLog.create({ actor: 'owner', action: 'owner:accept_counter_offer', agent: 'Counter-offer', application: app._id, redacted_payload_json: { amount_bdt: c.amount_bdt, tenor_months: c.tenor_months }, output_json: {}, mode: 'human' });
+  await recompute(app._id, { actor: 'owner', reason: 'owner accepted the counter-offer' });
+  res.json(await ownerView(req.params.token));
+});
+
+r.post('/owner/:token/settlement-quote', async (req, res) => {
+  const shop = (await Shop.findOne({ token: req.params.token }).lean()) as Lean;
+  if (!shop) return res.status(404).json({ error: 'not found' });
+  const app = (await Application.findOne({ shop: shop._id }).lean()) as Lean;
+  const sim = await getSim();
+  const q = await earlySettlementQuote(app._id, sim.day!, { useAi: true, actor: 'owner' });
+  res.json({ ...q, view: await ownerView(req.params.token) });
+});
 
 r.get('/owner/:token', async (req, res) => {
   const v = await ownerView(req.params.token);

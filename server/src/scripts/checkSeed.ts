@@ -1,7 +1,9 @@
 // npm run check:seed — asserts the v2 seed expectations (brief step 9) and that seeding is deterministic.
 import { connectDb, disconnectDb } from '../db';
 import { seedAll } from '../seed/seed';
-import { Shop, Application, Verdict, Decision, OwnerQuestion, Doc, Transaction, Flag } from '../models';
+import { Shop, Application, Verdict, Decision, OwnerQuestion, Doc, Transaction, Flag, LoanContract, LoanAccount, Payment } from '../models';
+import { confirmContract, signedBody, ingestWebhook, getTerms } from '../services/loan';
+import { recompute } from '../services/casefile';
 import { simulate } from '../services/watchman';
 
 type Lean = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -19,6 +21,8 @@ async function snapshot() {
       first: d.first_tranche_bdt, reasons: (d.reasons || []).map((r: Lean) => r.en).join(' '), conditions: (d.conditions || []).map((c: Lean) => c.key),
       questions: qs.map((q) => ({ status: q.status, material: q.material, bn: /[ঀ-৿]/.test(q.question_bn || '') })),
       bills: bills.map((b) => b.match_status), txns: await Transaction.countDocuments({ shop: s._id }), rules: v.rules_total,
+      gates: Object.fromEntries((d.gates || []).map((g: Lean) => [g.key, g.pass])), counter: d.counter_offer, pricing: d.pricing, fees: d.fee_split?.figures || null,
+      contract: ((await LoanContract.findOne({ application: app._id }).lean()) as Lean)?.status,
     };
   }
   return out;
@@ -49,6 +53,19 @@ const check = (name: string, pass: boolean, detail = '') => results.push({ name,
   check('Rafi: narrower band than Rahima', width(s.rafi) < width(s.rahima), `Rafi ${s.rafi.band} vs Rahima ${s.rahima.band}`);
   check('Rafi: condition "provide supplier invoices for stock"', s.rafi.conditions.includes('supplier_invoices'), s.rafi.conditions.join(','));
 
+  // v3 loan agents
+  const t = await getTerms();
+  const approved = Object.entries(s).filter(([, x]) => x.decision === 'approved_with_conditions');
+  check('Every loan except Hasan is inside the limits (Tk 1,000,000, 12 months)', Object.entries(s).every(([k, x]) => k === 'hasan' || x.gates.within_limits === true), Object.entries(s).filter(([, x]) => x.gates.within_limits === false).map(([k]) => k).join(','));
+  check('Mitu: hold_need_evidence because the late clause is unclear', s.mitu.decision === 'hold_need_evidence' && s.mitu.gates.contract_terms === false && s.mitu.contract === 'unsure', `${s.mitu.decision}, contract ${s.mitu.contract}`);
+  check('Other contracts read clear (Hasan aside)', Object.entries(s).every(([k, x]) => ['mitu', 'hasan'].includes(k) || x.contract === 'clear'), Object.entries(s).map(([k, x]) => `${k}:${x.contract}`).join(' '));
+  check('Hasan: declined_with_plan with a counter-offer inside the limits', s.hasan.decision === 'declined_with_plan' && s.hasan.counter?.amount_bdt > 0 && s.hasan.counter.amount_bdt <= t.max_principal_bdt && s.hasan.counter.tenor_months <= t.max_tenor_months, JSON.stringify({ d: s.hasan.decision, amt: s.hasan.counter?.amount_bdt, tenor: s.hasan.counter?.tenor_months }));
+  check('Approved loans priced inside the bands', approved.length > 0 && approved.every(([, x]) => x.pricing && x.pricing.rebate_pct >= t.rebate_min_pct && x.pricing.rebate_pct <= t.rebate_max_pct && x.pricing.penalty_pts >= t.penalty_min_pts && x.pricing.penalty_pts <= t.penalty_max_pts), approved.map(([k, x]) => `${k}:${x.pricing?.rebate_pct}%/${x.pricing?.penalty_pts}`).join(' '));
+  check('Approved loans: interest split adds up and the rate check passes', approved.every(([, x]) => x.fees && x.fees.rate_check.ok && x.fees.investor_bdt + x.fees.bhorsha_bdt + x.fees.lender_bdt === x.fees.total_interest_bdt), approved.map(([k, x]) => `${k}:${x.fees?.per_100?.investor}/${x.fees?.per_100?.bhorsha}/${x.fees?.per_100?.lender}`).join(' '));
+  const ev = { event_id: 'check-forged', channel: 'bkash' as const, amount_bdt: 5000, received_at: '2026-11-12', reference: 'LN-TEST', payer_label: 'x' };
+  const forged = await ingestWebhook(signedBody(ev).raw, '0'.repeat(64), { useAi: false, actor: 'check' });
+  check('Webhook: a payment with a wrong signature is refused', !forged.ok && forged.status === 401, JSON.stringify(forged).slice(0, 80));
+
   // watchman after funding: Karim watch then call; Jahan no false alarm in lean months
   const m1 = await simulate('month', 'check');
   const m2 = await simulate('month', 'check');
@@ -57,6 +74,28 @@ const check = (name: string, pass: boolean, detail = '') => results.push({ name,
   const kf = await Flag.find({ shop: karim!._id }).sort({ createdAt: 1 }).lean();
   check('Karim: flagged watch, then call, after funding', kf.map((f) => f.severity).join(',') === 'watch,call', kf.map((f) => f.severity).join(','));
   check('Jahan: no false alarm in the lean months', (await Flag.countDocuments({ shop: jahan!._id, severity: { $in: ['watch', 'call'] } })) === 0, `fixed rule would alarm: ${[...m1.events, ...m2.events].filter((e) => e.shop.startsWith('Jahan') && e.baseline_flag).length} time(s)`);
+
+  // repayments arrive through the signed webhook during the two simulated months
+  const pays = (await Payment.find({}).lean()) as Lean[];
+  const of = async (slug: string) => {
+    const shop = await Shop.findOne({ slug }).lean();
+    return pays.filter((p) => String(p.shop) === String(shop!._id));
+  };
+  const kp = await of('karim');
+  const jp = await of('jahan');
+  const rp = await of('rafi');
+  check('Karim: a late repayment read as a real warning', kp.some((p) => p.classification === 'late' && p.watch?.assessment === 'real_warning'), kp.map((p) => `${p.classification}/${p.watch?.assessment}`).join(' '));
+  check('Jahan: a late repayment read as a seasonal pattern', jp.some((p) => p.classification === 'late' && p.watch?.assessment === 'seasonal_pattern'), jp.map((p) => `${p.classification}/${p.watch?.assessment}`).join(' '));
+  check('Rafi: a payment without a reference is not applied on a guess', rp.some((p) => !p.reference && (p.status === 'review' || (p.status === 'applied' && p.confidence >= t.match_confidence_min))), rp.map((p) => `${p.reference ? 'ref' : 'noref'}:${p.status}:${p.confidence}`).join(' '));
+  const sul = await LoanAccount.findOne({ shop: (await Shop.findOne({ slug: 'sultana' }).lean())!._id }).lean();
+  check('Sultana: repayment account opened on the first tranche', sul?.principal_bdt === s.sultana.first, `${sul?.principal_bdt} vs ${s.sultana.first}`);
+
+  // the lender confirms Mitu's terms: the case can then be approved
+  const mitu = await Application.findOne({ shop: (await Shop.findOne({ slug: 'mitu' }).lean())!._id }).lean();
+  await confirmContract(mitu!._id, 'check', { rebate_pct: 20, penalty_pts: 2 });
+  await recompute(mitu!._id, { actor: 'check', reason: 'lender confirmed contract' });
+  const md = (await Decision.findOne({ application: mitu!._id }).sort({ createdAt: -1 }).lean()) as Lean;
+  check('Mitu: approved_with_conditions once the lender confirms the terms', md.decision === 'approved_with_conditions', md.decision);
 
   await seedAll(() => undefined); // leave the demo in its seeded state
   for (const r of results) console.log(`${r.pass ? 'PASS' : 'FAIL'}  ${r.name}${r.detail ? `  (${r.detail})` : ''}`);

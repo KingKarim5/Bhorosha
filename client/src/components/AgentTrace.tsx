@@ -6,9 +6,14 @@ import { ModeBadge, Skeleton } from './ui';
 const AGENT_INFO: Record<string, { en: string; bn: string; color: string }> = {
   Intake: { en: 'Redacts, reads documents, scores confidence', bn: 'গোপন তথ্য মোছে, কাগজ পড়ে, আস্থা মাপে', color: '#8FA6C9' },
   Verifier: { en: 'Matches to the money trail, checks, asks the owner', bn: 'টাকার হিসাবের সাথে মেলায়, যাচাই করে, মালিককে জিজ্ঞেস করে', color: '#4FC9A0' },
+  'Contract reader': { en: 'Reads the loan contract; flags unclear clauses', bn: 'ঋণ চুক্তি পড়ে; অস্পষ্ট ধারা চিহ্নিত করে', color: '#B59CE6' },
   Underwriter: { en: 'Coverage, rules, model, fail-safe decision', bn: 'কভারেজ, নিয়ম, মডেল, নিরাপদ সিদ্ধান্ত', color: '#E0B24F' },
-  Watchman: { en: 'Forecasts sales, raises flags', bn: 'বিক্রির পূর্বাভাস, সতর্কতা', color: '#F0B34A' },
-  Servicer: { en: 'Messages to the owner and investors', bn: 'মালিক ও বিনিয়োগকারীকে বার্তা', color: '#F0705A' },
+  'Counter-offer': { en: 'Smaller or shorter offer inside the limits', bn: 'সীমার ভেতরে ছোট বা কম মেয়াদের প্রস্তাব', color: '#E68FB3' },
+  Pricing: { en: 'Early rebate and late penalty inside the bands', bn: 'সীমার ভেতরে আগাম ছাড় ও দেরির জরিমানা', color: '#7FB6E8' },
+  'Fee explainer': { en: 'How interest splits: investor, Bhorsha, lender', bn: 'সুদের ভাগ: বিনিয়োগকারী, ভরসা, ঋণদাতা', color: '#9BD27A' },
+  'Payment matcher': { en: 'Matches bKash and bank payments to loans', bn: 'বিকাশ ও ব্যাংকের টাকা ঋণের সাথে মেলায়', color: '#5FC4C9' },
+  Watchman: { en: 'Forecasts sales; reads late and early repayments', bn: 'বিক্রির পূর্বাভাস; দেরি বা আগাম কিস্তি বোঝে', color: '#F0B34A' },
+  Servicer: { en: 'Receipts, quotes, notices and investor updates', bn: 'রসিদ, হিসাব, নোটিশ ও বিনিয়োগকারীর খবর', color: '#F0705A' },
 };
 
 export function AgentTrace({ caseId, refreshKey }: { caseId: string; refreshKey?: unknown }) {

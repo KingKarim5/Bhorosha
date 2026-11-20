@@ -6,17 +6,22 @@
 
 Bhorsha brings fair, fast credit to the small shops of Bangladesh that banks cannot see. **AI agents decide inside a policy the licensed lender owns; the lender sets the policy, reads the audit log and can pause the AI.** Every decision is explained, every number is traceable, and nothing is decided on a guess.
 
-A shop's mobile-money statement, bills, a Bangla note and, for online sellers, courier settlement and order-log CSVs become a **viability file**. The file shows clearly what is **checked** (matched against the money trail) and what the **owner says**. Five named agents do the work:
+A shop's mobile-money statement, bills, a Bangla note and, for online sellers, courier settlement and order-log CSVs become a **viability file**. The file shows clearly what is **checked** (matched against the money trail) and what the **owner says**. Ten named agents do the work, and code around each one validates, clamps and computes every number:
 
 | Agent | Job |
 | --- | --- |
 | **Intake** | Takes the owner's application (segment, statement, documents, online CSVs) and redacts personal details before any model call. |
 | **Verifier** | Matches bills to wallet debits and courier payouts to wallet credits; anything it cannot confirm becomes a friendly Bangla question to the owner. |
+| **Contract reader** | Reads the loan contract: principal, rate, tenor, early and late repayment clauses. Flags any clause it is unsure about. Code validates the fields and enforces the Tk 1,000,000 and 12-month limits; an unsure contract holds the case (`hold_need_evidence`) until the lender confirms the terms. |
 | **Underwriter** | Rules + calibrated model + conformal prediction; a fail-safe decision: `approved_with_conditions`, `declined_with_plan` or `hold_need_evidence`. It approves when every gate passes, and the model can only add caution, never remove it. |
-| **Watchman** | After funding: weekly for hybrid and digital-first shops, monthly for cash-led shops, with festival seasonality built in. |
-| **Servicer** | Messages the owner, offers a repayment-date change when a shop hits a rough patch, and posts investor updates. |
+| **Counter-offer** | When a request breaks a limit, writes the `declined_with_plan` counter-offer (smaller amount or shorter tenor) with the reasons. Code clamps the offer to the limits and to the largest amount the rules still judge viable. The owner can accept it on their page. |
+| **Pricing** | Sets the early-repayment rebate (default 20% of remaining interest) and the late penalty (default +2 points a year) from the contract and the borrower's history. Code clamps both into the lender's min and max and computes the amounts. |
+| **Fee explainer** | Explains in plain Bangla and English how interest splits between the investors (bank rate + 0.25%), Bhorsha (8%, 8.5% or 9% of interest by tenor) and the lender. Code supplies the figures and refuses any setup where the borrower rate is below the investor rate plus Bhorsha's fee. |
+| **Payment matcher** | Matches incoming bKash or bank payments to the right loan when the reference is missing, the amount is partial or the timing is odd, with a confidence score. Code checks the webhook's HMAC signature and classifies each payment as early, on time or late; below the confidence threshold the payment waits in the lender's review queue and is not applied. |
+| **Servicer** | Writes receipts, early-settlement quotes and late notices in plain language (code supplies every amount), messages the owner, offers a repayment-date change when a shop hits a rough patch, and posts investor updates. |
+| **Watchman** | After funding: weekly for hybrid and digital-first shops, monthly for cash-led shops, festival-aware. It also reads every late or early repayment and decides whether it is a real warning or a seasonal pattern; code stores the flag and routes it. |
 
-Every decision records `decided_by: "Bhorsha AI, policy vN"`, its gates and its evidence ids. Above the autonomy cap (default 300,000 BDT), money is released in tranches. A circuit breaker pauses the AI automatically if the hold rate or default rate crosses the lender's limits.
+Every decision records `decided_by: "Bhorsha AI, policy vN"`, its gates and its evidence ids. Loans run up to Tk 1,000,000 and 12 months at a 14% borrower rate (all set in the lender's policy). Above the autonomy cap (default 300,000 BDT), money is released in tranches. A circuit breaker pauses the AI automatically if the hold rate or default rate crosses the lender's limits.
 
 Shops come in three segments: **cash_led**, **hybrid** and **digital_first**.
 
@@ -41,8 +46,19 @@ Shop owners need no account. Each shop has a private link (`/owner/<token>`), op
 3. Open **Rafi Attar and Decants** (hybrid). Courier payouts are matched to wallet credits net of fees, payout delays and partial remittances. The extra evidence gives Rafi a tighter likelihood band than Rahima, plus a supplier-invoice condition.
 4. **Sultana**: a large loan, released safely in three tranches starting at 300,000. **Tania**: the AI catches a statement that does not add up and holds it.
 5. On a held case, open **Owner's link**. The owner sees a plain Bangla explanation, answers questions and can **Resubmit with new evidence**.
-6. **Watchlist → Simulate next week / next month.** Karim Pharmacy's sales slip, and the Watchman raises a watch, then a call. The Servicer reaches out and offers a new repayment date. Jahan's seasonal dip stays calm, where a fixed 30% rule would have raised a false alarm.
-7. Log in as **investor@demo.bd**. Listings show only approved files, and the portfolio feed carries live Servicer updates.
+6. **Mitu Beauty Corner**: the Contract reader is unsure about a late clause "as agreed verbally". The case is held; under **Loan terms and repayments**, set the figures and press **Confirm**: the agents run again and the case is approved, priced and explained.
+7. **Hasan Hardware Store** asks for Tk 1,500,000 over 24 months. The Counter-offer agent offers a smaller loan over 12 months; open **Owner's link** and press **Accept this offer**.
+8. **Watchlist → Simulate next week / next month.** Karim Pharmacy's sales slip, and the Watchman raises a watch, then a call. Each funded loan's instalment arrives through the signed payment webhook: Karim's late payment is read as a real warning, Jahan's as a seasonal pattern, and Rafi's payment with no reference waits in the **Repayments** review queue. Jahan's seasonal dip stays calm, where a fixed 30% rule would have raised a false alarm.
+9. **Repayments**: apply or reject the queued payment, or **Send a test payment** (leave the reference empty for the AI to match it, or tick *wrong signature* to see it refused).
+10. Log in as **investor@demo.bd**. Listings show only approved files with the interest split, and the portfolio feed carries live Servicer updates.
+
+## Try your own statement
+
+`demo-csv/` holds three statements to upload at **/apply** (see `demo-csv/README.md`): a healthy shop (approved), a tampered statement (held: does not reconcile) and a 2-month history (held: too short). Ask for more than Tk 1,000,000 or 12 months with the healthy file to get a counter-offer.
+
+## Payment webhook
+
+Payments arrive at `POST /api/payments/webhook` with the header `x-bhorsha-signature`: the hex HMAC-SHA256 of the raw body with `PAYMENT_WEBHOOK_SECRET`. Body: `{ "event_id", "channel": "bkash" | "bank", "amount_bdt", "received_at", "reference", "payer_label" }`. A wrong signature gets 401; a repeated `event_id` is ignored.
 
 ## Results (synthetic evaluation, cohort v2.1)
 
@@ -72,7 +88,7 @@ Requirements: Node 20 or later, MongoDB on `localhost:27017` (or any `MONGODB_UR
 ```bash
 npm install
 cp .env.example .env        # then set JWT_SECRET; the AI key is optional
-npm run seed                # fills the database with the seven demo shops (fixed seeds)
+npm run seed                # fills the database with the nine demo shops (fixed seeds)
 npm run dev                 # client http://localhost:5173, API http://localhost:4000
 ```
 
@@ -81,7 +97,7 @@ The API seeds itself when the database is empty, and `npm run seed` restores the
 ```bash
 npm test             # Vitest: parsing, matching, checks, rules, decision gates, redaction, validator, forecasting, allocator
 npm run build        # builds server and client
-npm run check:seed   # asserts the seed expectations and that every seed gives the same state
+npm run check:seed   # asserts the 26 seed expectations (decisions, contracts, counter-offer, pricing, webhook, repayments) and that every seed gives the same state
 npm run ai:check     # shows the AI provider and whether a key is set (never prints the key)
 npm run train        # cohort v2.1 + training -> ml/model/model.json
 npm run eval         # cohort v2.1 + training + every test in EVAL_PROTOCOL.md -> ml/model/eval.json
@@ -98,7 +114,7 @@ See `.env.example`. Set `AI_PROVIDER=gemini` with a free Google AI Studio `GEMIN
 Live on Vercel as one project: `vercel.json` builds the server and the client, serves `client/dist`, and runs the Express API as a serverless function (`api/index.js` → `server/src/vercel.ts`), backed by MongoDB Atlas. To deploy your own copy:
 
 1. Create a MongoDB Atlas database (Vercel → Storage → MongoDB Atlas adds `MONGODB_URI` automatically).
-2. Add `JWT_SECRET`, `COOKIE_SECURE=true`, `AI_PROVIDER=gemini`, `GEMINI_MODEL=gemini-3.1-flash-lite` and `GEMINI_API_KEY` in the project settings.
+2. Add `JWT_SECRET`, `COOKIE_SECURE=true`, `AI_PROVIDER=gemini`, `GEMINI_MODEL=gemini-3.1-flash-lite`, `GEMINI_API_KEY` and (optional) `PAYMENT_WEBHOOK_SECRET` in the project settings.
 3. Run `vercel deploy --prod` from the repo root.
 
 ## Built with
@@ -117,10 +133,11 @@ Live on Vercel as one project: `vercel.json` builds the server and the client, s
 ```
 client/              React + Vite + Tailwind (all screens)
 server/              Express + Mongoose API
-  src/lib/           pure logic: parsing, matching, checks, features, rules, decide (gates), breaker, forecast, festivals, redaction, validator, model
-  src/services/      agent pipeline (casefile), verifier, policy, watchman + servicer, AI
+  src/lib/           pure logic: parsing, matching, checks, features, rules, decide (gates), loan terms, breaker, forecast, festivals, redaction, validator, model
+  src/services/      agent pipeline (casefile), verifier, loan agents, policy, watchman + servicer, AI
   src/scripts/       cohortV2, evalV2, checkSeed, aicheck
 api/                 Vercel serverless entry
+demo-csv/            statements to upload at /apply for a manual test
 ml/                  train_v2.py (scikit-learn), model/ (model.json, eval.json, earlier runs)
 brand.config.json    name and tagline, used everywhere
 EVAL_PROTOCOL.md     tests and pass marks, committed before any evaluation run

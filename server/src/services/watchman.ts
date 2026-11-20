@@ -7,7 +7,10 @@ import { loadTxns } from './casefile';
 import { callJson, PROMPTS, CheckinSchema } from './ai';
 import { redact } from '../lib/redact';
 import { z } from 'zod';
-import { SIM_BASE_MONTH } from '../seed/demoShops';
+import { SIM_BASE_MONTH, DEMO_SHOPS } from '../seed/demoShops';
+import { LoanAccount } from '../models';
+import { signedBody, ingestWebhook, PaymentEvent } from './loan';
+import type { Installment } from '../lib/loanTerms';
 import { checkBreaker } from './policy';
 import type { Txn } from '../lib/statement';
 
@@ -202,11 +205,13 @@ export async function simulate(step: 'week' | 'month', actor = 'lender') {
   const sim = await getSim();
   const from = d(sim.day!);
   const endCap = d(SIM_END);
-  if (from >= endCap) return { done: true, day: sim.day, events: [] };
+  if (from >= endCap) return { done: true, day: sim.day, events: [], payments: [] };
   let to = step === 'week' ? new Date(from.getTime() + 7 * DAY) : d(`${addMonths(monthKey(from), 1)}-01`);
   if (to > endCap) to = endCap;
   const shops = await Shop.find({ funded: true, cohort_flag: 'demo' }).lean();
   const events: Lean[] = [];
+  const payments: Lean[] = [];
+  const useAi = actor !== 'seed' && actor !== 'check';
   // shops are independent: run them in parallel, each loading its rows once
   await Promise.all(shops.map(async (shop) => {
     const allTxns = await loadTxns(shop._id, MAX_SIM);
@@ -234,6 +239,27 @@ export async function simulate(step: 'week' | 'month', actor = 'lender') {
       const severity = await record(e, actor);
       events.push({ shop: shop.label, cadence: e.cadence, period: e.period, actual: e.actual, low: e.fc.low, high: e.fc.high, flagged: e.flagged, severity, baseline_flag: e.baseline, note: e.note });
     }
+    // repayments that arrive in (from, to]: sent through the signed webhook, exactly as bKash or a bank would
+    const cfg = DEMO_SHOPS.find((x) => x.slug === shop.slug)?.repayments;
+    const loan = (await LoanAccount.findOne({ shop: shop._id }).lean()) as Lean;
+    if (cfg && loan) {
+      for (const inst of loan.schedule as Installment[]) {
+        const i = inst.n - 1;
+        if (i >= cfg.lateDays.length) continue;
+        const rec = new Date(d(inst.due_date).getTime() + cfg.lateDays[i] * DAY);
+        if (!(rec > from && rec <= to)) continue;
+        const noRef = !!cfg.noRef?.includes(i);
+        const ev: PaymentEvent = {
+          event_id: `sim-${loan.ref}-${inst.n}`, channel: noRef || i % 2 === 0 ? 'bkash' : 'bank',
+          amount_bdt: cfg.partial?.includes(i) ? Math.round((inst.amount_bdt * 0.6) / 10) * 10 : inst.amount_bdt,
+          received_at: iso(rec), reference: noRef ? null : `${loan.ref} instalment ${inst.n}`, payer_label: noRef ? cfg.payer || loan.payer_label : loan.payer_label,
+        };
+        const { raw, signature } = signedBody(ev);
+        const r = await ingestWebhook(raw, signature, { useAi, actor, timeoutMs: 8000 });
+        const p = (r.ok ? r.payment : null) as Lean | null;
+        payments.push({ shop: shop.label, loan: loan.ref, instalment: inst.n, received_at: ev.received_at, amount_bdt: ev.amount_bdt, status: p?.status, classification: p?.classification ?? null, matched_by: p?.matched_by, confidence: p?.confidence, watch: p?.watch?.assessment ?? null });
+      }
+    }
   }));
   events.sort((a, b) => String(a.shop).localeCompare(String(b.shop)) || String(a.period).localeCompare(String(b.period)));
   sim.day = iso(to);
@@ -241,7 +267,8 @@ export async function simulate(step: 'week' | 'month', actor = 'lender') {
   await sim.save();
   await AuditLog.create({ actor, action: `watchman:simulate_${step}`, agent: 'Watchman', step: `advance to ${iso(to)}`, redacted_payload_json: {}, output_json: { events: events.length, flagged: events.filter((x) => x.severity).length }, mode: 'rules' });
   const breaker = await checkBreaker(actor);
-  return { done: to >= endCap, day: iso(to), events, breaker };
+  payments.sort((a, b) => String(a.received_at).localeCompare(String(b.received_at)));
+  return { done: to >= endCap, day: iso(to), events, payments, breaker };
 }
 
 export async function simulateNextMonth(actor = 'lender') {

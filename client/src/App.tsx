@@ -19,6 +19,7 @@ const InvestVerify = lazy(() => import('./pages/InvestVerify'));
 const Invest = lazy(() => import('./pages/Invest'));
 const InvestCase = lazy(() => import('./pages/InvestCase'));
 const Portfolio = lazy(() => import('./pages/Portfolio'));
+const Repayments = lazy(() => import('./pages/Repayments'));
 const Structure = lazy(() => import('./pages/Structure'));
 const About = lazy(() => import('./pages/About'));
 const Stub = lazy(() => import('./pages/Stub'));
@@ -75,6 +76,7 @@ export function App() {
       <Route path="/cases/:id/field-visit" element={inShell(<Stub kind="field_visit" />, staff)} />
       <Route path="/cases/:id/counterparty" element={inShell(<Stub kind="counterparty" />, staff)} />
       <Route path="/watchlist" element={inShell(<Watchlist />, staff)} />
+      <Route path="/repayments" element={inShell(<Repayments />, staff)} />
       <Route path="/shadow" element={inShell(<Shadow />, staff)} />
       <Route path="/fairness" element={inShell(<Fairness />, staff)} />
       <Route path="/settings" element={inShell(<Settings />, staff)} />

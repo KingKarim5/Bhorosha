@@ -6,6 +6,8 @@ import { api } from '../lib/api';
 import { SimulationBanner, Skeleton, VerdictTag, ProofLabel, ErrorNote, Card } from '../components/ui';
 import { RunwayChart } from '../components/RunwayChart';
 import { CAUSE_WORDS } from './Cases';
+import { SplitBar } from '../components/LoanTerms';
+import { ModeBadge } from '../components/ui';
 
 export default function InvestCase() {
   const { caseId } = useParams();
@@ -62,6 +64,13 @@ export default function InvestCase() {
               ))}
             </ul>
           </Card>
+          {data.fee_split && (
+            <Card title={t('How the interest is shared', 'সুদ কীভাবে ভাগ হয়')} right={<ModeBadge mode={data.fee_split.by} />}>
+              <SplitBar per={data.fee_split.figures.per_100} />
+              <p className="text-[14px] mt-2">{lang === 'bn' ? data.fee_split.text_bn : data.fee_split.text_en}</p>
+              <p className="text-[12px] text-muted mt-1">{t('Contract rates if the borrower repays in full. They are not a promise: if the borrower does not repay, investors can lose money.', 'ঋণগ্রহীতা পুরো শোধ করলে চুক্তির হার। এটি প্রতিশ্রুতি নয়: শোধ না হলে বিনিয়োগে লোকসান হতে পারে।')}</p>
+            </Card>
+          )}
           <Card title={t('Conditions the lender attached', 'ঋণদাতার শর্ত')}>
             <ul className="list-disc pl-5 space-y-1 text-[14px]">
               {(data.conditions || []).map((c: any) => (
