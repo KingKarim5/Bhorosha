@@ -61,9 +61,9 @@ export default function Fairness() {
                   <summary className="cursor-pointer text-[13px] flex flex-wrap gap-2 items-center">
                     <span className="num text-muted">{new Date(a.createdAt).toLocaleString()}</span> <b>{a.action}</b> <ModeBadge mode={a.mode} /> <span className="text-muted">{a.actor}</span> {a.latency_ms != null && <span className="num text-muted">{n(a.latency_ms)} ms</span>}
                   </summary>
-                  <pre className="text-[11.5px] whitespace-pre-wrap break-words mt-2 num">{JSON.stringify(a.redacted_payload_json, null, 1).slice(0, 2500)}</pre>
+                  <pre className="text-[11.5px] whitespace-pre-wrap break-words mt-2 num">{(JSON.stringify(a.redacted_payload_json ?? {}, null, 1) || '').slice(0, 2500)}</pre>
                   <pre className="text-[11.5px] whitespace-pre-wrap break-words mt-2 num" style={{ color: 'var(--muted)' }}>
-                    → {JSON.stringify(a.output_json, null, 1).slice(0, 1500)}
+                    → {(JSON.stringify(a.output_json ?? {}, null, 1) || '').slice(0, 1500)}
                   </pre>
                 </details>
               </li>

@@ -7,6 +7,7 @@ import { callJson, PROMPTS, CheckinSchema } from './ai';
 import { redact } from '../lib/redact';
 import { z } from 'zod';
 import { SIM_BASE_MONTH } from '../seed/demoShops';
+import { checkBreaker } from './policy';
 
 export const MAX_SIM = 6;
 
@@ -125,6 +126,7 @@ export async function simulateNextMonth(actor = 'manager') {
   );
   sim.month_index = idx;
   await sim.save();
+  await checkBreaker(actor);
   return { done: idx >= MAX_SIM, month_index: idx, month, events };
 }
 

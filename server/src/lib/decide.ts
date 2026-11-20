@@ -45,7 +45,7 @@ export function decide(x: DecideInput): DecideOutput {
   const modelContradicts = x.rulesVerdict !== 'not_sure' && !!x.modelSet && x.modelSet.length > 0 && !x.modelSet.includes(x.rulesVerdict);
   const modelAgreesViable = !x.modelSet || x.modelSet.includes('viable');
   const gates: Gate[] = [
-    { key: 'not_paused', pass: !x.paused, en: x.paused ? `AI decisions are paused: ${x.pauseReason || 'by the lender'}.` : 'AI decisions are running.', bn: x.paused ? `এআই-এর সিদ্ধান্ত থামানো আছে: ${x.pauseReason || 'ঋণদাতা থামিয়েছেন'}।` : 'এআই-এর সিদ্ধান্ত চালু।' },
+    { key: 'not_paused', pass: !x.paused, en: x.paused ? `AI decisions are paused: ${(x.pauseReason || 'by the lender').replace(/[.।\s]+$/, '')}.` : 'AI decisions are running.', bn: x.paused ? `এআই-এর সিদ্ধান্ত থামানো আছে: ${(x.pauseReason || 'ঋণদাতা থামিয়েছেন').replace(/[.।\s]+$/, '')}।` : 'এআই-এর সিদ্ধান্ত চালু।' },
     { key: 'min_documents', pass: x.missingDocs.length === 0, en: x.missingDocs.length ? `Required by the policy but missing: ${x.missingDocs.join(', ')}.` : 'All documents the policy requires are present.', bn: x.missingDocs.length ? `নীতি অনুযায়ী দরকার কিন্তু নেই: ${x.missingDocs.join(', ')}।` : 'নীতি অনুযায়ী দরকারি সব কাগজ আছে।' },
     { key: 'history', pass: x.monthsHistory >= 3, en: `${x.monthsHistory} months of statement (at least 3 needed).`, bn: `${x.monthsHistory} মাসের স্টেটমেন্ট (অন্তত ৩ মাস দরকার)।` },
     { key: 'no_tamper', pass: !x.tamper, en: x.tamper ? 'The statement does not reconcile.' : 'The statement reconciles (internally consistent).', bn: x.tamper ? 'স্টেটমেন্টের হিসাব মেলে না।' : 'স্টেটমেন্টের হিসাব মেলে (ভেতরে সামঞ্জস্যপূর্ণ)।' },

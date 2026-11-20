@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState, Component } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useI18n } from '../lib/i18n';
@@ -68,6 +68,27 @@ const INVESTOR_NAV = [
   { to: '/evaluation', en: 'Evaluation', bn: 'মূল্যায়ন', icon: IconGauge },
   { to: '/about', en: 'About', bn: 'পরিচিতি', icon: IconInfo },
 ];
+
+class PageBoundary extends Component<{ children: ReactNode; resetKey: string }, { err: string | null }> {
+  state = { err: null as string | null };
+  static getDerivedStateFromError(e: Error) {
+    return { err: e.message };
+  }
+  componentDidUpdate(prev: { resetKey: string }) {
+    if (prev.resetKey !== this.props.resetKey && this.state.err) this.setState({ err: null });
+  }
+  render() {
+    if (this.state.err)
+      return (
+        <div className="card p-5">
+          <b>This page hit an error.</b>
+          <p className="text-muted text-[14px] mt-1">{this.state.err}</p>
+          <button className="btn mt-3" onClick={() => location.reload()}>Reload</button>
+        </div>
+      );
+    return this.props.children;
+  }
+}
 
 export function Shell({ children }: { children: ReactNode }) {
   const { t, pick } = useI18n();
@@ -149,7 +170,7 @@ export function Shell({ children }: { children: ReactNode }) {
             </div>
           </header>
           <motion.main key={loc.pathname} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="px-4 md:px-8 py-6 md:py-8 max-w-[1400px]">
-            {children}
+            <PageBoundary resetKey={loc.pathname}>{children}</PageBoundary>
           </motion.main>
         </div>
       </div>
