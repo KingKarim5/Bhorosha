@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
+import mongoose from 'mongoose';
 import {
   ALL_MODELS, User, Shop, Application, Transaction, Doc, CheckIn, CourierSettlement, OrderRecord, Decision, Investor, Commitment, InvestorVerification,
   LenderSettings, SimState, ShadowCase, AuditLog,
@@ -26,7 +27,30 @@ export const DEMO_ACCOUNTS = [
 
 const token = (slug: string) => crypto.createHash('sha256').update('bhorsha-owner-' + slug).digest('hex').slice(0, 20);
 
+/**
+ * Only one seed may run at a time, even across several server instances (Vercel can start two at once).
+ * A second caller waits for the running seed to finish instead of seeding again. A lock older than
+ * 3 minutes is treated as left over from a crashed run.
+ */
 export async function seedAll(log = console.log) {
+  const locks = mongoose.connection.db!.collection<{ _id: string; at: Date }>('locks');
+  const stale = new Date(Date.now() - 3 * 60 * 1000);
+  await locks.deleteOne({ _id: 'seed', at: { $lt: stale } });
+  try {
+    await locks.insertOne({ _id: 'seed', at: new Date() });
+  } catch {
+    log('Another seed is running; waiting for it.');
+    for (let i = 0; i < 120 && (await locks.findOne({ _id: 'seed' })); i++) await new Promise((r) => setTimeout(r, 1000));
+    return;
+  }
+  try {
+    await seedUnlocked(log);
+  } finally {
+    await locks.deleteOne({ _id: 'seed' });
+  }
+}
+
+async function seedUnlocked(log: (m: string) => void) {
   loadModel(true);
   for (const M of ALL_MODELS) await (M as typeof User).deleteMany({});
   const hash = await bcrypt.hash(DEMO_PASSWORD, 8);
