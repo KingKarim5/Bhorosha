@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useI18n } from '../lib/i18n';
 import { api } from '../lib/api';
@@ -9,12 +9,26 @@ import { IconAlert, IconDoc } from '../components/icons';
 
 const SAMPLE_NOTE = 'আমার দোকানে প্রায় ৫০% বিক্রি নগদে হয়। লাভ প্রায় ১৮%। ব্যবসা মৌসুমি না। ঈদের আগে বিক্রি একটু বাড়ে।';
 
+interface LenderInfo {
+  org_name: string;
+  code: string;
+  max_principal_bdt: number;
+  max_tenor_months: number;
+  borrower_rate_pct: number;
+}
+
 export default function CaseNew() {
-  const { t } = useI18n();
+  const { t, n } = useI18n();
   const go = useNavigate();
+  const { code } = useParams();
+  const [lender, setLender] = useState<LenderInfo | null>(null);
+  const [linkErr, setLinkErr] = useState<string | null>(null);
+  useEffect(() => {
+    api(`/apply-info/${code || ''}`).then(setLender).catch((e) => setLinkErr((e as Error).message));
+  }, [code]);
   const [step, setStep] = useState(0);
   const [consent, setConsent] = useState(false);
-  const [f, setF] = useState({ label: '', business_type: 'tea_grocery', months_trading: 24, loan_ask_bdt: 150000, tenor_months: 24, purpose: '', purpose_kind: 'working_capital', cib_status: 'unknown' });
+  const [f, setF] = useState({ label: '', business_type: 'tea_grocery', months_trading: 24, loan_ask_bdt: 100000, tenor_months: 12, purpose: '', purpose_kind: 'working_capital', cib_status: 'unknown' });
   const [csv, setCsv] = useState('');
   const [csvName, setCsvName] = useState('');
   const [segment, setSegment] = useState<'cash_led' | 'hybrid' | 'digital_first'>('cash_led');
@@ -53,7 +67,7 @@ export default function CaseNew() {
     try {
       const r = await api('/apply', {
         body: {
-          consent: true, ...f, statement_csv: csv || undefined, note_text: note || undefined,
+          consent: true, ...f, lender_code: lender?.code || code || undefined, statement_csv: csv || undefined, note_text: note || undefined,
           segment, online_share_pct: onlinePct === '' ? null : Number(onlinePct), courier_csv: courierCsv || undefined, orders_csv: ordersCsv || undefined,
           cash_share_pct: cash === '' ? null : Number(cash), margin_pct: margin === '' ? null : Number(margin), seasonal: seasonal === 'unknown' ? null : seasonal === 'yes',
         },
@@ -72,10 +86,27 @@ export default function CaseNew() {
       setBusy(false);
     }
   };
-  const canNext = step === 0 ? consent && f.label.trim().length >= 2 : true;
+  // plain-language checks before anything is sent
+  const amountProblem =
+    !Number.isFinite(f.loan_ask_bdt) || f.loan_ask_bdt < 5000 ? t('The smallest loan is Tk 5,000.', 'সর্বনিম্ন ঋণ ৫,০০০ টাকা।')
+      : f.loan_ask_bdt > 5000000 ? t('Ask for Tk 50,00,000 or less.', '৫০,০০,০০০ টাকা বা কম চাইতে পারেন।')
+        : !Number.isInteger(f.tenor_months) || f.tenor_months < 1 ? t('Enter the tenor in whole months.', 'মেয়াদ পূর্ণ মাসে লিখুন।')
+          : f.tenor_months > 60 ? t('Ask for 60 months or less.', '৬০ মাস বা কম চাইতে পারেন।') : null;
+  const overLimit = lender && !amountProblem && (f.loan_ask_bdt > lender.max_principal_bdt || f.tenor_months > lender.max_tenor_months);
+  const canNext = step === 0 ? consent && f.label.trim().length >= 2 && !amountProblem && !!lender : true;
   return (
     <div className="max-w-2xl">
       <PageTitle title={t('Apply for a loan', 'ঋণের আবেদন')} sub={t('For shop owners. Four short steps, works on a phone. Bhorsha AI decides inside the lender’s policy; you get a private link to follow your file.', 'দোকান মালিকদের জন্য। চারটি ছোট ধাপ, ফোনেও চলে। ঋণদাতার নীতির ভেতরে ভরসা এআই সিদ্ধান্ত নেয়; আপনার ফাইল দেখতে একটি ব্যক্তিগত লিংক পাবেন।')} />
+      {linkErr && <ErrorNote msg={linkErr} />}
+      {lender && (
+        <div className="card p-4 mb-4">
+          <div className="text-[12.5px] text-muted">{t('You are applying to', 'আপনি আবেদন করছেন')}</div>
+          <div className="font-display text-[20px] font-semibold">{lender.org_name}</div>
+          <div className="text-[13.5px] text-muted mt-0.5">
+            {t(`Loans up to Tk ${n(lender.max_principal_bdt)} for up to ${lender.max_tenor_months} months, at ${lender.borrower_rate_pct}% a year.`, `${n(lender.max_principal_bdt)} টাকা পর্যন্ত, ${n(lender.max_tenor_months)} মাস পর্যন্ত, বছরে ${n(lender.borrower_rate_pct)}% সুদে।`)}
+          </div>
+        </div>
+      )}
       <div className="mb-4 rounded-lg p-3 text-[14px] flex gap-2" style={{ background: 'color-mix(in oklab, var(--notviable) 10%, transparent)' }} role="alert">
         <IconAlert className="shrink-0 mt-0.5" style={{ color: 'var(--notviable)' }} />
         {t('Demo only: do not upload real documents or real personal data.', 'শুধু ডেমো: আসল কাগজ বা আসল ব্যক্তিগত তথ্য আপলোড করবেন না।')}
@@ -149,6 +180,12 @@ export default function CaseNew() {
                   <input type="number" className="input mt-1" value={f.tenor_months} onChange={(e) => set('tenor_months', Number(e.target.value))} />
                 </div>
               </div>
+              {amountProblem && <p className="text-[13.5px]" style={{ color: 'var(--notviable)' }}>{amountProblem}</p>}
+              {overLimit && lender && (
+                <p className="text-[13.5px] rounded-lg p-2.5" style={{ background: 'color-mix(in oklab, var(--unsure) 12%, transparent)' }}>
+                  {t(`This is more than ${lender.org_name} lends (up to Tk ${n(lender.max_principal_bdt)} for ${lender.max_tenor_months} months). You can still apply: the AI will offer the largest loan inside the limit that your sales support.`, `এটি ${lender.org_name}-এর সীমার বেশি (${n(lender.max_principal_bdt)} টাকা, ${n(lender.max_tenor_months)} মাস)। তবু আবেদন করতে পারেন: আপনার বিক্রিতে যত বড় ঋণ চলে, সীমার ভেতরে এআই তা প্রস্তাব করবে।`)}
+                </p>
+              )}
               <div>
                 <label className="label">{t('Purpose', 'উদ্দেশ্য')}</label>
                 <input className="input mt-1" value={f.purpose} onChange={(e) => set('purpose', e.target.value)} />

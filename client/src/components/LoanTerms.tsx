@@ -233,6 +233,17 @@ export function LoanTerms({ caseId, onChange }: { caseId: string; onChange: () =
         </div>
       )}
 
+      {/* release: the AI approved, the lender releases the money through the licensed partner */}
+      {data.can_release && (
+        <div className="p-3 rounded-lg" style={{ background: 'color-mix(in oklab, var(--viable) 10%, transparent)', border: '1px solid color-mix(in oklab, var(--viable) 40%, transparent)' }}>
+          <div className="font-semibold">{t('Ready to release', 'ছাড়ের জন্য প্রস্তুত')}</div>
+          <p className="text-muted mt-0.5">{t(`The AI approved this loan inside your policy. Releasing sends ${bdt(data.release_bdt)} through the licensed partner (simulated) and opens the repayment schedule.`, `আপনার নীতির ভেতরে এআই এই ঋণ অনুমোদন করেছে। ছাড় করলে লাইসেন্সপ্রাপ্ত অংশীদারের মাধ্যমে ${bdt(data.release_bdt)} যাবে (সিমুলেটেড) এবং কিস্তির সূচি খুলবে।`)}</p>
+          <button className="btn btn-primary mt-2" disabled={busy} onClick={() => run(() => api(`/cases/${caseId}/fund`, { body: {} }))}>
+            {busy ? '…' : t('Release funds', 'টাকা ছাড় করুন')}
+          </button>
+        </div>
+      )}
+
       {/* repayments */}
       {data.account && (
         <div>

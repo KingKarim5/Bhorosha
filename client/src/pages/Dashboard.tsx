@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useApi } from '../lib/hooks';
 import { useI18n } from '../lib/i18n';
+import { useAuth } from '../lib/auth';
 import { api } from '../lib/api';
 import { Card, PageTitle, Skeleton, ErrorNote, ModeBadge } from '../components/ui';
 import { Tour } from '../components/Tour';
@@ -45,6 +46,32 @@ function Meter({ label, value, limit }: { label: string; value: number; limit: n
   );
 }
 
+/** This lender's own owner application link: applications made through it come only to this lender. */
+function ApplyLinkCard({ empty }: { empty: boolean }) {
+  const { t } = useI18n();
+  const { user } = useAuth();
+  const [copied, setCopied] = useState(false);
+  if (!user?.apply_code) return null;
+  const url = `${window.location.origin}/apply/${user.apply_code}`;
+  return (
+    <div className="card p-4 mb-5 flex flex-wrap items-center gap-3" style={{ borderColor: 'color-mix(in oklab, var(--accent) 45%, var(--line))' }}>
+      <div className="min-w-0 flex-1">
+        <div className="text-[12.5px] text-muted">{t(`Application link for ${user.org_name || 'your institution'}`, `${user.org_name || 'আপনার প্রতিষ্ঠান'}-এর আবেদনের লিংক`)}</div>
+        <div className="num text-[15px] font-semibold break-all">{url}</div>
+        <div className="text-[12.5px] text-muted mt-0.5">
+          {empty
+            ? t('No applications yet. Send this link to a shop owner, or open it yourself to apply as one.', 'এখনো কোনো আবেদন নেই। লিংকটি দোকান মালিককে পাঠান, অথবা নিজেই খুলে মালিক হিসেবে আবেদন করুন।')
+            : t('Applications made through this link come only to you.', 'এই লিংকে আসা আবেদন শুধু আপনার কাছে আসে।')}
+        </div>
+      </div>
+      <button className="btn" onClick={async () => { await navigator.clipboard?.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1600); }}>
+        {copied ? t('Copied', 'কপি হয়েছে') : t('Copy link', 'লিংক কপি')}
+      </button>
+      <a className="btn btn-primary" href={`/apply/${user.apply_code}`} target="_blank" rel="noreferrer">{t('Open it', 'খুলুন')}</a>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { t, pick, n } = useI18n();
   const c = useApi('/console');
@@ -77,6 +104,7 @@ export default function Dashboard() {
       />
       <ErrorNote msg={err || c.error} />
       {msg && <div className="card p-3 mb-4 text-[13.5px]">{msg}</div>}
+      <ApplyLinkCard empty={decisions.length === 0} />
       <div className="grid lg:grid-cols-3 gap-5">
         <Card title={t('AI status', 'এআই-এর অবস্থা')}>
           <div className="flex items-center gap-3">

@@ -6,8 +6,10 @@ const M = Schema.Types.Mixed;
 
 const UserSchema = new Schema(
   {
-    role: { type: String, enum: ['lender', 'investor'], required: true },
+    role: { type: String, enum: ['lender', 'investor', 'admin'], required: true },
     display_name: String,
+    org_name: String, // lenders: the institution's name
+    apply_code: { type: String, index: true, sparse: true }, // lenders: code in the owner application link /apply/<code>
     email: { type: String, unique: true, required: true },
     password_hash: String,
   },
@@ -23,6 +25,7 @@ const ShopSchema = new Schema(
     token: { type: String, index: true },
     cohort_flag: { type: String, enum: ['demo', 'synthetic_cohort'], default: 'demo', index: true },
     slug: { type: String, index: true },
+    lender: { ...ref('User'), index: true }, // the institution the owner applied to; only that lender sees the case
     funded: { type: Boolean, default: false },
     segment: { type: String, enum: ['cash_led', 'hybrid', 'digital_first'], default: 'cash_led', index: true },
     offline_share: { type: Number, default: 1 }, // share of sales in the shop (mostly cash)
@@ -357,6 +360,7 @@ const AuditLogSchema = new Schema(
     agent: { type: String, index: true }, // Intake | Verifier | Underwriter | Watchman | Servicer
     run_id: { type: String, index: true },
     step: String,
+    lender: { ...ref('User'), index: true }, // policy, control and simulation entries belong to one lender
   },
   opts,
 );
@@ -382,7 +386,8 @@ const LenderSettingsSchema = new Schema(
 // Lender policy (v2): versioned. A new version applies only to new decisions; old decisions keep theirs.
 const PolicySchema = new Schema(
   {
-    version: { type: Number, unique: true },
+    lender: { ...ref('User'), index: true }, // each lender owns its own versioned policy
+    version: Number,
     autonomy_cap_bdt: { type: Number, default: 300000 },
     min_documents: { type: [String], default: ['statement'] }, // statement | online_evidence (hybrid/digital) | supplier_bill
     household_mixing_pct: { type: Number, default: 25 },
@@ -441,6 +446,7 @@ const SimStateSchema = new Schema({ key: { type: String, unique: true }, month_i
 
 const ShadowCaseSchema = new Schema(
   {
+    lender: { ...ref('User'), index: true },
     label: String,
     business_type: String,
     bhorsha_verdict: String,
@@ -499,6 +505,7 @@ const PaymentSchema = new Schema(
     received_at: Date,
     signature_ok: Boolean,
     loan: { ...ref('LoanAccount'), index: true },
+    lender: { ...ref('User'), index: true }, // the lender whose loan it matched (or whose test console sent it)
     application: ref('Application'),
     shop: ref('Shop'),
     installment_n: Number,
@@ -539,6 +546,7 @@ export const InvestorUpdate = mongoose.model('InvestorUpdate', InvestorUpdateSch
 export const AuditLog = mongoose.model('AuditLog', AuditLogSchema);
 export const LenderSettings = mongoose.model('LenderSettings', LenderSettingsSchema);
 export const EvalRun = mongoose.model('EvalRun', EvalRunSchema);
+PolicySchema.index({ lender: 1, version: 1 }, { unique: true });
 export const Policy = mongoose.model('Policy', PolicySchema);
 export const Control = mongoose.model('Control', ControlSchema);
 export const SimState = mongoose.model('SimState', SimStateSchema);

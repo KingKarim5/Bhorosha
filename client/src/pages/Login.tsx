@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PublicShell } from '../components/Shell';
 import { useI18n } from '../lib/i18n';
-import { useAuth } from '../lib/auth';
+import { useAuth, homeFor } from '../lib/auth';
 import { api } from '../lib/api';
 import { ErrorNote } from '../components/ui';
 import { BRAND } from '../brand';
@@ -38,7 +38,7 @@ export default function Login() {
     try {
       const u = await login(em, pw);
       const next = sp.get('next');
-      go(next && next !== '/login' ? next : u.role === 'investor' ? '/portfolio' : '/dashboard');
+      go(next && next !== '/login' ? next : homeFor(u));
     } catch (e) {
       setErr((e as Error).message);
     } finally {

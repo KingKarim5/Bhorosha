@@ -10,6 +10,7 @@ import { FEATURE_NAMES, CAUSES } from '../lib/features';
 import { VERDICT_TEXT } from '../lib/rules';
 import { getSim } from '../services/watchman';
 import { modelStatus } from '../lib/model';
+import { lenderShopIds } from '../tenancy';
 
 type Lean = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 const r = Router();
@@ -32,25 +33,28 @@ function shadowSummary(rows: Lean[]) {
   return { n: rows.length, bands, agreement_pct: rows.length ? Math.round((agree / rows.length) * 100) : 0 };
 }
 
-r.get('/dashboard', staff, async (_req, res) => {
-  const shops = await Shop.find({ cohort_flag: 'demo' }).lean();
+r.get('/dashboard', staff, async (req, res) => {
+  const me = req.user!.id;
+  const shops = await Shop.find({ cohort_flag: 'demo', lender: me }).lean();
   const apps = await Application.find({ shop: { $in: shops.map((s) => s._id) } }).lean();
   const verdicts = await Verdict.find({ _id: { $in: apps.map((a) => a.current_verdict) } }).lean();
   const byStatus = ['draft', 'filed', 'decided', 'funded'].map((s) => ({ status: s, n: apps.filter((a) => a.status === s).length }));
   const byVerdict = ['viable', 'not_sure', 'not_viable'].map((v) => ({ verdict: v, n: verdicts.filter((x) => x.final_verdict === v).length }));
-  const openFlags = await Flag.find({ status: { $ne: 'resolved' } }).sort({ month: -1 }).limit(5).populate('shop', 'label').lean();
-  const shadow = shadowSummary(await ShadowCase.find().lean());
-  const sim = await getSim();
+  const openFlags = await Flag.find({ status: { $ne: 'resolved' }, shop: { $in: shops.map((s) => s._id) } }).sort({ month: -1 }).limit(5).populate('shop', 'label').lean();
+  const shadow = shadowSummary(await ShadowCase.find({ lender: me }).lean());
+  const sim = await getSim(me);
   res.json({ byStatus, byVerdict, openFlags, shadow, sim: { month_index: sim.month_index, base_month: sim.base_month }, model: modelStatus() });
 });
 
-r.get('/shadow', staff, async (_req, res) => {
-  const rows = await ShadowCase.find().lean();
+r.get('/shadow', staff, async (req, res) => {
+  const rows = await ShadowCase.find({ lender: req.user!.id }).lean();
   res.json({ rows, summary: shadowSummary(rows) });
 });
 
 r.get('/audit', staff, async (req, res) => {
-  const filter = req.query.ai ? { action: /^ai:/ } : {};
+  const apps = await Application.find({ shop: { $in: await lenderShopIds(req.user!.id) } }).select('_id').lean();
+  const mine = { $or: [{ application: { $in: apps.map((a) => a._id) } }, { lender: req.user!.id }] };
+  const filter = req.query.ai ? { ...mine, action: /^ai:/ } : mine;
   res.json(await AuditLog.find(filter).sort({ createdAt: -1 }).limit(200).lean());
 });
 
@@ -58,9 +62,10 @@ r.get('/evaluation', async (_req, res) => {
   res.json({ eval: readEval(), model: modelStatus() });
 });
 
-r.get('/fairness', staff, async (_req, res) => {
+r.get('/fairness', staff, async (req, res) => {
   const ev = readEval();
-  const aiCalls = await AuditLog.find({ action: /^ai:/ }).sort({ createdAt: -1 }).limit(100).lean();
+  const apps = await Application.find({ shop: { $in: await lenderShopIds(req.user!.id) } }).select('_id').lean();
+  const aiCalls = await AuditLog.find({ action: /^ai:/, application: { $in: apps.map((a) => a._id) } }).sort({ createdAt: -1 }).limit(100).lean();
   res.json({
     model_inputs: FEATURE_NAMES,
     excluded: ['gender', 'religion', 'marital status', 'ethnicity', 'district or location', 'owner name', 'business type (used only for seasonality)'],

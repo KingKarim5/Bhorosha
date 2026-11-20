@@ -24,7 +24,7 @@ export default function Invest() {
             <Link key={l.id} to={`/invest/${l.id}`} className="card p-4 hover:border-accent transition-colors">
               <div className="flex justify-between items-start gap-2">
                 <div>
-                  <div className="num text-[12px] text-muted">{l.code}</div>
+                  <div className="num text-[12px] text-muted">{l.code}{l.lender_name ? ` · ${l.lender_name}` : ''}</div>
                   <div className="font-display text-[18px] font-semibold">{pick(l.type)}</div>
                   <div className="text-[13px] text-muted">{pick(l.size)}</div>
                 </div>

@@ -87,10 +87,14 @@ class PageBoundary extends Component<{ children: ReactNode; resetKey: string }, 
   }
 }
 
+const ADMIN_NAV = [{ to: '/admin', en: 'Lenders and investors', bn: 'ঋণদাতা ও বিনিয়োগকারী', icon: IconLayers }];
+
 export function Shell({ children }: { children: ReactNode }) {
   const { t, pick } = useI18n();
   const { user, logout } = useAuth();
-  const nav = user?.role === 'investor' ? INVESTOR_NAV : STAFF_NAV;
+  // the owner application link is this lender's own link
+  const staffNav = STAFF_NAV.map((x) => (x.to === '/apply' && user?.apply_code ? { ...x, to: `/apply/${user.apply_code}` } : x));
+  const nav = user?.role === 'investor' ? INVESTOR_NAV : user?.role === 'admin' ? ADMIN_NAV : staffNav;
   const loc = useLocation();
   const go = useNavigate();
   const [open, setOpen] = useState(false);
@@ -140,7 +144,7 @@ export function Shell({ children }: { children: ReactNode }) {
               </button>
               {user && (
                 <span className="chip hidden sm:inline-flex">
-                  {user.display_name}
+                  {user.role === 'lender' && user.org_name ? `${user.org_name} · ${user.display_name}` : user.role === 'admin' ? `${t('Admin', 'অ্যাডমিন')} · ${user.display_name}` : user.display_name}
                 </span>
               )}
               <DemoBadge />

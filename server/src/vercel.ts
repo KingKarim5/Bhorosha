@@ -6,6 +6,7 @@ import { createApp } from './app';
 import { loadModel } from './lib/model';
 import { Shop } from './models';
 import { seedAll } from './seed/seed';
+import { ensureTenancy } from './tenancy';
 
 const app = createApp();
 let ready: Promise<void> | null = null;
@@ -16,6 +17,7 @@ function init() {
       await connectDb();
       loadModel();
       if ((await Shop.countDocuments({ cohort_flag: 'demo' })) === 0) await seedAll(() => undefined);
+      await ensureTenancy(); // per-lender workspaces and the admin account (idempotent)
     })().catch((e) => {
       ready = null; // try again on the next request
       throw e;

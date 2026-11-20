@@ -101,7 +101,7 @@ r.post('/owner/:token/counter-offer/accept', async (req, res) => {
   const c = d?.counter_offer;
   if (!c?.amount_bdt) return res.status(400).json({ error: 'There is no counter-offer to accept.' });
   await Application.updateOne({ _id: app._id }, { loan_ask_bdt: c.amount_bdt, tenor_months: c.tenor_months });
-  const t = await getTerms();
+  const t = await getTerms(shop.lender);
   await replaceContract(app._id, contractText({ contractNo: loanRef(app._id), borrower: shop.owner_label || shop.label, principal: c.amount_bdt, ratePct: t.borrower_rate_pct, tenor: c.tenor_months, rebateBand: [t.rebate_min_pct, t.rebate_max_pct], penaltyBand: [t.penalty_min_pts, t.penalty_max_pts] }), 'generated', 'owner');
   await AuditLog.create({ actor: 'owner', action: 'owner:accept_counter_offer', agent: 'Counter-offer', application: app._id, redacted_payload_json: { amount_bdt: c.amount_bdt, tenor_months: c.tenor_months }, output_json: {}, mode: 'human' });
   await recompute(app._id, { actor: 'owner', reason: 'owner accepted the counter-offer' });
@@ -112,7 +112,7 @@ r.post('/owner/:token/settlement-quote', async (req, res) => {
   const shop = (await Shop.findOne({ token: req.params.token }).lean()) as Lean;
   if (!shop) return res.status(404).json({ error: 'not found' });
   const app = (await Application.findOne({ shop: shop._id }).lean()) as Lean;
-  const sim = await getSim();
+  const sim = await getSim(shop.lender);
   const q = await earlySettlementQuote(app._id, sim.day!, { useAi: true, actor: 'owner' });
   res.json({ ...q, view: await ownerView(req.params.token) });
 });

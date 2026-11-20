@@ -27,9 +27,17 @@ const d = (s: string) => new Date(s + 'T00:00:00Z');
 const iso = (x: Date) => x.toISOString().slice(0, 10);
 const cadenceOf = (shop: Lean) => (shop.segment === 'hybrid' || shop.segment === 'digital_first' ? 'weekly' : 'monthly');
 
-export async function getSim() {
-  let s = await SimState.findOne({ key: 'sim' });
-  if (!s) s = await SimState.create({ key: 'sim', month_index: 0, base_month: SIM_BASE_MONTH, day: SIM_START });
+/** Each lender has its own simulation clock. */
+export async function getSim(lenderId: unknown) {
+  const key = `sim:${lenderId}`;
+  let s = await SimState.findOne({ key });
+  if (!s) {
+    try {
+      s = await SimState.create({ key, month_index: 0, base_month: SIM_BASE_MONTH, day: SIM_START });
+    } catch {
+      s = (await SimState.findOne({ key }))!;
+    }
+  }
   if (!s.day) {
     s.day = SIM_START;
     await s.save();
@@ -164,6 +172,7 @@ async function evaluateWeek(shop: Lean, weekStart: Date, allTxns: Txn[]): Promis
   const courier = new Set(all.filter((t) => /courier/i.test(t.counterparty || '')).map((t) => t.counterparty!));
   const sales = salesRows(all, courier);
   if (!sales.length) return null;
+  if (!sales.some((t) => t.date.getTime() >= weekStart.getTime())) return null; // no wallet data for this week yet: nothing to judge
   const first = sales[0].date.getTime();
   const weeks: WeekPoint[] = [];
   for (let s = weekStart.getTime() - Math.floor((weekStart.getTime() - first) / (7 * DAY)) * 7 * DAY; s < end.getTime(); s += 7 * DAY) weeks.push({ start: new Date(s), value: 0 });
@@ -201,14 +210,14 @@ async function record(e: Evaluated, actor: string) {
 }
 
 /** Advance the simulation clock by a week or to the start of the next month, running every check that falls due. */
-export async function simulate(step: 'week' | 'month', actor = 'lender') {
-  const sim = await getSim();
+export async function simulate(step: 'week' | 'month', actor: string, lenderId: unknown) {
+  const sim = await getSim(lenderId);
   const from = d(sim.day!);
   const endCap = d(SIM_END);
   if (from >= endCap) return { done: true, day: sim.day, events: [], payments: [] };
   let to = step === 'week' ? new Date(from.getTime() + 7 * DAY) : d(`${addMonths(monthKey(from), 1)}-01`);
   if (to > endCap) to = endCap;
-  const shops = await Shop.find({ funded: true, cohort_flag: 'demo' }).lean();
+  const shops = await Shop.find({ funded: true, cohort_flag: 'demo', lender: lenderId }).lean();
   const events: Lean[] = [];
   const payments: Lean[] = [];
   const useAi = actor !== 'seed' && actor !== 'check';
@@ -255,7 +264,7 @@ export async function simulate(step: 'week' | 'month', actor = 'lender') {
           received_at: iso(rec), reference: noRef ? null : `${loan.ref} instalment ${inst.n}`, payer_label: noRef ? cfg.payer || loan.payer_label : loan.payer_label,
         };
         const { raw, signature } = signedBody(ev);
-        const r = await ingestWebhook(raw, signature, { useAi, actor, timeoutMs: 8000 });
+        const r = await ingestWebhook(raw, signature, { useAi, actor, timeoutMs: 8000, lenderId });
         const p = (r.ok ? r.payment : null) as Lean | null;
         payments.push({ shop: shop.label, loan: loan.ref, instalment: inst.n, received_at: ev.received_at, amount_bdt: ev.amount_bdt, status: p?.status, classification: p?.classification ?? null, matched_by: p?.matched_by, confidence: p?.confidence, watch: p?.watch?.assessment ?? null });
       }
@@ -265,20 +274,18 @@ export async function simulate(step: 'week' | 'month', actor = 'lender') {
   sim.day = iso(to);
   sim.month_index = Math.max(0, Math.round((to.getTime() - d(SIM_START).getTime()) / (30.4 * DAY)));
   await sim.save();
-  await AuditLog.create({ actor, action: `watchman:simulate_${step}`, agent: 'Watchman', step: `advance to ${iso(to)}`, redacted_payload_json: {}, output_json: { events: events.length, flagged: events.filter((x) => x.severity).length }, mode: 'rules' });
-  const breaker = await checkBreaker(actor);
+  await AuditLog.create({ actor, lender: lenderId, action: `watchman:simulate_${step}`, agent: 'Watchman', step: `advance to ${iso(to)}`, redacted_payload_json: {}, output_json: { events: events.length, flagged: events.filter((x) => x.severity).length }, mode: 'rules' });
+  const breaker = await checkBreaker(lenderId, actor);
   payments.sort((a, b) => String(a.received_at).localeCompare(String(b.received_at)));
   return { done: to >= endCap, day: iso(to), events, payments, breaker };
 }
 
-export async function simulateNextMonth(actor = 'lender') {
-  return simulate('month', actor);
-}
 
-export async function watchlist() {
-  const sim = await getSim();
+
+export async function watchlist(lenderId: unknown) {
+  const sim = await getSim(lenderId);
   const now = d(sim.day!);
-  const shops = await Shop.find({ funded: true, cohort_flag: 'demo' }).lean();
+  const shops = await Shop.find({ funded: true, cohort_flag: 'demo', lender: lenderId }).lean();
   const sevRank: Record<string, number> = { call: 3, watch: 2, no_data: 1 };
   const rows = await Promise.all(
     shops.map(async (shop) => {

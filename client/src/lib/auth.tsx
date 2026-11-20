@@ -3,15 +3,20 @@ import { api, setToken } from './api';
 
 export interface User {
   id: string;
-  role: 'lender' | 'investor';
+  role: 'lender' | 'investor' | 'admin';
   email: string;
   display_name: string;
+  org_name?: string; // lenders: institution name
+  apply_code?: string; // lenders: code in the owner application link
 }
+export type SignupBody = { role: 'lender' | 'investor'; display_name: string; email: string; password: string; org_name?: string };
+/** Where each role lands after logging in. */
+export const homeFor = (u: User) => (u.role === 'admin' ? '/admin' : u.role === 'investor' ? '/portfolio' : '/dashboard');
 interface Ctx {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<User>;
-  signup: (b: { role: 'lender' | 'investor'; display_name: string; email: string; password: string }) => Promise<User>;
+  signup: (b: SignupBody) => Promise<User>;
   logout: () => Promise<void>;
 }
 const AuthCtx = createContext<Ctx>(null as unknown as Ctx);
@@ -31,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(r.user);
     return r.user;
   };
-  const signup = async (b: { role: 'lender' | 'investor'; display_name: string; email: string; password: string }) => {
+  const signup = async (b: SignupBody) => {
     const r = await api<{ user: User; token: string }>('/auth/signup', { body: b });
     setToken(r.token);
     setUser(r.user);

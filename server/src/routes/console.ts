@@ -4,6 +4,7 @@ import { requireRole } from '../auth';
 import { Policy, Decision, Application, Shop, AuditLog } from '../models';
 import { getActivePolicy, getControl, setPause, breakerMetrics, checkBreaker } from '../services/policy';
 import { termsFrom, checkRateSetup } from '../lib/loanTerms';
+import { lenderShopIds } from '../tenancy';
 
 // Policy and Audit Console (v2): the lender owns the policy, reads every AI decision and the audit log,
 // and can pause the AI. The console never approves or declines an individual case.
@@ -11,12 +12,13 @@ type Lean = Record<string, any>; // eslint-disable-line @typescript-eslint/no-ex
 const r = Router();
 const lender = requireRole('lender');
 
-r.get('/console', lender, async (_req, res) => {
-  const policy = await getActivePolicy();
-  const versions = await Policy.find().sort({ version: -1 }).lean();
-  const control = await getControl();
-  const metrics = await breakerMetrics(policy);
-  const shops = await Shop.find({ cohort_flag: 'demo' }).select('label segment').lean();
+r.get('/console', lender, async (req, res) => {
+  const me = req.user!.id;
+  const policy = await getActivePolicy(me);
+  const versions = await Policy.find({ lender: me }).sort({ version: -1 }).lean();
+  const control = await getControl(me);
+  const metrics = await breakerMetrics(policy, me);
+  const shops = await Shop.find({ cohort_flag: 'demo', lender: me }).select('label segment').lean();
   const apps = await Application.find({ shop: { $in: shops.map((s) => s._id) } }).select('shop loan_ask_bdt status').lean();
   const decisions = (await Decision.find({ application: { $in: apps.map((a) => a._id) } }).sort({ createdAt: -1 }).limit(200).lean()) as Lean[];
   const rows: Lean[] = decisions.map((d) => {
@@ -63,7 +65,8 @@ const PolicyBody = z.object({
 
 r.post('/policy', lender, async (req, res) => {
   const b = PolicyBody.parse(req.body);
-  const cur = await getActivePolicy();
+  const me = req.user!.id;
+  const cur = await getActivePolicy(me);
   // the code refuses a setup where the borrower rate is below investor rate plus Bhorsha's fee (checked at every fee tier)
   const t = termsFrom({ ...cur, ...b });
   for (const tenor of [3, 6, t.max_tenor_months]) {
@@ -72,22 +75,23 @@ r.post('/policy', lender, async (req, res) => {
   }
   if (!(t.rebate_min_pct <= t.rebate_default_pct && t.rebate_default_pct <= t.rebate_max_pct)) return res.status(400).json({ error: 'Policy refused: the default rebate must sit between its minimum and maximum.' });
   if (!(t.penalty_min_pts <= t.penalty_default_pts && t.penalty_default_pts <= t.penalty_max_pts)) return res.status(400).json({ error: 'Policy refused: the default late penalty must sit between its minimum and maximum.' });
-  const p = await Policy.create({ ...b, version: cur.version + 1, created_by: req.user!.email });
-  await AuditLog.create({ actor: req.user!.email, action: 'policy:new_version', agent: 'Policy', redacted_payload_json: b, output_json: { version: p.version, applies_to: 'new decisions only' }, mode: 'human' });
-  const breaker = await checkBreaker(req.user!.email);
+  const p = await Policy.create({ ...b, lender: me, version: cur.version + 1, created_by: req.user!.email });
+  await AuditLog.create({ actor: req.user!.email, lender: me, action: 'policy:new_version', agent: 'Policy', redacted_payload_json: b, output_json: { version: p.version, applies_to: 'new decisions only' }, mode: 'human' });
+  const breaker = await checkBreaker(me, req.user!.email);
   res.json({ policy: p, breaker });
 });
 
 r.post('/control/pause', lender, async (req, res) => {
   const b = z.object({ paused: z.boolean(), reason: z.string().trim().max(300).default('') }).parse(req.body);
-  const c = await setPause(b.paused, 'lender', b.paused ? b.reason || 'Paused by the lender.' : '', req.user!.email);
+  const c = await setPause(req.user!.id, b.paused, 'lender', b.paused ? b.reason || 'Paused by the lender.' : '', req.user!.email);
   res.json(c);
 });
 
-r.post('/control/check-breaker', lender, async (req, res) => res.json(await checkBreaker(req.user!.email)));
+r.post('/control/check-breaker', lender, async (req, res) => res.json(await checkBreaker(req.user!.id, req.user!.email)));
 
 r.get('/audit/full', lender, async (req, res) => {
-  const q: Lean = {};
+  const apps = await Application.find({ shop: { $in: await lenderShopIds(req.user!.id) } }).select('_id').lean();
+  const q: Lean = { $or: [{ application: { $in: apps.map((a) => a._id) } }, { lender: req.user!.id }] };
   if (req.query.agent) q.agent = String(req.query.agent);
   if (req.query.ai) q.action = /^ai:/;
   res.json(await AuditLog.find(q).sort({ createdAt: -1 }).limit(300).lean());

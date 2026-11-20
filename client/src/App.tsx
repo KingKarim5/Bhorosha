@@ -1,6 +1,6 @@
 import { ReactNode, lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from './lib/auth';
+import { useAuth, homeFor } from './lib/auth';
 import { Shell, PublicShell } from './components/Shell';
 import { Skeleton } from './components/ui';
 import Landing from './pages/Landing';
@@ -21,6 +21,7 @@ const Invest = lazy(() => import('./pages/Invest'));
 const InvestCase = lazy(() => import('./pages/InvestCase'));
 const Portfolio = lazy(() => import('./pages/Portfolio'));
 const Repayments = lazy(() => import('./pages/Repayments'));
+const Admin = lazy(() => import('./pages/Admin'));
 const Structure = lazy(() => import('./pages/Structure'));
 const About = lazy(() => import('./pages/About'));
 const Stub = lazy(() => import('./pages/Stub'));
@@ -35,12 +36,13 @@ function Loading() {
   );
 }
 
-function Guard({ roles, children }: { roles?: ('lender' | 'investor')[]; children: ReactNode }) {
+type Role = 'lender' | 'investor' | 'admin';
+function Guard({ roles, children }: { roles?: Role[]; children: ReactNode }) {
   const { user, loading } = useAuth();
   const loc = useLocation();
   if (loading) return <Loading />;
   if (!user) return <Navigate to={`/login?next=${encodeURIComponent(loc.pathname)}`} replace />;
-  if (roles && !roles.includes(user.role)) return <Navigate to={user.role === 'investor' ? '/portfolio' : '/dashboard'} replace />;
+  if (roles && !roles.includes(user.role)) return <Navigate to={homeFor(user)} replace />;
   return <>{children}</>;
 }
 
@@ -48,7 +50,7 @@ const staff: 'lender'[] = ['lender'];
 
 export function App() {
   const { user } = useAuth();
-  const inShell = (el: ReactNode, roles?: ('lender' | 'investor')[]) => (
+  const inShell = (el: ReactNode, roles?: Role[]) => (
     <Guard roles={roles}>
       <Shell>
         <Suspense fallback={<Loading />}>{el}</Suspense>
@@ -72,7 +74,9 @@ export function App() {
       />
       <Route path="/dashboard" element={inShell(<Dashboard />, staff)} />
       <Route path="/cases" element={inShell(<Cases />, staff)} />
-      <Route path="/apply" element={<PublicShell><Suspense fallback={<Loading />}><CaseNew /></Suspense></PublicShell>} />
+      <Route path="/apply" element={<PublicShell><Suspense fallback={<Loading />}><div className="px-4 md:px-10 py-6 max-w-5xl mx-auto"><CaseNew /></div></Suspense></PublicShell>} />
+      <Route path="/apply/:code" element={<PublicShell><Suspense fallback={<Loading />}><div className="px-4 md:px-10 py-6 max-w-5xl mx-auto"><CaseNew /></div></Suspense></PublicShell>} />
+      <Route path="/admin" element={inShell(<Admin />, ['admin'])} />
       <Route path="/cases/new" element={<Navigate to="/apply" replace />} />
       <Route path="/cases/:id" element={inShell(<CaseDetail />, staff)} />
       <Route path="/cases/:id/field-visit" element={inShell(<Stub kind="field_visit" />, staff)} />
@@ -82,7 +86,7 @@ export function App() {
       <Route path="/shadow" element={inShell(<Shadow />, staff)} />
       <Route path="/fairness" element={inShell(<Fairness />, staff)} />
       <Route path="/settings" element={inShell(<Settings />, staff)} />
-      <Route path="/structure" element={inShell(<Structure />)} />
+      <Route path="/structure" element={inShell(<Structure />, ['lender', 'investor'])} />
       <Route path="/about" element={user ? inShell(<About />) : <PublicShell><Suspense fallback={<Loading />}><div className="px-4 md:px-10 py-6 max-w-5xl"><About /></div></Suspense></PublicShell>} />
       <Route path="/invest" element={inShell(<Invest />, ['investor'])} />
       <Route path="/invest/verify" element={inShell(<InvestVerify />, ['investor'])} />

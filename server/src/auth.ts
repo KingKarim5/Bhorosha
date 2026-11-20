@@ -4,9 +4,16 @@ import { config } from './config';
 
 export interface AuthUser {
   id: string;
-  role: 'lender' | 'investor';
+  role: 'lender' | 'investor' | 'admin';
   email: string;
   display_name: string;
+  org_name?: string; // lenders: institution name
+  apply_code?: string; // lenders: owner application link code
+}
+
+/** The session payload for a user document. */
+export function sessionUser(u: { _id: unknown; role: string; email: string; display_name?: string | null; org_name?: string | null; apply_code?: string | null }): AuthUser {
+  return { id: String(u._id), role: u.role as AuthUser['role'], email: u.email, display_name: u.display_name || u.email, ...(u.role === 'lender' ? { org_name: u.org_name || undefined, apply_code: u.apply_code || undefined } : {}) };
 }
 
 declare module 'express-serve-static-core' {

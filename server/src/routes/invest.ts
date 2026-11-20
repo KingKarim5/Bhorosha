@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { requireRole } from '../auth';
 import { Application, Shop, Verdict, Decision, Investor, InvestorVerification, Commitment, InvestorUpdate, EvidenceItem, AuditLog } from '../models';
+import { User } from '../models';
 import { allocate } from '../services/allocator';
 import { mulberry32, addMonths } from '../lib/util';
 
@@ -37,6 +38,8 @@ async function listable() {
   for (const a of apps) {
     const shop = (await Shop.findById(a.shop).lean()) as Lean;
     if (shop?.cohort_flag !== 'demo') continue;
+    const lender = (await User.findById(shop.lender).select('org_name').lean()) as Lean | null;
+    shop.lender_name = lender?.org_name || 'Licensed lender';
     const v = (await Verdict.findById(a.current_verdict).lean()) as Lean;
     const d = (await Decision.findOne({ application: a._id }).sort({ createdAt: -1 }).lean()) as Lean;
     const listed = d?.decision === 'approved_with_conditions'; // only AI decisions approved with conditions are listed
@@ -48,7 +51,7 @@ async function listable() {
 function listingView(x: Lean) {
   const share = Math.round(x.a.loan_ask_bdt * INVESTOR_SHARE);
   return {
-    id: x.a._id, code: code(x.a._id), type: typeLabel(x.shop.business_type), size: sizeRange(x.a.loan_ask_bdt), loan_bdt: x.a.loan_ask_bdt,
+    id: x.a._id, code: code(x.a._id), lender_name: x.shop.lender_name, type: typeLabel(x.shop.business_type), size: sizeRange(x.a.loan_ask_bdt), loan_bdt: x.a.loan_ask_bdt,
     investor_share_bdt: share, committed_bdt: x.a.funded_bdt || 0, open_bdt: Math.max(0, share - (x.a.funded_bdt || 0)),
     verdict: x.v?.final_verdict, band_low: x.v?.band_low, band_high: x.v?.band_high, checked_share: x.v?.features_json?.checked_share ?? 0,
     runway: (x.v?.features_json?.monthly || []).map((m: Lean) => m.inflow), runway_points: (x.v?.features_json?.monthly || []).map((m: Lean) => ({ month: m.month, value: m.inflow })), listed: x.listed, tenor_months: x.a.tenor_months,

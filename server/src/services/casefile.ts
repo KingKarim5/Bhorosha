@@ -294,7 +294,8 @@ export async function recompute(appId: unknown, opts: RecomputeOpts = {}) {
   }
   t0 = Date.now();
   const rawTxns = await loadTxns(app.shop, 0);
-  const settings: RuleSettings = await getRuleSettings();
+  const lenderId = shop.lender;
+  const settings: RuleSettings = await getRuleSettings(lenderId);
   const settlements = (await CourierSettlement.find({ shop: app.shop }).sort({ settlement_date: 1 }).lean()) as Lean[];
   const orders = (await OrderRecord.find({ shop: app.shop }).lean()) as Lean[];
   const vr = await verify(app, shop, docs, rawTxns, settlements, orders);
@@ -308,7 +309,7 @@ export async function recompute(appId: unknown, opts: RecomputeOpts = {}) {
   const returnRate = orders.length ? orderSummary(orders as never).return_rate : null;
   const { stated, noteClaims, receivableDoc } = mergeStated(app, docs, vr.receivableVerified);
   const checks = runChecks(txns);
-  const policyNow = await getActivePolicy();
+  const policyNow = await getActivePolicy(lenderId);
   const terms = termsFrom(policyNow);
   const useAi = actor !== 'seed'; // the seed runs the rules readers (labelled fallback); real requests use the AI agents
   await trace('Verifier', 'consistency and tamper checks', t0, { summary: `${checks.filter((c) => !c.passed && c.severity !== 'low').length} of ${checks.length} checks raised a concern${checks.some((c) => !c.passed && c.severity === 'high') ? '; the statement does not reconcile' : ''}. Checks show internal consistency only, never authenticity.` });
@@ -459,7 +460,7 @@ export async function recompute(appId: unknown, opts: RecomputeOpts = {}) {
     const limits = checkLimits(app.loan_ask_bdt, app.tenor_months, terms);
     const contractRate = Number(contract.doc.extracted?.annual_rate_pct);
     const rate = checkRateSetup(Number.isFinite(contractRate) && contractRate > 0 ? contractRate : terms.borrower_rate_pct, Math.min(app.tenor_months, terms.max_tenor_months), terms);
-    const control = await getControl();
+    const control = await getControl(lenderId);
     const required: string[] = policy.min_documents || ['statement'];
     const missingDocs: string[] = [];
     if (required.includes('statement') && !rawTxns.length) missingDocs.push('statement');
@@ -507,7 +508,7 @@ export async function recompute(appId: unknown, opts: RecomputeOpts = {}) {
     t0 = Date.now();
     await trace('Servicer', 'owner explanation', t0, { summary: 'Plain Bangla explanation of the decision and what to fix prepared for the owner\'s private page.' });
     if (shop.funded) await trace('Watchman', 'monitoring cadence', t0, { summary: `Funded loan: ${shop.segment === 'cash_led' || !shop.segment ? 'monthly' : 'weekly'} forecast checks, festival-aware.` });
-    await checkBreaker(actor);
+    await checkBreaker(lenderId, actor);
   }
   findings = findings.slice();
   return verdict;

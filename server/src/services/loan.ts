@@ -6,6 +6,7 @@ import { redact } from '../lib/redact';
 import { validateText, extractNumbers } from '../lib/validate';
 import { isPostFestival, windowLift } from '../lib/festivals';
 import { config } from '../config';
+import { lenderOfApp, lenderShopIds } from '../tenancy';
 import {
   TermsPolicy, termsFrom, contractText, readContractRules, validateContract, ContractFields, checkLimits, checkRateSetup, feeSplit, FeeSplit,
   clampPricing, schedule, settlementQuote, SettlementQuote, classifyPayment, applyToSchedule, nextOpen, matchScore, verifySignature, signPayload, lateFee1, Installment,
@@ -19,8 +20,13 @@ type Lean = Record<string, any>; // eslint-disable-line @typescript-eslint/no-ex
 export const INVESTOR_SHARE = 0.25; // investors may fund up to 25% of a loan through the partner's pool (simulation)
 const fmt = (n: number) => Math.round(n).toLocaleString('en-IN');
 
-export async function getTerms(): Promise<TermsPolicy> {
-  return termsFrom((await getActivePolicy()) as Partial<TermsPolicy>);
+export async function getTerms(lenderId: unknown): Promise<TermsPolicy> {
+  if (!lenderId) return termsFrom(null); // a payment no lender can be found for: default terms only
+  return termsFrom((await getActivePolicy(lenderId)) as Partial<TermsPolicy>);
+}
+
+async function lenderOfShop(shopId: unknown): Promise<unknown> {
+  return ((await Shop.findById(shopId).select('lender').lean()) as Lean | null)?.lender ?? null;
 }
 
 export const loanRef = (appId: unknown) => 'LN-' + String(appId).slice(-4).toUpperCase();
@@ -110,7 +116,7 @@ export async function confirmContract(appId: unknown, actor: string, terms: { re
   const c = await LoanContract.findOne({ application: appId }).sort({ createdAt: -1 });
   if (!c) throw new Error('no contract on this case');
   if ((c.problems as Lean[] | undefined)?.length) throw new Error('This contract fails the code checks; upload a corrected contract instead of confirming it.');
-  const t = await getTerms();
+  const t = await getTerms(await lenderOfApp(appId));
   const p = clampPricing(terms.rebate_pct, terms.penalty_pts, t);
   c.set({ status: 'confirmed', confirmed_by: actor, confirmed_at: new Date(), extracted: { ...(c.extracted as Lean), early_rebate_pct: p.rebate_pct, late_penalty_pts: p.penalty_pts } });
   await c.save();
@@ -267,6 +273,7 @@ interface IngestOpts {
   useAi: boolean;
   actor: string;
   timeoutMs?: number;
+  lenderId?: unknown; // a lender's test console: match only that lender's loans
 }
 
 /** Webhook entry: verify the signature over the raw body, then match, classify and apply. */
@@ -288,8 +295,8 @@ export async function ingestWebhook(raw: string, signature: string | undefined, 
 }
 
 async function processPayment(ev: PaymentEvent, o: IngestOpts) {
-  const t = await getTerms();
-  const loans = (await LoanAccount.find({ status: 'active' }).lean()) as Lean[];
+  const scope = o.lenderId ? { status: 'active', shop: { $in: await lenderShopIds(o.lenderId) } } : { status: 'active' };
+  const loans = (await LoanAccount.find(scope).lean()) as Lean[];
   const t0 = Date.now();
   // 1) the reference names a loan: certain
   const refHit = ev.reference ? loans.find((l) => String(ev.reference).toUpperCase().includes(String(l.ref).toUpperCase())) : null;
@@ -328,7 +335,9 @@ async function processPayment(ev: PaymentEvent, o: IngestOpts) {
     confidence = m.confidence;
     reason = m.reason;
   }
-  const base = { event_id: ev.event_id, channel: ev.channel, reference: ev.reference || null, payer_label: ev.payer_label || null, amount_bdt: ev.amount_bdt, received_at: new Date(ev.received_at), signature_ok: true, confidence, matched_by: matchedBy, match_reason: reason };
+  const lender = loan ? await lenderOfShop(loan.shop) : o.lenderId ?? null;
+  const t = await getTerms(lender);
+  const base = { event_id: ev.event_id, channel: ev.channel, reference: ev.reference || null, payer_label: ev.payer_label || null, amount_bdt: ev.amount_bdt, received_at: new Date(ev.received_at), signature_ok: true, confidence, matched_by: matchedBy, match_reason: reason, lender };
   if (!loan || confidence < t.match_confidence_min) {
     const p = await Payment.create({ ...base, loan: loan?._id, application: loan?.application, shop: loan?.shop, status: 'review' });
     await AuditLog.create({ actor: o.actor, action: 'payment:review_queue', agent: 'Payment matcher', application: loan?.application, step: 'below confidence threshold', redacted_payload_json: { amount_bdt: ev.amount_bdt }, output_json: { summary: `Confidence ${Math.round(confidence * 100)}% is below ${Math.round(t.match_confidence_min * 100)}%: sent to the lender's review queue, not applied.`, loan: loan?.ref ?? null }, mode: matchedBy === 'ai' ? 'ai' : 'rules', latency_ms: Date.now() - t0 });
@@ -421,9 +430,9 @@ async function watchRepayment(p: Lean, loan: Lean, shop: Lean, o: IngestOpts) {
 }
 
 /** Lender review queue: apply a held payment to a chosen loan, or reject it. */
-export async function resolveReview(paymentId: string, action: 'apply' | 'reject', loanRefIn: string | undefined, actor: string, useAi: boolean) {
+export async function resolveReview(lenderId: unknown, paymentId: string, action: 'apply' | 'reject', loanRefIn: string | undefined, actor: string, useAi: boolean) {
   const p = await Payment.findById(paymentId);
-  if (!p || p.status !== 'review') throw new Error('payment is not waiting for review');
+  if (!p || p.status !== 'review' || String(p.lender) !== String(lenderId)) throw new Error('payment is not waiting for your review');
   if (action === 'reject') {
     p.status = 'rejected';
     p.matched_by = 'lender';
@@ -431,11 +440,12 @@ export async function resolveReview(paymentId: string, action: 'apply' | 'reject
     await AuditLog.create({ actor, action: 'payment:rejected', agent: 'Payment matcher', redacted_payload_json: { payment: paymentId }, output_json: {}, mode: 'human' });
     return p.toObject();
   }
-  const loan = (await LoanAccount.findOne(loanRefIn ? { ref: loanRefIn } : { _id: p.loan }).lean()) as Lean;
-  if (!loan) throw new Error('choose the loan this payment belongs to');
-  const base = { event_id: p.event_id, channel: p.channel, reference: p.reference, payer_label: p.payer_label, amount_bdt: p.amount_bdt, received_at: p.received_at, signature_ok: p.signature_ok, confidence: 1, matched_by: 'lender', match_reason: `Applied by the lender after review (${p.match_reason || 'no reason'}).` };
+  const own = await lenderShopIds(lenderId);
+  const loan = (await LoanAccount.findOne({ ...(loanRefIn ? { ref: loanRefIn } : { _id: p.loan }), shop: { $in: own } }).lean()) as Lean;
+  if (!loan) throw new Error('choose one of your loans for this payment');
+  const base = { event_id: p.event_id, channel: p.channel, reference: p.reference, payer_label: p.payer_label, amount_bdt: p.amount_bdt, received_at: p.received_at, signature_ok: p.signature_ok, confidence: 1, matched_by: 'lender', lender: await lenderOfShop(loan.shop), match_reason: `Applied by the lender after review (${p.match_reason || 'no reason'}).` };
   await Payment.deleteOne({ _id: p._id });
-  const t = await getTerms();
+  const t = await getTerms(await lenderOfShop(loan.shop));
   return applyPayment(base, loan, t, { useAi, actor });
 }
 

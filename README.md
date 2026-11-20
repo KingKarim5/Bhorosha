@@ -37,7 +37,9 @@ Open **https://bhorosha.vercel.app** and choose **I'm a lender** or **I'm an inv
 | Investor (simulation, verified) | investor@demo.bd |
 | Investor (simulation, new) | newinvestor@demo.bd |
 
-Shop owners need no account. Each shop has a private link (`/owner/<token>`), opened from its case page or reached after applying at `/apply`.
+Every lender is its own **institution**: it sees only the applications made through its own link (`/apply/<code>`, shown on its console), with its own policy, AI controls, watchlist and repayments. The demo accounts belong to *Bhorsha Demo Lender*. Investors see the approved loans of every institution. An **admin** (from `ADMIN_EMAIL` / `ADMIN_PASSWORD`) sees every institution and investor at `/admin`.
+
+Shop owners need no account. They apply through a lender's link, and each shop gets a private page (`/owner/<token>`).
 
 ## The demo path
 
@@ -114,7 +116,7 @@ See `.env.example`. Set `AI_PROVIDER=gemini` with a free Google AI Studio `GEMIN
 Live on Vercel as one project: `vercel.json` builds the server and the client, serves `client/dist`, and runs the Express API as a serverless function (`api/index.js` → `server/src/vercel.ts`), backed by MongoDB Atlas. To deploy your own copy:
 
 1. Create a MongoDB Atlas database (Vercel → Storage → MongoDB Atlas adds `MONGODB_URI` automatically).
-2. Add `JWT_SECRET`, `COOKIE_SECURE=true`, `AI_PROVIDER=gemini`, `GEMINI_MODEL=gemini-3.1-flash-lite`, `GEMINI_API_KEY` and (optional) `PAYMENT_WEBHOOK_SECRET` in the project settings.
+2. Add `JWT_SECRET`, `COOKIE_SECURE=true`, `AI_PROVIDER=gemini`, `GEMINI_MODEL=gemini-3.1-flash-lite`, `GEMINI_API_KEY`, `ADMIN_EMAIL` and `ADMIN_PASSWORD` (sensitive), and (optional) `PAYMENT_WEBHOOK_SECRET` in the project settings.
 3. Run `vercel deploy --prod` from the repo root.
 
 ## Built with

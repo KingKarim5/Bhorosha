@@ -4,6 +4,7 @@ import { createApp } from './app';
 import { loadModel, modelStatus } from './lib/model';
 import { Shop } from './models';
 import { seedAll } from './seed/seed';
+import { ensureTenancy } from './tenancy';
 
 (async () => {
   try {
@@ -19,6 +20,7 @@ import { seedAll } from './seed/seed';
     console.log('Empty database: seeding demo data...');
     await seedAll(() => undefined);
   }
+  await ensureTenancy();
   const app = createApp();
   app.listen(config.port, () => {
     const m = modelStatus();

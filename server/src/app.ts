@@ -15,6 +15,7 @@ import miscRoutes from './routes/misc';
 import ownerRoutes from './routes/owner';
 import consoleRoutes from './routes/console';
 import loanRoutes from './routes/loans';
+import adminRoutes from './routes/admin';
 import { BRAND } from './brand';
 
 export function createApp() {
@@ -47,13 +48,14 @@ export function createApp() {
   app.use('/api', ownerRoutes);
   app.use('/api', consoleRoutes);
   app.use('/api', loanRoutes);
+  app.use('/api', adminRoutes);
 
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found' }));
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
     console.error('[api error]', err.message);
     const issues = (err as Error & { issues?: { path: (string | number)[]; message: string }[] }).issues;
-    const msg = issues?.length ? `${issues[0].path.join('.') ? issues[0].path.join('.') + ': ' : ''}${issues[0].message}` : err.message;
+    const msg = issues?.length ? issues[0].message : err.message; // validation messages are written for people
     res.status(400).json({ error: msg || 'Something went wrong' });
   });
   return app;

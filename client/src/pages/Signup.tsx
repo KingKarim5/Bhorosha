@@ -36,14 +36,14 @@ export default function Signup() {
   const go = useNavigate();
   const [sp] = useSearchParams();
   const [role, setRole] = useState<Role>(sp.get('role') === 'investor' ? 'investor' : 'lender');
-  const [form, setForm] = useState({ display_name: '', email: '', password: '' });
+  const [form, setForm] = useState({ display_name: '', email: '', password: '', org_name: '' });
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const submit = async () => {
     setBusy(true);
     setErr(null);
     try {
-      const u = await signup({ role, ...form });
+      const u = await signup({ role, ...form, org_name: role === 'lender' ? form.org_name : undefined });
       go(u.role === 'investor' ? '/invest/verify' : '/dashboard');
     } catch (e) {
       setErr((e as Error).message);
@@ -93,6 +93,13 @@ export default function Signup() {
             submit();
           }}
         >
+          {role === 'lender' && (
+            <>
+              <label className="label" htmlFor="org">{t('Institution name', 'প্রতিষ্ঠানের নাম')}</label>
+              <input id="org" className="input mt-1 mb-1" value={form.org_name} onChange={(e) => setForm({ ...form, org_name: e.target.value })} placeholder={t('e.g. Padma Microfinance', 'যেমন: পদ্মা মাইক্রোফাইন্যান্স')} required />
+              <p className="text-[12px] text-muted mb-3">{t('Your institution gets its own cases, policy and application link. No one else sees them.', 'আপনার প্রতিষ্ঠানের নিজস্ব কেস, নীতি ও আবেদনের লিংক থাকবে। অন্য কেউ সেগুলো দেখবে না।')}</p>
+            </>
+          )}
           <label className="label" htmlFor="nm">{t('Your name', 'আপনার নাম')}</label>
           <input id="nm" className="input mt-1 mb-3" value={form.display_name} onChange={(e) => setForm({ ...form, display_name: e.target.value })} autoComplete="name" required />
           <label className="label" htmlFor="em">{t('Email', 'ইমেইল')}</label>

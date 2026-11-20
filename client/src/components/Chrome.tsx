@@ -97,7 +97,8 @@ export function Footer() {
         <div>
           <div className="label uppercase tracking-[0.14em] !text-[11.5px]">{t('Explore', 'ঘুরে দেখুন')}</div>
           <ul className="mt-2 space-y-1.5 text-[14.5px]">
-            <li><Link className="hover:text-accent" to="/login">{t('Open the demo', 'ডেমো খুলুন')}</Link></li>
+            <li><Link className="hover:text-accent" to="/signup">{t('Create an account', 'অ্যাকাউন্ট খুলুন')}</Link></li>
+            <li><Link className="hover:text-accent" to="/login">{t('Log in', 'লগ ইন')}</Link></li>
             <li><Link className="hover:text-accent" to="/about">{t('About Bhorsha', 'ভরসা পরিচিতি')}</Link></li>
           </ul>
         </div>

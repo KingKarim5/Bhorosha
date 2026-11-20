@@ -16,11 +16,20 @@ import { BILLS, NOTES } from '../seed/sampleDocs';
 import { callJson, PROMPTS, AnswerSchema } from '../services/ai';
 import { redact } from '../lib/redact';
 import { validateText, validateCitations, extractNumbers } from '../lib/validate';
+import { ownedApp, lenderForCode } from '../tenancy';
+import { getTerms } from '../services/loan';
 
 type Lean = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 const r = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 const staff = requireRole('lender');
+
+// Every /cases/:id route: the case must belong to the logged-in lender (anything else looks like "not found").
+r.param('id', async (req, res, next, id) => {
+  if (!req.user || req.user.role !== 'lender') return next();
+  if (!(await ownedApp(req.user.id, String(id)))) return res.status(404).json({ error: 'case not found' });
+  next();
+});
 
 /** The freshly seeded copy if there is one, else the committed copy (identical: the seed is deterministic). */
 function sampleFile(dir: string, name: string): string | null {
@@ -52,8 +61,8 @@ r.get('/samples/:key', (req, res) => {
   res.json(t);
 });
 
-r.get('/cases', staff, async (_req, res) => {
-  const shops = await Shop.find({ cohort_flag: 'demo' }).lean();
+r.get('/cases', staff, async (req, res) => {
+  const shops = await Shop.find({ cohort_flag: 'demo', lender: req.user!.id }).lean();
   const apps = await Application.find({ shop: { $in: shops.map((s) => s._id) } }).sort({ createdAt: 1 }).lean();
   const verdicts = await Verdict.find({ _id: { $in: apps.map((a) => a.current_verdict).filter(Boolean) } }).lean();
   const decisions = await Decision.find({ application: { $in: apps.map((a) => a._id) } }).sort({ createdAt: -1 }).lean();
@@ -116,8 +125,9 @@ const CreateSchema = z.object({
   label: z.string().min(2).max(80),
   business_type: z.string().min(2).max(40),
   months_trading: z.coerce.number().int().min(0).max(600).default(12),
-  loan_ask_bdt: z.coerce.number().min(5000).max(50000000),
-  tenor_months: z.coerce.number().int().min(3).max(120),
+  loan_ask_bdt: z.coerce.number({ invalid_type_error: 'Enter the loan amount in taka.' }).min(5000, 'The smallest loan is Tk 5,000.').max(5000000, 'Ask for Tk 50,00,000 or less. The lender lends up to its own limit and offers a smaller loan for larger requests.'),
+  tenor_months: z.coerce.number({ invalid_type_error: 'Enter the tenor in months.' }).int('Enter whole months.').min(1, 'The tenor must be at least 1 month.').max(60, 'Ask for 60 months or less. The lender offers a shorter tenor for longer requests.'),
+  lender_code: z.string().trim().max(40).optional(),
   purpose: z.string().max(200).default(''),
   purpose_kind: z.enum(['working_capital', 'capex']).default('working_capital'),
   cash_share_pct: z.coerce.number().min(0).max(95).nullable().optional(),
@@ -133,11 +143,21 @@ const CreateSchema = z.object({
 });
 
 // Public intake: the shop owner applies through a link; no login. Returns the owner's private token.
+// What the owner sees before applying: which lender, and its limits.
+r.get('/apply-info/:code?', async (req, res) => {
+  const l = await lenderForCode(req.params.code || null);
+  if (!l) return res.status(404).json({ error: 'This application link is not valid. Ask the lender for a new one.' });
+  const t = await getTerms(l._id);
+  res.json({ org_name: l.org_name || 'Lender', code: l.apply_code, max_principal_bdt: t.max_principal_bdt, max_tenor_months: t.max_tenor_months, borrower_rate_pct: t.borrower_rate_pct });
+});
+
 r.post('/apply', async (req, res) => {
   const b = CreateSchema.parse(req.body);
+  const lender = await lenderForCode(b.lender_code || null);
+  if (!lender) return res.status(400).json({ error: 'This application link is not valid. Ask the lender for a new one.' });
   const parsed = b.statement_csv ? parseStatementCsv(b.statement_csv) : { txns: [], errors: [] as string[] };
   const onlineShare = b.online_share_pct != null ? b.online_share_pct / 100 : b.segment === 'cash_led' ? 0 : b.segment === 'hybrid' ? 0.5 : 0.9;
-  const shop = await Shop.create({ label: b.label, business_type: b.business_type, months_trading: b.months_trading, owner_label: `${b.label} (owner)`, token: crypto.randomBytes(10).toString('hex'), cohort_flag: 'demo', slug: 'new-' + Date.now(), segment: b.segment, online_share: onlineShare, offline_share: 1 - onlineShare });
+  const shop = await Shop.create({ label: b.label, business_type: b.business_type, months_trading: b.months_trading, owner_label: `${b.label} (owner)`, token: crypto.randomBytes(10).toString('hex'), cohort_flag: 'demo', slug: 'new-' + Date.now(), lender: lender._id, segment: b.segment, online_share: onlineShare, offline_share: 1 - onlineShare });
   const courier = b.courier_csv ? parseCourierCsv(b.courier_csv) : { rows: [], errors: [] as string[] };
   const ordersParsed = b.orders_csv ? parseOrderLogCsv(b.orders_csv) : { rows: [], errors: [] as string[] };
   if (courier.rows.length) await CourierSettlement.insertMany(courier.rows.map((r) => ({ ...r, shop: shop._id })));
@@ -185,7 +205,7 @@ r.post('/owner/:token/documents', upload.single('image'), async (req, res) => {
 
 r.post('/cases/:id/documents/:docId/read', staff, upload.single('image'), async (req, res) => {
   const doc = await Doc.findById(req.params.docId).lean();
-  if (!doc) return res.status(404).json({ error: 'document not found' });
+  if (!doc || String(doc.application) !== req.params.id) return res.status(404).json({ error: 'document not found' });
   const result =
     doc.kind === 'note'
       ? await readNote(String(doc._id), req.user!.email)

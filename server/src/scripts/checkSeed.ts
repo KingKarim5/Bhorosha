@@ -4,6 +4,7 @@ import { seedAll } from '../seed/seed';
 import { Shop, Application, Verdict, Decision, OwnerQuestion, Doc, Transaction, Flag, LoanContract, LoanAccount, Payment } from '../models';
 import { confirmContract, signedBody, ingestWebhook, getTerms } from '../services/loan';
 import { recompute } from '../services/casefile';
+import { demoLender } from '../tenancy';
 import { simulate } from '../services/watchman';
 
 type Lean = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -54,7 +55,8 @@ const check = (name: string, pass: boolean, detail = '') => results.push({ name,
   check('Rafi: condition "provide supplier invoices for stock"', s.rafi.conditions.includes('supplier_invoices'), s.rafi.conditions.join(','));
 
   // v3 loan agents
-  const t = await getTerms();
+  const demo = (await demoLender())!;
+  const t = await getTerms(demo._id);
   const approved = Object.entries(s).filter(([, x]) => x.decision === 'approved_with_conditions');
   check('Every loan except Hasan is inside the limits (Tk 1,000,000, 12 months)', Object.entries(s).every(([k, x]) => k === 'hasan' || x.gates.within_limits === true), Object.entries(s).filter(([, x]) => x.gates.within_limits === false).map(([k]) => k).join(','));
   check('Mitu: hold_need_evidence because the late clause is unclear', s.mitu.decision === 'hold_need_evidence' && s.mitu.gates.contract_terms === false && s.mitu.contract === 'unsure', `${s.mitu.decision}, contract ${s.mitu.contract}`);
@@ -67,8 +69,8 @@ const check = (name: string, pass: boolean, detail = '') => results.push({ name,
   check('Webhook: a payment with a wrong signature is refused', !forged.ok && forged.status === 401, JSON.stringify(forged).slice(0, 80));
 
   // watchman after funding: Karim watch then call; Jahan no false alarm in lean months
-  const m1 = await simulate('month', 'check');
-  const m2 = await simulate('month', 'check');
+  const m1 = await simulate('month', 'check', demo._id);
+  const m2 = await simulate('month', 'check', demo._id);
   const karim = await Shop.findOne({ slug: 'karim' }).lean();
   const jahan = await Shop.findOne({ slug: 'jahan' }).lean();
   const kf = await Flag.find({ shop: karim!._id }).sort({ createdAt: 1 }).lean();

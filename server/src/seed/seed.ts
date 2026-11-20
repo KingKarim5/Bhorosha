@@ -18,6 +18,7 @@ import { addMonths, mulberry32 } from '../lib/util';
 import { config } from '../config';
 import { loadModel } from '../lib/model';
 import { ensureContract, openLoanAccount, getTerms } from '../services/loan';
+import { ensureTenancy, DEMO_ORG } from '../tenancy';
 
 export const DEMO_PASSWORD = 'bhorsha-demo';
 export const DEMO_ACCOUNTS = [
@@ -56,14 +57,14 @@ async function seedUnlocked(log: (m: string) => void) {
   for (const M of ALL_MODELS) await (M as typeof User).deleteMany({});
   const hash = await bcrypt.hash(DEMO_PASSWORD, 8);
   const users: Record<string, InstanceType<typeof User>> = {};
-  for (const a of DEMO_ACCOUNTS) users[a.email] = await User.create({ ...a, password_hash: hash });
+  for (const a of DEMO_ACCOUNTS) users[a.email] = await User.create({ ...a, password_hash: hash, ...(a.role === 'lender' ? { org_name: DEMO_ORG, apply_code: 'demo' } : {}) });
   users.lender = users['lender@demo.bd'];
   users.investor = users['investor@demo.bd'];
   const extraInvestors = [];
   for (let i = 2; i <= 5; i++)
     extraInvestors.push(await User.create({ role: 'investor', email: `investor${i}@demo.bd`, display_name: `Investor ${'ABCDE'[i - 1]} (demo)`, password_hash: hash }));
   await LenderSettings.create({});
-  await SimState.create({ key: 'sim', month_index: 0, base_month: SIM_BASE_MONTH, day: `${SIM_BASE_MONTH}-01` });
+  await SimState.create({ key: `sim:${users.lender._id}`, month_index: 0, base_month: SIM_BASE_MONTH, day: `${SIM_BASE_MONTH}-01` });
 
   const stmtDir = path.join(config.seedDataDir, 'statements');
   fs.mkdirSync(stmtDir, { recursive: true });
@@ -72,7 +73,7 @@ async function seedUnlocked(log: (m: string) => void) {
   for (const s of DEMO_SHOPS) {
     const shop = await Shop.create({
       label: s.label, business_type: s.business_type, months_trading: s.months_trading, owner_label: s.owner_label,
-      token: token(s.slug), cohort_flag: 'demo', slug: s.slug, funded: s.status === 'funded',
+      token: token(s.slug), cohort_flag: 'demo', slug: s.slug, funded: s.status === 'funded', lender: users.lender._id,
       segment: s.segment, offline_share: s.offline_share, online_share: s.online_share,
     });
     const app = await Application.create({
@@ -109,7 +110,7 @@ async function seedUnlocked(log: (m: string) => void) {
     }
     for (const [i, c] of (s.checkins || []).entries())
       await CheckIn.create({ shop: shop._id, month: addMonths(SIM_BASE_MONTH, i), sim_index: i + 1, ...c, revealed: false });
-    const terms = await getTerms();
+    const terms = await getTerms(users.lender._id);
     await ensureContract(app.toObject(), shop.toObject(), terms, s.contract || {});
     await recompute(app._id, { actor: 'seed', reason: 'initial seed' });
     if (s.status === 'funded') {
@@ -161,9 +162,10 @@ async function seedUnlocked(log: (m: string) => void) {
     const mid = verdict === 'viable' ? 80 + rng() * 15 : verdict === 'not_sure' ? 55 + rng() * 25 : 25 + rng() * 25;
     const decision = verdict === 'viable' ? (rng() < 0.9 ? 'approve' : 'ask_more') : verdict === 'not_sure' ? (rng() < 0.5 ? 'approve' : rng() < 0.6 ? 'ask_more' : 'decline') : rng() < 0.15 ? 'approve' : 'decline';
     const trading = rng() < mid / 100 + (rng() - 0.5) * 0.1;
-    shadow.push({ label: `Synthetic shop ${String(i + 1).padStart(2, '0')}`, business_type: types[i % types.length], bhorsha_verdict: verdict, band_mid: Math.round(mid), manager_decision: decision, trading_12m: trading });
+    shadow.push({ lender: users.lender._id, label: `Synthetic shop ${String(i + 1).padStart(2, '0')}`, business_type: types[i % types.length], bhorsha_verdict: verdict, band_mid: Math.round(mid), manager_decision: decision, trading_12m: trading });
   }
   await ShadowCase.insertMany(shadow);
   await AuditLog.create({ actor: 'seed', action: 'seed:reset', redacted_payload_json: {}, output_json: { shops: DEMO_SHOPS.length }, mode: 'rules' });
+  await ensureTenancy(); // admin account from ADMIN_EMAIL / ADMIN_PASSWORD, if set
   log('  investors, commitments, shadow cases seeded');
 }

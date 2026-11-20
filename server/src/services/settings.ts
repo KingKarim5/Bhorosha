@@ -9,6 +9,6 @@ export async function getSettingsDoc() {
   return s;
 }
 
-export async function getRuleSettings(): Promise<RuleSettings> {
-  return ruleSettingsFrom(await getActivePolicy());
+export async function getRuleSettings(lenderId: unknown): Promise<RuleSettings> {
+  return ruleSettingsFrom(await getActivePolicy(lenderId));
 }
