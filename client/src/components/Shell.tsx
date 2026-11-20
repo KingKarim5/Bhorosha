@@ -167,9 +167,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
             <Wordmark />
           </NavLink>
           <div className="flex items-center gap-2">
-            <span className="hidden sm:inline-flex">
-              <DemoBadge />
-            </span>
+            <DemoBadge />
             <TopControls />
           </div>
         </header>

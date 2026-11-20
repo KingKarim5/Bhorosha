@@ -220,6 +220,20 @@ const OwnerQuestionSchema = new Schema(
   opts,
 );
 
+// Messages the Servicer agent writes to the owner (v2).
+const OwnerMessageSchema = new Schema(
+  {
+    shop: { ...ref('Shop'), index: true },
+    application: ref('Application'),
+    flag: ref('Flag'),
+    kind: String, // decision | watchman | offer
+    text_bn: String,
+    text_en: String,
+    offer: { type: M, default: null }, // e.g. { type: 'repayment_date_shift', days: 14, status: 'offered' | 'accepted' }
+  },
+  opts,
+);
+
 const CheckInSchema = new Schema(
   {
     shop: { ...ref('Shop'), index: true },
@@ -425,6 +439,7 @@ export const Finding = mongoose.model('Finding', FindingSchema);
 export const Verdict = mongoose.model('Verdict', VerdictSchema);
 export const Decision = mongoose.model('Decision', DecisionSchema);
 export const CheckIn = mongoose.model('CheckIn', CheckInSchema);
+export const OwnerMessage = mongoose.model('OwnerMessage', OwnerMessageSchema);
 export const OwnerQuestion = mongoose.model('OwnerQuestion', OwnerQuestionSchema);
 export const CourierSettlement = mongoose.model('CourierSettlement', CourierSettlementSchema);
 export const OrderRecord = mongoose.model('OrderRecord', OrderRecordSchema);
@@ -445,7 +460,7 @@ export const SimState = mongoose.model('SimState', SimStateSchema);
 export const ShadowCase = mongoose.model('ShadowCase', ShadowCaseSchema);
 
 export const ALL_MODELS = [
-  User, Shop, Application, Transaction, Doc, CourierSettlement, OrderRecord, OwnerQuestion, EvidenceItem, Finding, Verdict, Decision, CheckIn, Forecast, Flag,
+  User, Shop, Application, Transaction, Doc, CourierSettlement, OrderRecord, OwnerQuestion, OwnerMessage, EvidenceItem, Finding, Verdict, Decision, CheckIn, Forecast, Flag,
   Intervention, Outcome, Investor, InvestorVerification, Commitment, InvestorUpdate, AuditLog, LenderSettings,
   EvalRun, SimState, ShadowCase, Policy, Control,
 ];

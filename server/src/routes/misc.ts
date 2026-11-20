@@ -104,27 +104,4 @@ r.post('/admin/reset', requireRole('lender'), async (_req, res) => {
   res.json({ ok: true });
 });
 
-// Owner copy: plain Bangla, private token, no login, no internal scoring detail.
-r.get('/owner/:token', async (req, res) => {
-  const shop = (await Shop.findOne({ token: req.params.token }).lean()) as Lean;
-  if (!shop) return res.status(404).json({ error: 'not found' });
-  const app = (await Application.findOne({ shop: shop._id }).lean()) as Lean;
-  const v = (await Verdict.findById(app?.current_verdict).lean()) as Lean;
-  const d = (await Decision.findOne({ application: app?._id }).sort({ createdAt: -1 }).lean()) as Lean;
-  const good = (v?.rules_points_json || []).filter((x: Lean) => x.points > 0).map((x: Lean) => ({ bn: x.condition_bn, en: x.condition_en }));
-  const work = (v?.rules_points_json || []).filter((x: Lean) => x.points < 0).map((x: Lean) => ({ bn: x.condition_bn, en: x.condition_en }));
-  res.json({
-    shop: shop.label,
-    status: app?.status,
-    decision: d ? d.decision : null,
-    verdict_word: v ? VERDICT_TEXT[v.final_verdict as keyof typeof VERDICT_TEXT] : null,
-    cause: v ? CAUSES[v.cause as keyof typeof CAUSES] : null,
-    going_well: good,
-    to_work_on: work,
-    conditions: v?.conditions_json || [],
-    recovery_plan: v?.recovery_plan_json || [],
-    missing: app?.missing || [],
-  });
-});
-
 export default r;

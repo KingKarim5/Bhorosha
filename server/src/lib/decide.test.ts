@@ -48,6 +48,11 @@ describe('fail-safe decision', () => {
     expect(r.first_tranche_bdt).toBe(300000);
     expect(r.tranche_plan.reduce((a, t) => a + t.amount_bdt, 0)).toBe(1200000);
   });
+  it('does not call an unsure model a contradiction when the rules say not sure', () => {
+    const r = decide({ ...base, rulesVerdict: 'not_sure', finalVerdict: 'not_sure', modelSet: ['viable', 'not_viable'] });
+    expect(r.gates.find((g) => g.key === 'model_no_contradiction')!.pass).toBe(true);
+    expect(r.decision).toBe('hold_need_evidence');
+  });
   it('gives reasons with evidence ids', () => {
     const r = decide({ ...base, tamper: true });
     expect(r.reasons.some((x) => x.evidence_ids.includes('E5'))).toBe(true);

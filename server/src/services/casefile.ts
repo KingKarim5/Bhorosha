@@ -3,7 +3,7 @@ import { orderSummary } from '../lib/online';
 import { verify } from './verifier';
 import { decide } from '../lib/decide';
 import { getActivePolicy, getControl, checkBreaker } from './policy';
-import { Decision } from '../models';
+import { Decision, OwnerQuestion } from '../models';
 import type { Txn } from '../lib/statement';
 import { runChecks, CheckResult } from '../lib/checks';
 import { computeFeatures, likelyCause, CAUSES, Features, Stated, Cause, RATE } from '../lib/features';
@@ -83,7 +83,7 @@ function mergeStated(app: Lean, docs: Lean[], receivableVerified = false): { sta
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 
-function buildEvidence(f: Features, stated: Stated, app: Lean, docs: Lean[], checks: CheckResult[], noteClaims: string[], receivableDoc: Lean | null, online: OnlineEv | null): Ev[] {
+function buildEvidence(f: Features, stated: Stated, app: Lean, docs: Lean[], checks: CheckResult[], noteClaims: string[], receivableDoc: Lean | null, online: OnlineEv | null, answers: Lean[] = []): Ev[] {
   const ev: Ev[] = [];
   const add = (e: Omit<Ev, 'eid'>) => ev.push({ ...e, eid: `E${ev.length + 1}` });
   const S = 'statement';
@@ -104,6 +104,7 @@ function buildEvidence(f: Features, stated: Stated, app: Lean, docs: Lean[], che
     add({ claim_key: 'receivable', claim_text: `A buyer owes ${fmtBdt(stated.receivable_bdt)} BDT, outstanding about ${stated.receivable_days ?? '?'} days.${receivableDoc ? ' The invoice is from a buyer who pays this shop regularly through the wallet.' : ''}`, claim_text_bn: `একজন ক্রেতার কাছে ${fmtBdt(stated.receivable_bdt)} টাকা পাওনা, প্রায় ${stated.receivable_days ?? '?'} দিন ধরে।${receivableDoc ? ' চালানটি এমন ক্রেতার, যিনি নিয়মিত ওয়ালেটে টাকা দেন।' : ''}`, value: stated.receivable_bdt, label: receivableDoc ? 'checked' : 'owner_says', source_kind: receivableDoc ? 'invoice + buyer payments in wallet' : 'owner', source_ref: receivableDoc ? String(receivableDoc._id) : 'note' });
   if (stated.cib_status)
     add({ claim_key: 'cib_status', claim_text: `Credit bureau (CIB) status declared: ${stated.cib_status}.`, claim_text_bn: `সিআইবি অবস্থা (ঘোষিত): ${stated.cib_status}।`, value: stated.cib_status, label: 'owner_says', source_kind: 'owner', source_ref: 'intake' });
+  for (const q of answers) add({ claim_key: 'owner_answer', claim_text: `Owner's answer about an unmatched item: "${q.answer}".`, claim_text_bn: `মেলেনি এমন বিষয়ে মালিকের উত্তর: "${q.answer}"।`, value: q.answer, label: 'owner_says', source_kind: 'owner answer', source_ref: q.item_key });
   for (const c of noteClaims.slice(0, 4)) add({ claim_key: 'note_claim', claim_text: `Owner's note: "${c}".`, claim_text_bn: `মালিকের নোট: "${c}"।`, value: c, label: 'owner_says', source_kind: 'owner', source_ref: 'note' });
   if (online && online.settlements.length) {
     const m = online.settlements.filter((x) => x.match_status === 'checked').length;
@@ -321,7 +322,8 @@ export async function recompute(appId: unknown, opts: RecomputeOpts = {}) {
   if (!hasSupplierBill && salesTxns.some((t) => t.counterparty_kind === 'supplier') && !conds.some((c) => c.key === 'supplier_invoices'))
     conds.push({ key: 'supplier_invoices', kind: 'prudential', en: 'Provide supplier invoices for stock bought with the loan (photos in the app, within 30 days).', bn: 'ঋণের টাকায় কেনা মালের সরবরাহকারীর চালান দিন (অ্যাপে ছবি, ৩০ দিনের মধ্যে)।' });
   const tranches = tranchePlan(app.loan_ask_bdt, conds, f, settings);
-  const ev = buildEvidence(f, stated, app, docs, checks, noteClaims, receivableDoc, online);
+  const answers = (await OwnerQuestion.find({ application: app._id, status: 'answered' }).lean()) as Lean[];
+  const ev = buildEvidence(f, stated, app, docs, checks, noteClaims, receivableDoc, online, answers);
   const checkedShare = ev.length ? Math.round((ev.filter((e) => e.label === 'checked').length / ev.length) * 100) : 0;
   let findings = crossCheckRules(f, ev, docs, txns, checks, stated);
 
@@ -424,7 +426,7 @@ export async function recompute(appId: unknown, opts: RecomputeOpts = {}) {
     generated_by,
     phrased_by,
     disagreement_flag: j.disagreement,
-    disagreement_text: j.disagreement_en ? JSON.stringify({ en: j.disagreement_en, bn: j.disagreement_bn, kind: j.conformal_set && !j.conformal_set.includes(j.rules_verdict) ? 'contradiction' : 'less_certain' }) : null,
+    disagreement_text: j.disagreement_en ? JSON.stringify({ en: j.disagreement_en, bn: j.disagreement_bn, kind: j.rules_verdict !== 'not_sure' && j.conformal_set && j.conformal_set.length > 0 && !j.conformal_set.includes(j.rules_verdict) ? 'contradiction' : 'less_certain' }) : null,
     verdict_source: j.source,
   });
   await EvidenceItem.deleteMany({ application: app._id });

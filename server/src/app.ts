@@ -11,6 +11,7 @@ import caseRoutes from './routes/cases';
 import watchRoutes from './routes/watch';
 import investRoutes from './routes/invest';
 import miscRoutes from './routes/misc';
+import ownerRoutes from './routes/owner';
 import { BRAND } from './brand';
 
 export function createApp() {
@@ -39,6 +40,7 @@ export function createApp() {
   app.use('/api', watchRoutes);
   app.use('/api', investRoutes);
   app.use('/api', miscRoutes);
+  app.use('/api', ownerRoutes);
 
   app.use('/api', (_req, res) => res.status(404).json({ error: 'Not found' }));
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

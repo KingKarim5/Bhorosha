@@ -91,9 +91,7 @@ export default function Landing() {
             </span>
           </Link>
           <div className="flex items-center gap-2">
-            <span className="hidden sm:inline-flex">
-              <DemoBadge />
-            </span>
+            <DemoBadge />
             <TopControls />
           </div>
         </header>

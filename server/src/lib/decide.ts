@@ -41,7 +41,8 @@ export interface DecideOutput {
 }
 
 export function decide(x: DecideInput): DecideOutput {
-  const modelContradicts = !!x.modelSet && x.modelSet.length > 0 && !x.modelSet.includes(x.rulesVerdict);
+  // a contradiction needs a firm rules verdict and a model set that excludes it (sets only hold viable / not_viable)
+  const modelContradicts = x.rulesVerdict !== 'not_sure' && !!x.modelSet && x.modelSet.length > 0 && !x.modelSet.includes(x.rulesVerdict);
   const modelAgreesViable = !x.modelSet || x.modelSet.includes('viable');
   const gates: Gate[] = [
     { key: 'not_paused', pass: !x.paused, en: x.paused ? `AI decisions are paused: ${x.pauseReason || 'by the lender'}.` : 'AI decisions are running.', bn: x.paused ? `এআই-এর সিদ্ধান্ত থামানো আছে: ${x.pauseReason || 'ঋণদাতা থামিয়েছেন'}।` : 'এআই-এর সিদ্ধান্ত চালু।' },
