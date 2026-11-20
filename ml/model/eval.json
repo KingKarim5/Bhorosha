@@ -1395,7 +1395,7 @@
    "value": 1,
    "sample_size": 438,
    "test": "T11",
-   "limitation": "Checked against our own verdict function, so validity is close to guaranteed by construction. Synthetic cohort v2 from our own frozen generator (assumptions in EVAL_PROTOCOL.md); not real-world accuracy."
+   "limitation": "Checked against our own verdict function, so validity is close to certain by construction. Synthetic cohort v2 from our own frozen generator (assumptions in EVAL_PROTOCOL.md); not real-world accuracy."
   },
   {
    "status": "done",
@@ -2942,7 +2942,7 @@
      "value": 1,
      "sample_size": 508,
      "test": "T11",
-     "limitation": "Checked against our own verdict function, so validity is close to guaranteed by construction. Synthetic cohort v2 from our own frozen generator (assumptions in EVAL_PROTOCOL.md); not real-world accuracy."
+     "limitation": "Checked against our own verdict function, so validity is close to certain by construction. Synthetic cohort v2 from our own frozen generator (assumptions in EVAL_PROTOCOL.md); not real-world accuracy."
     },
     {
      "status": "done",
@@ -3437,7 +3437,7 @@
      "value": 1,
      "sample_size": 450,
      "level": 1,
-     "limitation": "Checked against our own verdict function, so validity is close to guaranteed by construction; plausibility needs lender review."
+     "limitation": "Checked against our own verdict function, so validity is close to certain by construction; plausibility needs lender review."
     },
     {
      "status": "done",

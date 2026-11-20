@@ -45,8 +45,8 @@ export function judge(f: Features, s: RuleSettings, model: ModelFile | null, seg
   if (mv !== rv) {
     if (rv !== 'not_sure' && mv !== 'not_sure') {
       final = 'not_sure';
-      en = `The rules say ${V[rv]} but the model says ${V[mv]}. Shown as not sure until a person looks closer.`;
-      bn = `নিয়ম বলছে ${VBN[rv]}, কিন্তু মডেল বলছে ${VBN[mv]}। কেউ ভালো করে না দেখা পর্যন্ত "নিশ্চিত নয়" দেখানো হচ্ছে।`;
+      en = `The rules say ${V[rv]} but the model says ${V[mv]}. Shown as not sure: the AI agents hold rather than guess.`;
+      bn = `নিয়ম বলছে ${VBN[rv]}, কিন্তু মডেল বলছে ${VBN[mv]}। তাই "নিশ্চিত নয়" দেখানো হচ্ছে: অনুমান না করে এআই এজেন্টরা আটকে রাখে।`;
     } else if (rv !== 'not_sure') {
       final = rv;
       en = `The rules say ${V[rv]}; the model's prediction set holds both outcomes, so it is less certain. Read the reasons closely.`;

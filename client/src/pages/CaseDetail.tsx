@@ -192,7 +192,7 @@ export default function CaseDetail() {
             {copied ? t('Copied', 'কপি হয়েছে') : t('Copy as credit memo', 'ক্রেডিট মেমো হিসেবে কপি')}
           </button>
           <a className="btn" href={`/owner/${data.shop.token}`} target="_blank" rel="noreferrer">
-            {t("Owner's copy", 'মালিকের কপি')}
+            {t("Owner's link", 'মালিকের লিংক')}
           </a>
         </div>
       </div>

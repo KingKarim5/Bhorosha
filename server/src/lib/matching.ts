@@ -1,4 +1,4 @@
-// Auto-verification by matching (v2). Replaces the officer tick.
+// Auto-verification by matching (v2): a reading counts as checked only when it matches the money trail.
 // A document claim becomes "checked" only on a STRONG match to the money trail. Weak, ambiguous or
 // missing matches stay "owner says" and produce a question for the owner. When in doubt: owner says.
 

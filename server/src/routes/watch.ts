@@ -33,11 +33,11 @@ r.patch('/flags/:id', staff, async (req, res) => {
   res.json(f);
 });
 
-// An officer can annotate a month as a one-off shock.
+// The lender can annotate a month as a one-off shock (it is logged; it never changes a decision).
 r.post('/checkins/:id/annotate', staff, async (req, res) => {
   const b = z.object({ note: z.string().trim().max(300) }).parse(req.body);
   const c = await CheckIn.findByIdAndUpdate(req.params.id, { officer_annotation: b.note }, { new: true });
-  await AuditLog.create({ actor: req.user!.email, action: 'officer:annotate_month', redacted_payload_json: b, output_json: {}, mode: 'human' });
+  await AuditLog.create({ actor: req.user!.email, action: 'lender:annotate_month', redacted_payload_json: b, output_json: {}, mode: 'human' });
   res.json(c);
 });
 

@@ -320,7 +320,7 @@ function counterfactuals(rows: Row[], model: ModelFile | null) {
     changed.push(cfs[0].changed_features.length);
   }
   const G = 'T11 · Counterfactual conditions';
-  add({ group: G, component: 'Conditions', metric: 'Validity (the suggested change moves the verdict)', value: found ? r3(valid / found) : null, sample_size: found, pass_mark: '>= 90%', pass: found ? valid / found >= 0.9 : null, test: 'T11', limitation: 'Checked against our own verdict function, so validity is close to guaranteed by construction. ' + LIM });
+  add({ group: G, component: 'Conditions', metric: 'Validity (the suggested change moves the verdict)', value: found ? r3(valid / found) : null, sample_size: found, pass_mark: '>= 90%', pass: found ? valid / found >= 0.9 : null, test: 'T11', limitation: 'Checked against our own verdict function, so validity is close to certain by construction. ' + LIM });
   add({ group: G, component: 'Conditions', metric: 'Files with a verdict-moving condition', value: tried ? r3(found / tried) : null, sample_size: tried, test: 'T11', limitation: 'The rest get the partial condition that moves them closest. ' + LIM });
   add({ group: G, component: 'Conditions', metric: 'Suggestions touching a protected or unchangeable feature', value: prot, sample_size: found, pass_mark: 'zero', pass: prot === 0, test: 'T11', level: 0, limitation: 'Enforced by the action list.' });
   add({ group: G, component: 'Conditions', metric: 'Features changed per suggestion (mean)', value: changed.length ? r3(mean(changed)) : null, sample_size: changed.length, test: 'T11', limitation: LIM });
